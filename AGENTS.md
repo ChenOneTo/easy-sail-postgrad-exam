@@ -11,10 +11,11 @@
 - 前端：Vite 8 + Tailwind CSS v4 + Zustand 5
 - 后端：Rust，位于 `src-tauri/`
 - 存储：本地 SQLite，通过 `tauri-plugin-sql` 访问
-- 中文名 / 产物名（productName）`轻舟考研台`，英文名 `Easy Sail Exam`，
+- 英文名 / 产物名（productName）`Easy Sail Exam`，中文名 `轻舟考研台`，
   包名 `easy-sail-postgrad-exam`，标识符 `com.easysail.postgradexam`
-- 安装包文件名由 productName 决定，因此是中文名；快捷方式、安装目录、
-  「程序和功能」条目随之全部为中文，无需 NSIS 钩子改名
+- 产物名保持 ASCII；安装后的快捷方式与「程序和功能」显示名由
+  `src-tauri/windows/hooks.nsh` 改写为中文。注意该钩子里重复写了一份
+  `APP_NAME_EN`，改 `productName` 时需同步。
 
 ## 常用命令
 
