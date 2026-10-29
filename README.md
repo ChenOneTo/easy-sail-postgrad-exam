@@ -206,7 +206,7 @@ interface Task {
 
 | 配置项 | 值 |
 |--------|-----|
-| 应用名称 | 轻舟考研台（英文名 / 产物名 `Easy Sail Exam`） |
+| 应用名称（productName） | 轻舟考研台（英文名 `Easy Sail Exam`） |
 | 应用标识 | `com.easysail.postgradexam` |
 | 窗口尺寸 | 1200 x 800（最小 900 x 600） |
 | 开发地址 | `http://localhost:1420` |
