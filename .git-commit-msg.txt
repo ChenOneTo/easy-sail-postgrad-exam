@@ -1,0 +1,4 @@
+chore: 英文名改为 Easy Sail Exam
+
+- tauri.conf.json 的 productName 改为 Easy Sail Exam（安装包与安装目录名随之变化）
+- 包名、Rust crate、应用标识、数据库文件名保持不变

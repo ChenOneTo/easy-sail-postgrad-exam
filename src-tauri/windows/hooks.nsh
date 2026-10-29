@@ -2,7 +2,7 @@
 ; Tauri NSIS installer hooks
 ;
 ; Purpose: keep productName / installer filename in English
-; ("easy-sail-postgrad-exam") while showing the Chinese name under the
+; ("Easy Sail Exam") while showing the Chinese name under the
 ; installed shortcuts.
 ;
 ; The Chinese display name is written with ${U+XXXX} escapes so this file

@@ -1,4 +1,4 @@
-# easy-sail-postgrad-exam - 轻舟考研台
+# Easy Sail Exam - 轻舟考研台
 
 一款基于 **Tauri + React + TypeScript** 构建的桌面效率应用。以任务管理为核心，
 集成灵感记录、AI 助手、考研计划与背单词等模块。
@@ -206,7 +206,7 @@ interface Task {
 
 | 配置项 | 值 |
 |--------|-----|
-| 应用名称 | 轻舟考研台（产物名 `easy-sail-postgrad-exam`） |
+| 应用名称 | 轻舟考研台（英文名 / 产物名 `Easy Sail Exam`） |
 | 应用标识 | `com.easysail.postgradexam` |
 | 窗口尺寸 | 1200 x 800（最小 900 x 600） |
 | 开发地址 | `http://localhost:1420` |

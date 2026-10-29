@@ -11,7 +11,8 @@
 - 前端：Vite 8 + Tailwind CSS v4 + Zustand 5
 - 后端：Rust，位于 `src-tauri/`
 - 存储：本地 SQLite，通过 `tauri-plugin-sql` 访问
-- 英文名/包名 `easy-sail-postgrad-exam`，产物名 `easy-sail-postgrad-exam`，标识符 `com.easysail.postgradexam`
+- 英文名 `Easy Sail Exam`，产物名 `Easy Sail Exam`，包名 `easy-sail-postgrad-exam`，
+  标识符 `com.easysail.postgradexam`
 
 ## 常用命令
 
