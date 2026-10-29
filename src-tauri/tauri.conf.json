@@ -56,7 +56,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQzRDYyQzg3OTMxRjcwRTUKUldUbGNCK1RoeXpXMDR6MjRCbmtxdUlLNjloR09zMHU0QXNxaVdGVy9HUkF0N2JUdWxkOTNoaHkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI4ODk5RTg2RENGRDdEMDMKUldRRGZmM2NocDZKS0RqWlBZM2d2TWVFcmRYbTNyK0Zvd00rUVpsenFhYjJsVytUNnpBT0VLSmQK",
       "endpoints": [
         "https://github.com/ChenOneTo/easy-sail-postgrad-exam/releases/latest/download/latest.json"
       ],
