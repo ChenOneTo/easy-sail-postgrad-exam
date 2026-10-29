@@ -1,0 +1,94 @@
+name: Build Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # 各平台并行构建，安装包与 latest.json 直接发布到 GitHub Release
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+          # 本次发布仅构建 Windows，macOS / Linux 构建暂时关闭。
+          # 恢复多平台打包时，取消下面两段 include 的注释即可。
+          # - platform: macos-latest
+          #   target: aarch64-apple-darwin
+          #   bundles: dmg
+          # - platform: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   bundles: deb,appimage
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust build cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Check updater signing key
+        shell: bash
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]; then
+            echo "::error::Missing repository secret TAURI_SIGNING_PRIVATE_KEY."
+            exit 1
+          fi
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
+      - name: Build Tauri app
+        id: build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # 优先用自定义 RELEASE_TOKEN（需在仓库 secrets 中配置），未配置时回退到内置 GITHUB_TOKEN
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: '轻舟考研台 v__VERSION__'
+          releaseBody: |
+            ## 轻舟考研台 v__VERSION__
+
+            自动构建的桌面应用安装包，本次仅提供 Windows 版本。
+
+            ### 下载说明
+            - **Windows**: `-setup.exe`（推荐）或 `.msi`
+          releaseDraft: false
+          prerelease: false
+          args: --bundles ${{ matrix.bundles }}
+          # 安装包与 latest.json 一并上传到 GitHub Release，客户端按 releases/latest 拉取更新
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
