@@ -14,8 +14,7 @@ export type SectionId =
   | 'exam'
   | 'exam-vocab'
   | 'exam-vocab-game'
-  | 'ai'
-  | 'inspiration';
+  | 'ai';
 
 /** 重复提醒类型 */
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -49,21 +48,6 @@ export interface Task {
   recurrence: RecurrenceRule | null;  // 重复规则
   snoozedUntil: string | null;        // 稍后提醒的时间点
   lastNotifiedAt: string | null;      // 上次通知触发时间（防重复）
-}
-
-/** 灵感闪念 */
-export interface Inspiration {
-  id: number;
-  /** 原始一句话记录 */
-  content: string;
-  /** AI 提炼的标题 */
-  title: string;
-  /** AI 润色/扩写后的内容 */
-  polished: string;
-  /** AI 建议的标签（自由文本） */
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface TaskType {

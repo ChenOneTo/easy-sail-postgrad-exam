@@ -1,12 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
 import { Sun, Moon, Settings, Palette, Cloud, Database, Bot, Plus, Trash2, Check, Pencil, Info } from 'lucide-react';
 import { useTaskStore, ACCENT_COLORS } from '../stores/task-store';
-import { useInspirationStore } from '../stores/inspiration-store';
 import { dbReplaceAll } from '../lib/db';
-import { dbReplaceAllInspirations } from '../lib/inspiration-db';
 import {
   getCloudDir, pickCloudDir, setCloudDir, saveToCloud, loadFromCloud,
-  saveInspirationsToCloud, loadInspirationsFromCloud,
   getAutoSave, setAutoSave, getAutoInterval, setAutoInterval,
 } from '../lib/cloud';
 import {
@@ -37,7 +34,6 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
 
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { theme, setTheme, accentColor, setAccentColor, tasks, updateTask } = useTaskStore();
-  const { inspirations, replaceInspirations } = useInspirationStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState('');
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -120,7 +116,6 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       version: 2,
       exportedAt: new Date().toISOString(),
       tasks,
-      inspirations,
     };
     const json = JSON.stringify(exportData, null, 2);
     const fileName = `easysail-exam-backup-${new Date().toISOString().split('T')[0]}.json`;
@@ -137,7 +132,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
         });
         if (filePath) {
           await writeTextFile(filePath, json);
-          setImportMsg(`已导出 ${tasks.length} 条任务、${inspirations.length} 条灵感`);
+          setImportMsg(`已导出 ${tasks.length} 条任务`);
         }
       } catch (err) {
         console.error('[Export] Tauri 导出失败:', err);
@@ -154,7 +149,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
-    setImportMsg(`已导出 ${tasks.length} 条任务、${inspirations.length} 条灵感`);
+    setImportMsg(`已导出 ${tasks.length} 条任务`);
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,21 +160,14 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       const text = await file.text();
       const data = JSON.parse(text);
 
-      // 新格式：{ version, tasks, inspirations }
+      // 新格式：{ version, tasks }
       if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.tasks)) {
         const taskList = data.tasks;
         const valid = taskList.every((t: Record<string, unknown>) => typeof t === 'object' && t.title && typeof t.id === 'number');
         if (!valid) { setImportMsg('文件格式错误：任务数据缺少必要字段'); return; }
         try { await dbReplaceAll(taskList); } catch { /* fallback */ }
         useTaskStore.getState().replaceTasks(taskList);
-        let msg = `成功导入 ${taskList.length} 条任务`;
-        // 灵感数据
-        if (Array.isArray(data.inspirations) && data.inspirations.length > 0) {
-          try { await dbReplaceAllInspirations(data.inspirations); } catch { /* fallback */ }
-          replaceInspirations(data.inspirations);
-          msg += `、${data.inspirations.length} 条灵感`;
-        }
-        setImportMsg(msg);
+        setImportMsg(`成功导入 ${taskList.length} 条任务`);
         e.target.value = '';
         return;
       }
@@ -223,8 +211,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     setCloudMsg('');
     try {
       const taskResult = await saveToCloud(tasks);
-      const inspResult = await saveInspirationsToCloud(inspirations);
-      setCloudMsg(`已保存 ${taskResult.count} 条任务、${inspResult.count} 条灵感到云盘`);
+      setCloudMsg(`已保存 ${taskResult.count} 条任务到云盘`);
     } catch (err: unknown) {
       setCloudMsg(`保存失败：${err instanceof Error ? err.message : '未知错误'}`);
     }
@@ -243,20 +230,10 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       } catch (err) {
         console.warn('[CloudLoad] 任务加载失败:', err);
       }
-      // 加载灵感
-      let inspCount = 0;
-      try {
-        const inspData = await loadInspirationsFromCloud();
-        replaceInspirations(inspData);
-        try { await dbReplaceAllInspirations(inspData); } catch { /* fallback */ }
-        inspCount = inspData.length;
-      } catch (err) {
-        console.warn('[CloudLoad] 灵感加载失败:', err);
-      }
-      if (taskCount === 0 && inspCount === 0) {
+      if (taskCount === 0) {
         setCloudMsg('未找到云盘数据');
       } else {
-        setCloudMsg(`已加载 ${taskCount} 条任务、${inspCount} 条灵感`);
+        setCloudMsg(`已加载 ${taskCount} 条任务`);
       }
     } catch (err: unknown) {
       setCloudMsg(`加载失败：${err instanceof Error ? err.message : '未知错误'}`);
@@ -986,14 +963,14 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                 <div className="setting-row">
                   <div>
                     <div className="setting-label">导出数据</div>
-                    <div className="setting-desc">将任务和灵感导出为 JSON 文件，可用于备份或迁移</div>
+                    <div className="setting-desc">将任务导出为 JSON 文件，可用于备份或迁移</div>
                   </div>
                   <button style={btnStyle} onClick={handleExport}>导出</button>
                 </div>
                 <div className="setting-row">
                   <div>
                     <div className="setting-label">导入数据</div>
-                    <div className="setting-desc">从 JSON 文件导入任务和灵感（将覆盖当前所有数据）</div>
+                    <div className="setting-desc">从 JSON 文件导入任务（将覆盖当前所有数据）</div>
                   </div>
                   <div>
                     <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />

@@ -8,7 +8,7 @@ import type { ViewMode, SectionId } from '../lib/types';
 const TITLES: Record<SectionId, string> = {
   inbox: '首页', today: '今天', ai: 'AI 助手', review: '复盘',
   'project-work': '工作', 'project-study': '学习', 'project-life': '生活',
-  'tag-urgent': '紧急', 'tag-important': '重要', inspiration: '灵感',
+  'tag-urgent': '紧急', 'tag-important': '重要',
   exam: '考研计划', 'exam-vocab': '背单词', 'exam-vocab-game': '单词闯关',
 };
 
@@ -71,7 +71,7 @@ export function TopBar({ onOpenNotifications }: { onOpenNotifications?: () => vo
     setOverIdx(null);
   };
 
-  const hideChrome = currentView === 'ai' || currentSection === 'review' || currentSection === 'inspiration' || currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game';
+  const hideChrome = currentView === 'ai' || currentSection === 'review' || currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game';
 
   return (
     <header className="topbar">

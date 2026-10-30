@@ -283,6 +283,14 @@ pub fn run() {
                                 CREATE INDEX IF NOT EXISTS idx_vocab_game_replay ON exam_vocab_game_runs(replay);
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 2,
+                            description: "drop inspirations table (feature removed)",
+                            sql: r#"
+                                DROP TABLE IF EXISTS inspirations;
+                            "#,
+                        },
                     ],
                 )
                 .build(),

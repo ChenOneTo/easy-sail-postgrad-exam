@@ -440,7 +440,7 @@ function ExamSettingsModal({ profile, onClose }: { profile: ReturnType<typeof us
             <input className="exam-input" type="number" min={30} value={goal} onChange={e => setGoal(e.target.value)} />
           </div>
           <div className="detail-field">
-            <div className="detail-field-label">云盘同步（与任务/灵感共用同一目录）</div>
+            <div className="detail-field-label">云盘同步（与任务共用同一目录）</div>
             <div className="exam-cloud-row">
               <button className="exam-ghost-btn" disabled={cloudBusy} onClick={() => void handleBackup()}>备份到云盘</button>
               <button className="exam-ghost-btn" disabled={cloudBusy} onClick={() => void handleRestore()}>从云盘恢复</button>

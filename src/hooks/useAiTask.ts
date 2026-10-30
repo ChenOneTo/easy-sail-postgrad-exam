@@ -6,8 +6,6 @@ import {
   buildAiChatPrompt,
   buildClassifyTasksPrompt,
   buildExamPlanPrompt,
-  buildInspirationIdeasPrompt,
-  buildInspirationPolishPrompt,
   buildPolishNotesPrompt,
   buildQuickAddPrompt,
   buildPeriodSummaryPrompt,
@@ -18,8 +16,6 @@ import {
   normalizeAiBreakdownDraft,
   normalizeAiChatDraft,
   normalizeAiClassifyDraft,
-  normalizeAiInspirationIdeas,
-  normalizeAiInspirationPolish,
   normalizeAiTaskDraft,
   normalizeExamPlanDraft,
   normalizeMnemonicDraft,
@@ -28,8 +24,6 @@ import {
   type AiChatDraft,
   type AiClassifyDraft,
   type AiExamPlanDraft,
-  type AiInspirationIdeas,
-  type AiInspirationPolish,
   type AiMnemonicDraft,
   type AiTaskDraft,
 } from '../lib/ai-json';
@@ -154,28 +148,6 @@ export function useAiTask() {
     });
   }, [run]);
 
-  /** 灵感润色：一句话 → 标题 + 标签 + 扩写 */
-  const polishInspiration = useCallback((content: string): Promise<AiInspirationPolish | null> => {
-    return run(async signal => {
-      const result = await chatCompletion([
-        { role: 'system', content: '你只输出可解析 JSON。' },
-        { role: 'user', content: buildInspirationPolishPrompt(content) },
-      ], { signal, temperature: 0.5 });
-      return normalizeAiInspirationPolish(parseAiJson(result));
-    });
-  }, [run]);
-
-  /** 灵感联想：基于一句话发散出 3 个延伸灵感 */
-  const brainstormInspiration = useCallback((input: string): Promise<AiInspirationIdeas | null> => {
-    return run(async signal => {
-      const result = await chatCompletion([
-        { role: 'system', content: '你只输出可解析 JSON。' },
-        { role: 'user', content: buildInspirationIdeasPrompt(input) },
-      ], { signal, temperature: 0.8 });
-      return normalizeAiInspirationIdeas(parseAiJson(result));
-    });
-  }, [run]);
-
   /** 考研周计划生成：需求 → 未来 7 天任务草稿列表 */
   const generateExamPlan = useCallback((subjectName: string, requirement: string, examDate: string | null): Promise<AiExamPlanDraft | null> => {
     return run(async signal => {
@@ -211,8 +183,6 @@ export function useAiTask() {
     summarizePeriod,
     chatWithTasks,
     classifyTasks,
-    polishInspiration,
-    brainstormInspiration,
     generateExamPlan,
     generateMnemonic,
   };

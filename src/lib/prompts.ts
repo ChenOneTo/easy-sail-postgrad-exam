@@ -144,31 +144,6 @@ export function buildAiChatPrompt(
   ].join('\n');
 }
 
-/** 灵感润色：一句话 → 标题 + 标签 + 扩写 */
-export function buildInspirationPolishPrompt(content: string): string {
-  return [
-    '你是灵感整理助手。用户用一句话记录了一个灵感，请帮TA整理。',
-    '只返回 JSON，不要输出 Markdown，不要解释。',
-    'JSON schema: {"title":"string","tags":["string"],"polished":"string"}',
-    'title：不超过 15 个字，概括灵感核心。',
-    'tags：1~3 个简短中文标签，体现领域或主题（如 产品、写作、生活、创意、技术）。',
-    'polished：基于原句扩写成一段完整、通顺的想法描述（80~150 字），保留原意，可补充可执行的第一步，不要编造不存在的事实。',
-    `灵感原文：${content}`,
-  ].join('\n');
-}
-
-/** 灵感联想：基于一句话发散出 3 个延伸灵感 */
-export function buildInspirationIdeasPrompt(input: string): string {
-  return [
-    '你是创意发散助手。基于用户的一句话灵感，发散出 3 个不同角度的延伸灵感。',
-    '只返回 JSON，不要输出 Markdown，不要解释。',
-    'JSON schema: {"ideas":["string","string","string"]}',
-    '每个 idea 是一句完整的话（30 字以内），具体、可执行、角度互不重复。',
-    '不要重复用户原句的意思。',
-    `用户灵感：${input}`,
-  ].join('\n');
-}
-
 export function buildClassifyTasksPrompt(tasks: Task[]): string {
   return [
     '你是任务归类助手。请根据任务标题、备注、截止日期，为任务建议类型和标签。',

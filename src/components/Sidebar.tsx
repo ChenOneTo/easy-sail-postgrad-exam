@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Home, Settings, Bot, BarChart3, Bell, Lightbulb, GraduationCap, BookOpen, Swords } from 'lucide-react';
+import { Home, Settings, Bot, BarChart3, Bell, GraduationCap, BookOpen, Swords } from 'lucide-react';
 import { useTaskStore } from '../stores/task-store';
 import { TASK_TYPES } from '../lib/types';
 import type { SectionId } from '../lib/types';
@@ -15,7 +15,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { id: 'inbox', label: '首页', icon: <Home size={16} /> },
-      { id: 'inspiration', label: '灵感', icon: <Lightbulb size={16} /> },
       { id: 'ai', label: 'AI 助手', icon: <Bot size={16} /> },
       { id: 'review', label: '复盘', icon: <BarChart3 size={16} /> },
     ],

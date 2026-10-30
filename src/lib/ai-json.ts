@@ -54,16 +54,6 @@ export interface AiClassifyDraft {
   suggestions: AiClassifySuggestion[];
 }
 
-export interface AiInspirationPolish {
-  title: string;
-  tags: string[];
-  polished: string;
-}
-
-export interface AiInspirationIdeas {
-  ideas: string[];
-}
-
 function extractJson(text: string): string {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -247,37 +237,6 @@ export function normalizeAiClassifyDraft(raw: unknown, allowedTaskIds: number[])
 
   if (suggestions.length === 0) throw new Error('AI 未返回可用归类建议');
   return { suggestions };
-}
-
-export function normalizeAiInspirationPolish(raw: unknown): AiInspirationPolish {
-  const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
-  const polished = limitText(obj.polished, 600);
-  if (!polished) throw new Error('AI 未返回润色内容');
-
-  const tagsRaw = Array.isArray(obj.tags) ? obj.tags : [];
-  const tags = [...new Set(
-    tagsRaw
-      .map(tag => limitText(tag, 12))
-      .filter(Boolean)
-  )].slice(0, 3);
-
-  return {
-    title: limitText(obj.title, 30),
-    tags,
-    polished,
-  };
-}
-
-export function normalizeAiInspirationIdeas(raw: unknown): AiInspirationIdeas {
-  const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
-  const ideasRaw = Array.isArray(obj.ideas) ? obj.ideas : [];
-  const ideas = ideasRaw
-    .map(idea => limitText(idea, 80))
-    .filter(Boolean)
-    .slice(0, 3);
-
-  if (ideas.length === 0) throw new Error('AI 未返回可用灵感');
-  return { ideas };
 }
 
 // —— 考研周计划（独立于主对话 schema） ——

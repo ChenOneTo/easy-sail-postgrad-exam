@@ -3,8 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Task, KanbanStatus, ViewMode, SectionId, RecurrenceRule } from '../lib/types';
 import { dbFetchAll, dbInsert, dbUpdate, dbDelete } from '../lib/db';
 import { localDateStr } from '../lib/utils';
-import { initCloudSync, registerTaskGetter, registerInspirationGetter, registerExamGetter, registerExamVocabGetter } from '../lib/cloud';
-import { useInspirationStore } from './inspiration-store';
+import { initCloudSync, registerTaskGetter, registerExamGetter, registerExamVocabGetter } from '../lib/cloud';
 import { useExamStore } from './exam-store';
 import { useExamVocabStore } from './exam-vocab-store';
 import { isTauri } from '../lib/tauri';
@@ -455,7 +454,6 @@ export const useTaskStore = create<TaskStore>()(
   await store.loadFromDb();
   initCloudSync();
   registerTaskGetter(() => useTaskStore.getState().tasks);
-  registerInspirationGetter(() => useInspirationStore.getState().inspirations);
   // 考研计划快照：仅在数据已加载（用户进入过考研专区）时参与自动同步
   registerExamGetter(() => useExamStore.getState().getCloudSnapshot());
   // 背单词快照：需查库故为异步；用户进入过背单词页后才参与自动同步

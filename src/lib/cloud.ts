@@ -1,18 +1,15 @@
 import type { Task } from './types';
-import type { Inspiration } from './types';
 import type { ExamCloudSnapshot } from './exam-db';
 import type { ExamVocabCloudSnapshot } from './exam-vocab-db';
 import { isTauri } from './tauri';
 
 const CLOUD_DIR_KEY = 'easysail-exam-cloud-dir';
 const CLOUD_FILE = 'easysail-exam-tasks.json';
-const INSPIRATION_CLOUD_FILE = 'easysail-exam-inspirations.json';
 const EXAM_CLOUD_FILE = 'easysail-exam-plan.json';
 const EXAM_VOCAB_CLOUD_FILE = 'easysail-exam-vocab.json';
 const AUTO_SAVE_KEY = 'easysail-exam-cloud-autosave';
 const AUTO_INTERVAL_KEY = 'easysail-exam-cloud-interval';
 const CLOUD_DATA_KEY = 'easysail-exam-cloud-data'; // 浏览器模式 fallback
-const CLOUD_INSPIRATION_DATA_KEY = 'easysail-exam-cloud-inspiration-data';
 const CLOUD_EXAM_DATA_KEY = 'easysail-exam-cloud-plan-data';
 const CLOUD_EXAM_VOCAB_DATA_KEY = 'easysail-exam-cloud-vocab-data';
 
@@ -71,18 +68,7 @@ export async function loadFromCloud(): Promise<Task[]> {
   return loadCollectionFromCloud<Task[]>(CLOUD_FILE, CLOUD_DATA_KEY, parseTaskData);
 }
 
-/** 将灵感数据保存到云盘目录 */
-export async function saveInspirationsToCloud(inspirations: Inspiration[]): Promise<{ path: string; count: number }> {
-  const data = { version: 1, exportedAt: new Date().toISOString(), inspirations };
-  return saveCollectionToCloud(INSPIRATION_CLOUD_FILE, data, CLOUD_INSPIRATION_DATA_KEY);
-}
-
-/** 从云盘目录读取灵感数据 */
-export async function loadInspirationsFromCloud(): Promise<Inspiration[]> {
-  return loadCollectionFromCloud<Inspiration[]>(INSPIRATION_CLOUD_FILE, CLOUD_INSPIRATION_DATA_KEY, parseInspirationData);
-}
-
-/** 将考研计划数据保存到云盘目录（独立文件，不与任务/灵感混合） */
+/** 将考研计划数据保存到云盘目录（独立文件，不与任务混合） */
 export async function saveExamToCloud(snapshot: ExamCloudSnapshot): Promise<{ path: string; count: number }> {
   const data = {
     version: 1,
@@ -161,9 +147,6 @@ export async function cloudFileExists(): Promise<boolean> {  const dir = getClo
         const { join } = await import('@tauri-apps/api/path');
         const filePath = await join(dir, CLOUD_FILE);
         if (await exists(filePath)) return true;
-        // 也检查灵感文件
-        const inspFilePath = await join(dir, INSPIRATION_CLOUD_FILE);
-        if (await exists(inspFilePath)) return true;
         // 也检查考研计划文件
         const examFilePath = await join(dir, EXAM_CLOUD_FILE);
         if (await exists(examFilePath)) return true;
@@ -175,14 +158,12 @@ export async function cloudFileExists(): Promise<boolean> {  const dir = getClo
       }
     }
     return !!localStorage.getItem(CLOUD_DATA_KEY)
-      || !!localStorage.getItem(CLOUD_INSPIRATION_DATA_KEY)
       || !!localStorage.getItem(CLOUD_EXAM_DATA_KEY)
       || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY);
   }
 
   // 浏览器 fallback
   return !!localStorage.getItem(CLOUD_DATA_KEY)
-    || !!localStorage.getItem(CLOUD_INSPIRATION_DATA_KEY)
     || !!localStorage.getItem(CLOUD_EXAM_DATA_KEY)
     || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY);
 }
@@ -192,14 +173,6 @@ function parseTaskData(text: string): Task[] {
   const data = JSON.parse(text);
   if (Array.isArray(data)) return data;
   if (data?.tasks && Array.isArray(data.tasks)) return data.tasks;
-  throw new Error('文件格式无法识别');
-}
-
-/** 解析灵感数据（兼容纯数组和对象格式） */
-function parseInspirationData(text: string): Inspiration[] {
-  const data = JSON.parse(text);
-  if (Array.isArray(data)) return data;
-  if (data?.inspirations && Array.isArray(data.inspirations)) return data.inspirations;
   throw new Error('文件格式无法识别');
 }
 
@@ -301,18 +274,12 @@ export async function pickCloudDir(): Promise<string | null> {
 // ========== 自动同步 ==========
 
 let _getTasks: (() => Task[]) | null = null;
-let _getInspirations: (() => Inspiration[]) | null = null;
 let _getExam: (() => ExamCloudSnapshot | null) | null = null;
 let _getExamVocab: (() => Promise<ExamVocabCloudSnapshot | null>) | null = null;
 
 /** 注册获取任务的回调（由 store 调用） */
 export function registerTaskGetter(fn: () => Task[]) {
   _getTasks = fn;
-}
-
-/** 注册获取灵感的回调（由 store 调用） */
-export function registerInspirationGetter(fn: () => Inspiration[]) {
-  _getInspirations = fn;
 }
 
 /** 注册考研计划快照回调：未加载/无科目时返回 null，自动同步将跳过该文件 */
@@ -335,7 +302,6 @@ function startAutoSave() {
     if (!getCloudDir()) return;
     try {
       if (_getTasks) await saveToCloud(_getTasks());
-      if (_getInspirations) await saveInspirationsToCloud(_getInspirations());
       const exam = _getExam?.();
       if (exam) await saveExamToCloud(exam);
       const vocab = await _getExamVocab?.();
