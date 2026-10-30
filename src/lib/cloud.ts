@@ -122,6 +122,7 @@ function parseExamVocabData(text: string): ExamVocabCloudSnapshot {
       reviews: Array.isArray(vocab.reviews) ? vocab.reviews : [],
       hardwords: Array.isArray(vocab.hardwords) ? vocab.hardwords : [],
       mnemonics: Array.isArray(vocab.mnemonics) ? vocab.mnemonics : [],
+      gameRuns: Array.isArray(vocab.gameRuns) ? vocab.gameRuns : [],
     } as ExamVocabCloudSnapshot;
   }
   throw new Error('文件格式无法识别');

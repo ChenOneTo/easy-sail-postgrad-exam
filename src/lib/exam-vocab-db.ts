@@ -116,6 +116,24 @@ export interface ExamVocabCloudSnapshot {
   hardwords: Omit<VocabHardWord, 'word' | 'meaning' | 'unit'>[];
   /** AI 助记（旧备份无此字段，恢复时容错为 []） */
   mnemonics?: VocabMnemonicRecord[];
+  /** 单词闯关成绩（关卡进度由此累计；旧备份无此字段，恢复时容错为 []） */
+  gameRuns?: VocabGameRunRow[];
+}
+
+/** 单词闯关成绩行（exam_vocab_game_runs 的快照形态） */
+export interface VocabGameRunRow {
+  id: number;
+  level: number;
+  levelSize: number;
+  wordsTotal: number;
+  correct: number;
+  answered: number;
+  accuracy: number;
+  durationMs: number;
+  passed: boolean;
+  replay: boolean;
+  startedAt: string;
+  finishedAt: string;
 }
 
 // ========== 行转换（容错） ==========
@@ -208,6 +226,23 @@ function rowToMnemonic(row: Record<string, unknown>): VocabMnemonicRecord {
     sentenceZh: (row.sentence_zh as string) || '',
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
+  };
+}
+
+function rowToGameRun(row: Record<string, unknown>): VocabGameRunRow {
+  return {
+    id: (row.id as number) ?? 0,
+    level: (row.level as number) ?? 1,
+    levelSize: (row.level_size as number) ?? 20,
+    wordsTotal: (row.words_total as number) ?? 0,
+    correct: (row.correct as number) ?? 0,
+    answered: (row.answered as number) ?? 0,
+    accuracy: (row.accuracy as number) ?? 0,
+    durationMs: (row.duration_ms as number) ?? 0,
+    passed: !!((row.passed as number) ?? 0),
+    replay: !!((row.replay as number) ?? 0),
+    startedAt: (row.started_at as string) || '',
+    finishedAt: (row.finished_at as string) || '',
   };
 }
 
@@ -749,12 +784,13 @@ export async function fetchLapseStats(direction: CardDirection): Promise<LapseSt
  */
 export async function getExamVocabCloudSnapshot(): Promise<ExamVocabCloudSnapshot> {
   const db = await getExamVocabDb();
-  const [profileRows, cardRows, reviewRows, hardRows, mnemonicRows] = await Promise.all([
+  const [profileRows, cardRows, reviewRows, hardRows, mnemonicRows, runRows] = await Promise.all([
     db.select<Record<string, unknown>[]>('SELECT * FROM exam_vocab_profile WHERE id = 1'),
     db.select<Record<string, unknown>[]>('SELECT * FROM exam_vocab_cards'),
     db.select<Record<string, unknown>[]>('SELECT * FROM exam_vocab_reviews'),
     db.select<Record<string, unknown>[]>('SELECT * FROM exam_vocab_hardwords'),
     db.select<Record<string, unknown>[]>('SELECT * FROM exam_vocab_mnemonics'),
+    db.select<Record<string, unknown>[]>('SELECT * FROM exam_vocab_game_runs ORDER BY id ASC'),
   ]);
   return {
     profile: profileRows.length ? rowToProfile(profileRows[0]) : { ...DEFAULT_PROFILE },
@@ -762,6 +798,7 @@ export async function getExamVocabCloudSnapshot(): Promise<ExamVocabCloudSnapsho
     reviews: reviewRows.map(rowToReview),
     hardwords: hardRows.map(rowToHardword),
     mnemonics: mnemonicRows.map(rowToMnemonic),
+    gameRuns: runRows.map(rowToGameRun),
   };
 }
 
@@ -777,6 +814,7 @@ export async function replaceExamVocabData(snapshot: ExamVocabCloudSnapshot): Pr
     await db.execute('DELETE FROM exam_vocab_reviews');
     await db.execute('DELETE FROM exam_vocab_hardwords');
     await db.execute('DELETE FROM exam_vocab_mnemonics');
+    await db.execute('DELETE FROM exam_vocab_game_runs');
 
     // 保留原始 id：reviews.card_id 引用此 id，若让 AUTOINCREMENT 重排则恢复后日志全部变孤儿
     for (const c of snapshot.cards) {
@@ -808,6 +846,18 @@ export async function replaceExamVocabData(snapshot: ExamVocabCloudSnapshot): Pr
           m.wordId, m.roots || '', m.mnemonic || '', m.method || '', m.scene || '',
           m.sentence || '', m.sentenceZh || '',
           m.createdAt || new Date().toISOString(), m.updatedAt || new Date().toISOString(),
+        ]
+      );
+    }
+    for (const r of snapshot.gameRuns ?? []) {
+      await db.execute(
+        `INSERT INTO exam_vocab_game_runs
+           (id, level, level_size, words_total, correct, answered, accuracy, duration_ms, passed, replay, started_at, finished_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [
+          r.id, r.level, r.levelSize, r.wordsTotal, r.correct, r.answered,
+          r.accuracy, r.durationMs, r.passed ? 1 : 0, r.replay ? 1 : 0,
+          r.startedAt || new Date().toISOString(), r.finishedAt || new Date().toISOString(),
         ]
       );
     }
