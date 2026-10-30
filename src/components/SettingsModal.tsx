@@ -1,9 +1,14 @@
 import { useRef, useState, useEffect } from 'react';
 import { Sun, Moon, Settings, Palette, Cloud, Database, Bot, Plus, Trash2, Check, Pencil, Info } from 'lucide-react';
 import { useTaskStore, ACCENT_COLORS } from '../stores/task-store';
+import { useExamStore } from '../stores/exam-store';
+import { useExamVocabStore } from '../stores/exam-vocab-store';
+import { useVocabGameStore } from '../stores/vocab-game-store';
 import { dbReplaceAll } from '../lib/db';
+import { getExamVocabCloudSnapshot } from '../lib/exam-vocab-db';
 import {
   getCloudDir, pickCloudDir, setCloudDir, saveToCloud, loadFromCloud,
+  saveExamToCloud, saveExamVocabToCloud,
   getAutoSave, setAutoSave, getAutoInterval, setAutoInterval,
 } from '../lib/cloud';
 import {
@@ -31,6 +36,20 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
   { key: 'data', label: '数据管理', icon: <Database size={16} /> },
   { key: 'about', label: '关于', icon: <Info size={16} /> },
 ];
+
+/** 错误信息转文本 */
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : '未知错误';
+}
+
+/** 汇总手动同步结果：已保存 / 已跳过 / 失败 */
+function formatSyncMsg(prefix: string, saved: string[], skipped: string[], failed: string[]): string {
+  const parts: string[] = [];
+  if (saved.length) parts.push(`${prefix}：${saved.join('、')}`);
+  if (skipped.length) parts.push(`已跳过 ${skipped.join('、')}`);
+  if (failed.length) parts.push(`失败 ${failed.join('；')}`);
+  return parts.join('；') || '没有可同步的数据';
+}
 
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { theme, setTheme, accentColor, setAccentColor, tasks, updateTask } = useTaskStore();
@@ -207,37 +226,110 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     setAutoSaveState(false);
   };
 
+  /**
+   * 手动保存到云盘：任务、考研计划、背单词进度各存一个 JSON 文件。
+   * 各模块独立容错：某个模块失败不影响其余模块写入。
+   * 本地没有数据的模块一律跳过，避免用空快照覆盖云端有效数据。
+   */
   const handleCloudSave = async () => {
     setCloudMsg('');
+    const saved: string[] = [];
+    const skipped: string[] = [];
+    const failed: string[] = [];
+
+    // 任务
     try {
       const taskResult = await saveToCloud(tasks);
-      setCloudMsg(`已保存 ${taskResult.count} 条任务到云盘`);
+      saved.push(`${taskResult.count} 条任务`);
     } catch (err: unknown) {
-      setCloudMsg(`保存失败：${err instanceof Error ? err.message : '未知错误'}`);
+      failed.push(`任务（${errText(err)}）`);
     }
+
+    // 考研计划
+    try {
+      const snapshot = useExamStore.getState().getCloudSnapshot();
+      if (!snapshot) {
+        skipped.push('考研计划（本地未加载）');
+      } else {
+        await saveExamToCloud(snapshot);
+        saved.push(`考研计划（${snapshot.tasks.length} 项考务）`);
+      }
+    } catch (err: unknown) {
+      failed.push(`考研计划（${errText(err)}）`);
+    }
+
+    // 背单词：词卡调度 + 难词本 + AI 助记 + 闯关成绩
+    try {
+      if (!isTauri()) {
+        skipped.push('背单词（浏览器模式不支持）');
+      } else {
+        const snapshot = await getExamVocabCloudSnapshot();
+        const runs = snapshot.gameRuns?.length ?? 0;
+        const hasData = snapshot.cards.length > 0 || snapshot.reviews.length > 0 || runs > 0;
+        if (!hasData) {
+          skipped.push('背单词（本地暂无进度）');
+        } else {
+          await saveExamVocabToCloud(snapshot);
+          saved.push(`背单词（${snapshot.cards.length} 张卡片 / ${runs} 条闯关成绩）`);
+        }
+      }
+    } catch (err: unknown) {
+      failed.push(`背单词（${errText(err)}）`);
+    }
+
+    setCloudMsg(formatSyncMsg('已保存', saved, skipped, failed));
   };
 
+  /**
+   * 从云盘加载：任务、考研计划、背单词进度分别恢复。
+   * 云盘缺少某模块时只提示、不清空本地数据。
+   */
   const handleCloudLoad = async () => {
     setCloudMsg('');
+    const restored: string[] = [];
+    const missing: string[] = [];
+    const failed: string[] = [];
+
+    // 任务
     try {
-      // 加载任务
-      let taskCount = 0;
-      try {
-        const taskData = await loadFromCloud();
-        useTaskStore.getState().replaceTasks(taskData);
-        try { await dbReplaceAll(useTaskStore.getState().tasks); } catch { /* fallback */ }
-        taskCount = taskData.length;
-      } catch (err) {
-        console.warn('[CloudLoad] 任务加载失败:', err);
-      }
-      if (taskCount === 0) {
-        setCloudMsg('未找到云盘数据');
-      } else {
-        setCloudMsg(`已加载 ${taskCount} 条任务`);
-      }
-    } catch (err: unknown) {
-      setCloudMsg(`加载失败：${err instanceof Error ? err.message : '未知错误'}`);
+      const taskData = await loadFromCloud();
+      useTaskStore.getState().replaceTasks(taskData);
+      try { await dbReplaceAll(useTaskStore.getState().tasks); } catch { /* fallback */ }
+      restored.push(`${taskData.length} 条任务`);
+    } catch (err) {
+      console.warn('[CloudLoad] 任务加载失败:', err);
+      missing.push('任务');
     }
+
+    // 考研计划
+    try {
+      await useExamStore.getState().restoreFromCloud();
+      restored.push('考研计划');
+    } catch (err) {
+      console.warn('[CloudLoad] 考研计划加载失败:', err);
+      missing.push('考研计划');
+    }
+
+    // 背单词（含闯关成绩）
+    try {
+      const { restored: ok } = await useExamVocabStore.getState().restoreFromCloud();
+      if (ok) {
+        restored.push('背单词进度');
+        // 恢复后刷新闯关概览（关卡进度与最近成绩）
+        try { await useVocabGameStore.getState().refresh(); } catch { /* 浏览器模式无库 */ }
+      } else {
+        missing.push('背单词');
+      }
+    } catch (err) {
+      console.warn('[CloudLoad] 背单词加载失败:', err);
+      failed.push(`背单词（${errText(err)}）`);
+    }
+
+    const parts: string[] = [];
+    if (restored.length) parts.push(`已从云盘加载：${restored.join('、')}`);
+    if (missing.length) parts.push(`云盘缺少：${missing.join('、')}`);
+    if (failed.length) parts.push(`失败：${failed.join('；')}`);
+    setCloudMsg(parts.join('；') || '未找到云盘数据');
   };
 
   const handleToggleAutoSave = (enabled: boolean) => {
@@ -603,6 +695,21 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                   <div>• <b>阿里云盘</b> — 安装客户端后开启同步文件夹，选择同步目录即可</div>
                   <div>• <b>百度云盘</b> — 安装客户端后开启同步空间，选择同步目录即可</div>
                 </div>
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border-default)',
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                  color: 'var(--text-secondary)',
+                  marginBottom: 12,
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>同步内容（各存一个 JSON 文件）：</div>
+                  <div>• <b>easysail-exam-tasks.json</b> — 任务清单</div>
+                  <div>• <b>easysail-exam-plan.json</b> — 考研计划（科目 / 阶段 / 考务）</div>
+                  <div>• <b>easysail-exam-vocab.json</b> — 背单词进度（词卡调度 / 难词本 / AI 助记 / 闯关成绩）</div>
+                </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <input
                     type="text"
@@ -626,7 +733,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                     <div className="setting-row">
                       <div>
                         <div className="setting-label">手动同步</div>
-                        <div className="setting-desc">将当前数据保存到云盘 / 从云盘加载数据</div>
+                        <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词进度）保存到云盘；从云盘加载会覆盖本地对应数据</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button style={btnStyle} onClick={handleCloudLoad}>从云盘加载</button>

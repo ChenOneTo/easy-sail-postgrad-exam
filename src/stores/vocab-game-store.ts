@@ -373,7 +373,11 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
         setMnemonic(set, get, token, wordId, { status: 'error' });
         return;
       }
-      try { await saveVocabMnemonic(wordId, draft); } catch { /* 存库失败不阻塞展示 */ }
+      try {
+        await saveVocabMnemonic(wordId, draft);
+        // AI 助记在云盘快照里，标记为脏才能被自动同步带上云盘
+        useExamVocabStore.setState({ vocabDirty: true });
+      } catch { /* 存库失败不阻塞展示 */ }
       setMnemonic(set, get, token, wordId, { status: 'ready', data: draft });
     } catch {
       setMnemonic(set, get, token, wordId, { status: 'error' });
@@ -534,6 +538,8 @@ async function finishQuiz(set: SetFn, get: () => VocabGameStore): Promise<void> 
         replay: s.isReplay,
         startedAt: new Date(s.startedAt).toISOString(),
       });
+      // 闯关成绩属于背单词快照的一部分，标记为脏才能被自动同步带上云盘
+      useExamVocabStore.setState({ vocabDirty: true });
     } catch {
       failed = failed || '闯关成绩保存失败，本次进度可能未计入。';
     }
@@ -626,7 +632,10 @@ async function preloadMnemonics(
           setMnemonic(set, get, token, w.wordId, { status: 'error' });
           continue;
         }
-        try { await saveVocabMnemonic(w.wordId, draft); } catch { /* 存库失败不阻塞展示 */ }
+        try {
+          await saveVocabMnemonic(w.wordId, draft);
+          useExamVocabStore.setState({ vocabDirty: true });
+        } catch { /* 存库失败不阻塞展示 */ }
         setMnemonic(set, get, token, w.wordId, { status: 'ready', data: draft });
       } catch (err) {
         if (controller.signal.aborted) return;

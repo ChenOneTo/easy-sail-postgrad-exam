@@ -3,6 +3,7 @@ import { Sparkles, X, Loader2, RefreshCw, Volume2 } from 'lucide-react';
 import { useAiTask } from '../hooks/useAiTask';
 import { getPhonetics } from '../lib/vocab-phonetics';
 import { fetchVocabMnemonic, saveVocabMnemonic } from '../lib/exam-vocab-db';
+import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { isTauri } from '../lib/tauri';
 import { speak, stopSpeak } from '../lib/vocab-tts';
 import type { AiMnemonicDraft } from '../lib/ai-json';
@@ -32,6 +33,8 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
     if (!isTauri()) return;
     try {
       await saveVocabMnemonic(wordId, d);
+      // AI 助记在云盘快照里，标记为脏才能被自动同步带上云盘
+      useExamVocabStore.setState({ vocabDirty: true });
     } catch (err) {
       console.warn('[VocabMnemonicSheet] 助记保存失败:', err);
     }

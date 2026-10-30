@@ -174,8 +174,8 @@ export function ExamVocabPage() {
   const onRestore = async () => {
     setCloudBusy(true); setCloudMsg('');
     try {
-      const msg = await restoreFromCloud();
-      setCloudMsg(msg);
+      const { message } = await restoreFromCloud();
+      setCloudMsg(message);
       await loadTodayQueue();
     } catch (err) {
       setCloudMsg(`恢复失败：${err instanceof Error ? err.message : String(err)}`);

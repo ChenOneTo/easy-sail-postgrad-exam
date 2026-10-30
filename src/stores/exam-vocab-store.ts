@@ -122,8 +122,11 @@ export interface ExamVocabStore {
   /** 自动同步用：仅在数据已加载且词库非空时返回快照，否则 null（跳过该文件） */
   getCloudSnapshot: () => Promise<ExamVocabCloudSnapshot | null>;
   backupToCloud: () => Promise<{ path: string; count: number }>;
-  /** 返回面向用户的消息：成功/无数据；真正的 IO 或格式错误才抛出 */
-  restoreFromCloud: () => Promise<string>;
+  /**
+   * 从云盘恢复：返回恢复结果（restored=false 表示云盘没有该文件，不是错误），
+   * 真正的 IO 或格式错误才抛出。
+   */
+  restoreFromCloud: () => Promise<{ restored: boolean; message: string }>;
   saveProfile: (updates: Partial<VocabProfile>) => Promise<void>;
 
   /** 今日队列（学习中 > 到期复习 > 新词），按优先级拼装并按激活方向过滤 */
@@ -264,10 +267,10 @@ export const useExamVocabStore = create<ExamVocabStore>()((set, get) => ({
 
   restoreFromCloud: async () => {
     const snapshot = await loadExamVocabFromCloud();
-    if (!snapshot) return '云盘暂无背单词数据，请先点击「备份到云盘」上传';
+    if (!snapshot) return { restored: false, message: '云盘暂无背单词数据，请先点击「备份到云盘」上传' };
     if (!isTauri()) {
       set({ profile: snapshot.profile, hardwords: [], loaded: true, lastError: '' });
-      return '已从云盘恢复';
+      return { restored: true, message: '已从云盘恢复（浏览器模式）' };
     }
     // 恢复后若本地词库为空，先重导词表再覆盖调度
     if ((await fetchVocabWordCount()) === 0) {
@@ -280,7 +283,11 @@ export const useExamVocabStore = create<ExamVocabStore>()((set, get) => ({
     await get().loadFromDb(true);
     // 刚从云盘恢复，云盘已是最新，无需立即回写
     set({ vocabDirty: false });
-    return `已从云盘恢复（${snapshot.cards.length} 张卡片、${snapshot.hardwords.length} 条难词）`;
+    const runs = snapshot.gameRuns?.length ?? 0;
+    return {
+      restored: true,
+      message: `已从云盘恢复（${snapshot.cards.length} 张卡片、${snapshot.hardwords.length} 条难词${runs ? `、${runs} 条闯关成绩` : ''}）`,
+    };
   },
 
   saveProfile: async (updates) => {
