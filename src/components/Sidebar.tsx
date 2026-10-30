@@ -81,7 +81,7 @@ export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSetting
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <img className="sidebar-logo" src="/logo2.svg" alt="轻舟考研台" />
+        <img className="sidebar-logo" src="/logo.svg" alt="轻舟考研台" />
         <div className="sidebar-brand">
           <h1>轻舟考研台</h1>
           <span>考研备考助手</span>
