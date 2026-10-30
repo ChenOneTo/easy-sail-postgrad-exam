@@ -1,16 +1,11 @@
 import { memo } from 'react';
-import { CalendarDays, Trash2, Briefcase, BookOpen, House, Play, Pause, Clock } from 'lucide-react';
+import { CalendarDays, Trash2, Play, Pause, Clock } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaskStore } from '../stores/task-store';
 import type { Task } from '../lib/types';
 import { TAG_MAP, TASK_TYPES } from '../lib/types';
 import { formatDate, getDateClass } from '../lib/utils';
-
-export const TYPE_ICON_MAP: Record<string, React.ReactNode> = {
-  'project-work': <Briefcase size={11} />,
-  'project-study': <BookOpen size={11} />,
-  'project-life': <House size={11} />,
-};
+import { TaskTypeIcon } from './TaskTypeIcon';
 
 export const TaskRow = memo(function TaskRow({ task }: { task: Task }) {
   const { toggleTask, deleteTask, openDetail, startTask, pauseTask } = useTaskStore(
@@ -31,7 +26,7 @@ export const TaskRow = memo(function TaskRow({ task }: { task: Task }) {
         <div className="task-title">{task.title}</div>
         {(dl || task.tags.length > 0 || typeInfo || isDoing) && (
           <div className="task-meta">
-            {typeInfo && <span className="task-type-badge" style={{ '--type-color': typeInfo.color } as React.CSSProperties}>{TYPE_ICON_MAP[typeInfo.id]} {typeInfo.name}</span>}
+            {typeInfo && <span className="task-type-badge" style={{ '--type-color': typeInfo.color } as React.CSSProperties}><TaskTypeIcon typeId={typeInfo.id} /> {typeInfo.name}</span>}
             {dl && <span className={`task-date ${dc}`}><CalendarDays size={13} /> {dl}</span>}
             {isDoing && task.startDate && <span className="task-date today"><Clock size={13} /> 开始 {formatDate(task.startDate)}</span>}
             {task.tags.map(tag => {

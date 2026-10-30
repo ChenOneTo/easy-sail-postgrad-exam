@@ -3,7 +3,7 @@ import {
   ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, RotateCcw, Sparkles, Volume2,
 } from 'lucide-react';
 import { useVocabGameStore } from '../stores/vocab-game-store';
-import type { GameMnemonic } from '../stores/vocab-game-store';
+import type { GameMnemonic, GameWord } from '../stores/vocab-game-store';
 import { speak, speakAccent, stopSpeak } from '../lib/vocab-tts';
 import { getExamExample } from '../lib/vocab-examples';
 
@@ -50,6 +50,111 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
 }
 
 /**
+ * 记忆阶段的词卡
+ *
+ * 独立成组件并由父级用 key={word.wordId} 挂载：切词时组件重新挂载，
+ * 「已翻开」状态自然重置，无需在 effect 里同步 setState。
+ */
+function MemoryCard({ word }: { word: GameWord }) {
+  const [revealed, setRevealed] = useState(false);
+  const marks = useVocabGameStore((s) => s.session?.marks);
+  const mnemonic = useVocabGameStore((s) => s.session?.mnemonics[word.wordId]);
+  const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
+  const examExample = getExamExample(word.word);
+  const exampleEn = examExample?.en;
+
+  // 切到新词时自动播放单词读音，随后跟读一次真题例句
+  useEffect(() => {
+    if (!word.word) return;
+    speak(word.word);
+    if (!exampleEn) return;
+    const timer = window.setTimeout(() => speak(exampleEn), 1100);
+    return () => window.clearTimeout(timer);
+  }, [word.word, exampleEn]);
+
+  const mark = marks?.[word.wordId];
+
+  return (
+    <article className="vg-word-card">
+      <h2 className="vg-memory-word">{word.word}</h2>
+      <div className="vg-pron-row">
+        <button
+          className="vg-pron"
+          type="button"
+          onClick={() => speakAccent(word.word, 'uk')}
+          aria-label="播放英式发音"
+        >
+          <span className="vg-pron-label">英</span>
+          <span className="vg-pron-ipa">{word.phoneticUk ?? '—'}</span>
+          <Volume2 size={13} />
+        </button>
+        <button
+          className="vg-pron"
+          type="button"
+          onClick={() => speakAccent(word.word, 'us')}
+          aria-label="播放美式发音"
+        >
+          <span className="vg-pron-label">美</span>
+          <span className="vg-pron-ipa">{word.phoneticUs ?? '—'}</span>
+          <Volume2 size={13} />
+        </button>
+      </div>
+      <div className="vg-word-pos">
+        {word.unit}{word.coreZone ? ' · 核心词' : ''}
+      </div>
+      <div className="vg-word-divider" />
+      {revealed ? (
+        <>
+          <p className="vg-word-meaning">{word.meaning}</p>
+          {examExample && (
+            <div className="vg-example">
+              <div className="vg-example-head">
+                <span
+                  className="vg-example-tag"
+                  title="真题语境来自 exam-data/NETEMVocabulary（CC BY-NC-SA 4.0）"
+                >真题语境</span>
+                <span className="vg-example-source">
+                  {examExample.source}{examExample.count >= 2 ? ` · 出现 ${examExample.count} 次` : ''}
+                </span>
+                <button
+                  className="vg-example-speak"
+                  type="button"
+                  aria-label="播放真题语境"
+                  onClick={() => speak(examExample.en)}
+                >
+                  <Volume2 size={13} />
+                </button>
+              </div>
+              <p className="vg-example-en">{examExample.en}</p>
+              {examExample.zh && <p className="vg-example-zh">{examExample.zh}</p>}
+            </div>
+          )}
+          <MnemonicBlock
+            entry={mnemonic}
+            onRetry={() => void retryMnemonic(word.wordId)}
+          />
+        </>
+      ) : (
+        <button
+          className="vg-primary-btn vg-reveal-btn"
+          type="button"
+          onClick={() => setRevealed(true)}
+        >
+          翻开查看释义与助记
+        </button>
+      )}
+      <p className="vg-word-tip">
+        {mark === 'known'
+          ? '已标记为「认识」，测验时仍会正常出题。'
+          : mark === 'fuzzy'
+            ? '已标记为「有点模糊」，答错会自动进入难词本。'
+            : '先试着回忆释义，再翻开核对。'}
+      </p>
+    </article>
+  );
+}
+
+/**
  * 全屏闯关界面：记忆阶段（词卡浏览 + 模糊/认识标记）→ 随堂测验（英译中 4 选 1）
  * → 结果页。计时由 store 的 phaseEndsAt 驱动，本组件只负责渲染与键盘映射。
  */
@@ -62,11 +167,9 @@ export function VocabGameSession() {
   const beginQuiz = useVocabGameStore((s) => s.beginQuiz);
   const expirePhase = useVocabGameStore((s) => s.expirePhase);
   const retryWrong = useVocabGameStore((s) => s.retryWrong);
-  const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
   const exit = useVocabGameStore((s) => s.exit);
   const [now, setNow] = useState(() => Date.now());
   const [confirmExit, setConfirmExit] = useState(false);
-  const [revealed, setRevealed] = useState(false);
 
   // 阶段计时：以截止时间戳为准，500ms 刷新显示，避免 setInterval 漂移累积
   useEffect(() => {
@@ -83,21 +186,7 @@ export function VocabGameSession() {
   }, [now, session, expirePhase]);
 
   const memoryWord = session?.phase === 'memory' ? session.words[session.memoryIndex] : null;
-  const examExample = memoryWord ? getExamExample(memoryWord.word) : null;
   const question = session?.phase === 'quiz' ? session.quiz[session.quizIndex] : null;
-
-  // 记忆阶段：切到新词时自动播放单词读音，随后跟读一次真题例句
-  const memoryWordId = memoryWord?.wordId;
-  const memoryWordText = memoryWord?.word;
-  const exampleEn = examExample?.en;
-  useEffect(() => {
-    setRevealed(false);
-    if (session?.phase !== 'memory' || !memoryWordText) return;
-    speak(memoryWordText);
-    if (!exampleEn) return;
-    const timer = window.setTimeout(() => speak(exampleEn), 1100);
-    return () => window.clearTimeout(timer);
-  }, [session?.phase, memoryWordId, memoryWordText, exampleEn]);
 
   // 测验：选择后短暂展示判分，再自动跳到下一题
   const pickedId = question?.picked;
@@ -207,82 +296,7 @@ export function VocabGameSession() {
 
         {session.phase === 'memory' && memoryWord && (
           <>
-            <article className="vg-word-card" key={memoryWord.wordId}>
-              <h2 className="vg-memory-word">{memoryWord.word}</h2>
-              <div className="vg-pron-row">
-                <button
-                  className="vg-pron"
-                  type="button"
-                  onClick={() => speakAccent(memoryWord.word, 'uk')}
-                  aria-label="播放英式发音"
-                >
-                  <span className="vg-pron-label">英</span>
-                  <span className="vg-pron-ipa">{memoryWord.phoneticUk ?? '—'}</span>
-                  <Volume2 size={13} />
-                </button>
-                <button
-                  className="vg-pron"
-                  type="button"
-                  onClick={() => speakAccent(memoryWord.word, 'us')}
-                  aria-label="播放美式发音"
-                >
-                  <span className="vg-pron-label">美</span>
-                  <span className="vg-pron-ipa">{memoryWord.phoneticUs ?? '—'}</span>
-                  <Volume2 size={13} />
-                </button>
-              </div>
-              <div className="vg-word-pos">
-                {memoryWord.unit}{memoryWord.coreZone ? ' · 核心词' : ''}
-              </div>
-              <div className="vg-word-divider" />
-              {revealed ? (
-                <>
-                  <p className="vg-word-meaning">{memoryWord.meaning}</p>
-                  {examExample && (
-                    <div className="vg-example">
-                      <div className="vg-example-head">
-                        <span
-                          className="vg-example-tag"
-                          title="真题语境来自 exam-data/NETEMVocabulary（CC BY-NC-SA 4.0）"
-                        >真题语境</span>
-                        <span className="vg-example-source">
-                          {examExample.source}{examExample.count >= 2 ? ` · 出现 ${examExample.count} 次` : ''}
-                        </span>
-                        <button
-                          className="vg-example-speak"
-                          type="button"
-                          aria-label="播放真题语境"
-                          onClick={() => speak(examExample.en)}
-                        >
-                          <Volume2 size={13} />
-                        </button>
-                      </div>
-                      <p className="vg-example-en">{examExample.en}</p>
-                      {examExample.zh && <p className="vg-example-zh">{examExample.zh}</p>}
-                    </div>
-                  )}
-                  <MnemonicBlock
-                    entry={session.mnemonics[memoryWord.wordId]}
-                    onRetry={() => void retryMnemonic(memoryWord.wordId)}
-                  />
-                </>
-              ) : (
-                <button
-                  className="vg-primary-btn vg-reveal-btn"
-                  type="button"
-                  onClick={() => setRevealed(true)}
-                >
-                  翻开查看释义与助记
-                </button>
-              )}
-              <p className="vg-word-tip">
-                {session.marks[memoryWord.wordId] === 'known'
-                  ? '已标记为「认识」，测验时仍会正常出题。'
-                  : session.marks[memoryWord.wordId] === 'fuzzy'
-                    ? '已标记为「有点模糊」，答错会自动进入难词本。'
-                    : '先试着回忆释义，再翻开核对。'}
-              </p>
-            </article>
+            <MemoryCard key={memoryWord.wordId} word={memoryWord} />
 
             <div className="vg-nav-row">
               <button

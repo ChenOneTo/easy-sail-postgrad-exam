@@ -40,9 +40,9 @@ import {
 } from '@ark-ui/react/date-picker';
 import { CalendarDateTime, createCalendar } from '@internationalized/date';
 import type { DateValue } from '@internationalized/date';
-import type { IntlTranslations } from '@zag-js/date-picker';
 import type { RecurrenceType } from '../lib/types';
 import { offsetMinutes, tomorrowMorning9, formatDateTime } from '../lib/utils';
+import { zhTranslations, WEEK_DAYS } from '../lib/date-picker-locale';
 
 // —— 日期转换工具 ——
 
@@ -65,24 +65,6 @@ function toJSDate(cal: CalendarDateTime | null | undefined): Date | null {
   if (!cal) return null;
   return cal.toDate('Asia/Shanghai');
 }
-
-// —— 中文本地化 ——
-
-export const zhTranslations = {
-  dayCell: (state: { label: string }) => state.label,
-  nextTrigger: () => '下一月',
-  monthSelect: '月份',
-  yearSelect: '年份',
-  viewTrigger: () => '切换视图',
-  prevTrigger: () => '上一月',
-  clearTrigger: '清除',
-  trigger: (open: boolean) => (open ? '关闭日历' : '选择日期'),
-  content: '日期选择器',
-  placeholder: () => ({ year: '年', month: '月', day: '日' }),
-  presetTrigger: (value: string[]) => value.join(', '),
-} as unknown as IntlTranslations;
-
-export const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 // —— 自定义时间下拉（替代原生 select，避免选项列表过长） ——
 

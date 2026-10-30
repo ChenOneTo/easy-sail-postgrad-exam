@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Volume2, Star, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Rating } from 'ts-fsrs';
 import type { Grade } from 'ts-fsrs';
@@ -55,28 +55,28 @@ export function VocabCardFlow({ queue, index, onIndexChange, onDone }: {
   }, []);
 
   /** 切到下一/上一张：重置翻面态与计时（在事件处理中做，不放 effect） */
-  const gotoIndex = (next: number) => {
+  const gotoIndex = useCallback((next: number) => {
     stopSpeak();
     setFlipped(false);
     setMnemonicOpen(false);
     setPreviewMap(null);
     cardStartRef.current = Date.now();
     onIndexChange(next);
-  };
+  }, [onIndexChange]);
 
   // 父级持有的序号换批瞬间可能越界，钳到有效范围以免误显示空态
   const idx = Math.max(0, Math.min(index, queue.length - 1));
   const card = queue[idx];
 
-  const advance = () => {
+  const advance = useCallback(() => {
     if (idx + 1 >= queue.length) {
       onDone();
     } else {
       gotoIndex(idx + 1);
     }
-  };
+  }, [idx, queue.length, onDone, gotoIndex]);
 
-  const doRate = async (grade: Grade) => {
+  const doRate = useCallback(async (grade: Grade) => {
     if (!card || busy || !flipped) return;
     setBusy(true);
     const durationMs = Date.now() - cardStartRef.current;
@@ -89,15 +89,15 @@ export function VocabCardFlow({ queue, index, onIndexChange, onDone }: {
     } finally {
       setBusy(false);
     }
-  };
+  }, [card, busy, flipped, rateCard, advance]);
 
   // 翻面后自动播一次，并算出四按钮预览间隔
-  const handleFlip = () => {
+  const handleFlip = useCallback(() => {
     if (flipped) return;
     setFlipped(true);
     setPreviewMap(previewIntervals(card, new Date().toISOString()));
     if (getTtsConfig().autoPlayOnFlip) speak(card.word);
-  };
+  }, [flipped, card, previewIntervals]);
 
   // 键盘流：派发逻辑放进 ref，每次渲染后刷新闭包捕获最新 card/flipped 等；
   // 监听器只在挂载时绑一次，避免每切一卡重绑（依赖含每次渲染新建的 handleFlip/advance/doRate，故每渲染都刷新）

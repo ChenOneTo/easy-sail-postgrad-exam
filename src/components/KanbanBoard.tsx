@@ -6,7 +6,7 @@ import type { Task, KanbanStatus } from '../lib/types';
 import { TAG_MAP, TASK_TYPES } from '../lib/types';
 import { formatDate, filterTasksByRange, searchTasks, localDateStr } from '../lib/utils';
 import type { StatRange } from '../lib/utils';
-import { TYPE_ICON_MAP } from './TaskRow';
+import { TaskTypeIcon } from './TaskTypeIcon';
 
 const COLUMNS: { key: KanbanStatus; label: string; dot: string }[] = [
   { key: 'todo', label: '待完成', dot: 'todo' },
@@ -32,7 +32,7 @@ const KanbanCard = memo(function KanbanCard({ task }: { task: Task }) {
         <div className="kanban-card-meta">
           {typeInfo && (
             <span className="task-type-badge" style={{ '--type-color': typeInfo.color } as React.CSSProperties}>
-              {TYPE_ICON_MAP[typeInfo.id]} {typeInfo.name}
+              <TaskTypeIcon typeId={typeInfo.id} /> {typeInfo.name}
             </span>
           )}
           {task.tags.map(tag => {

@@ -13,6 +13,8 @@ export function DailyQuote() {
   const [loading, setLoading] = useState(false);
   // 自动生成只尝试一次，失败不无限重试；手动刷新不受限
   const attemptedRef = useRef(false);
+  // 待触发的自动生成定时器（卸载时清理）
+  const pendingRef = useRef<number | null>(null);
 
   const load = useCallback(async (force: boolean) => {
     if (!canUseAi()) return;
@@ -26,13 +28,26 @@ export function DailyQuote() {
     }
   }, []);
 
+  // 卸载时清理尚未触发的自动生成
+  useEffect(() => () => {
+    if (pendingRef.current !== null) {
+      window.clearTimeout(pendingRef.current);
+      pendingRef.current = null;
+    }
+  }, []);
+
   // 不带依赖数组：设置弹窗关闭等任何重渲染后都会重查条件，
-  // 覆盖"启动时 AI 未配置、会话中途才配好"的场景
+  // 覆盖"启动时 AI 未配置、会话中途才配好"的场景。
+  // 自动生成放到定时器里异步触发，避免在 effect 中同步 setState。
   useEffect(() => {
     if (attemptedRef.current) return;
     if (!isDailyQuoteEnabled() || !canUseAi()) return;
     attemptedRef.current = true;
-    if (!getCachedDailyQuote()) void load(false);
+    if (getCachedDailyQuote()) return;
+    pendingRef.current = window.setTimeout(() => {
+      pendingRef.current = null;
+      void load(false);
+    }, 0);
   });
 
   if (!isDailyQuoteEnabled() || !canUseAi()) return null;

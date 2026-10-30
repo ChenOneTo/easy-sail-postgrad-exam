@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CalendarDays, Trash2, X, Briefcase, BookOpen, House, Clock } from 'lucide-react';
+import { Bell, CalendarDays, Trash2, X, Clock } from 'lucide-react';
 import { useTaskStore } from '../stores/task-store';
 import { TAG_MAP, TASK_TYPES } from '../lib/types';
 import type { KanbanStatus } from '../lib/types';
@@ -9,13 +9,8 @@ import type { AiBreakdownDraft } from '../lib/ai-json';
 import { AiButton } from './AiButton';
 import { ReminderDialog } from './ReminderDialog';
 import { DatePicker } from './DatePicker';
+import { TaskTypeIcon } from './TaskTypeIcon';
 import { snoozeTask, clearSnooze } from '../lib/notification-engine';
-
-const TYPE_ICON_MAP: Record<string, React.ReactNode> = {
-  'project-work': <Briefcase size={13} />,
-  'project-study': <BookOpen size={13} />,
-  'project-life': <House size={13} />,
-};
 
 function dayOffsetStr(offset: number): string {
   const d = new Date();
@@ -192,7 +187,7 @@ export function DetailPanel() {
                     style={task.projectId === t.id ? { background: t.color, borderColor: t.color } : {}}
                     onClick={() => updateTask(task.id, { projectId: t.id })}
                   >
-                    <span>{TYPE_ICON_MAP[t.id]}</span>
+                    <span><TaskTypeIcon typeId={t.id} size={13} /></span>
                     <span>{t.name}</span>
                   </span>
                 ))}

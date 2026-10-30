@@ -38,7 +38,7 @@ import {
 } from '@ark-ui/react/date-picker';
 import { CalendarDate, createCalendar } from '@internationalized/date';
 import type { DateValue } from '@internationalized/date';
-import { zhTranslations, WEEK_DAYS } from './DateTimePicker';
+import { zhTranslations, WEEK_DAYS } from '../lib/date-picker-locale';
 
 // —— 'YYYY-MM-DD' 字符串与 CalendarDate 互转 ——
 
