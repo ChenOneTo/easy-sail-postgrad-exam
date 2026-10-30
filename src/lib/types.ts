@@ -10,7 +10,6 @@ export type SectionId =
   | 'project-life'
   | 'tag-urgent'
   | 'tag-important'
-  | 'review'
   | 'exam'
   | 'exam-vocab'
   | 'exam-vocab-game'

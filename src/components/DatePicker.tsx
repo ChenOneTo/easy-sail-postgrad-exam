@@ -2,7 +2,7 @@
  * 主题化日期选择器（仅日期，无时间）
  *
  * 基于 Ark UI DatePicker + Popover，样式复用 dtp-* 主题类。
- * 用于替代原生 <input type="date">，统一 QuickAdd / DetailPanel / ReviewPage 的日期选择体验。
+ * 用于替代原生 <input type="date">，统一 QuickAdd / DetailPanel 的日期选择体验。
  *
  * 特性：
  * - 主题化日历弹层（中文本地化）

@@ -8,8 +8,6 @@ import {
   buildExamPlanPrompt,
   buildPolishNotesPrompt,
   buildQuickAddPrompt,
-  buildPeriodSummaryPrompt,
-  buildTodaySummaryPrompt,
   buildVocabMnemonicPrompt,
 } from '../lib/prompts';
 import {
@@ -109,20 +107,6 @@ export function useAiTask() {
     });
   }, [run]);
 
-  const summarizeToday = useCallback((tasks: Task[]): Promise<string | null> => {
-    return run(async signal => chatCompletion([
-      { role: 'system', content: '你只输出用户可直接阅读的 Markdown 正文。' },
-      { role: 'user', content: buildTodaySummaryPrompt(tasks) },
-    ], { signal, temperature: 0.4 }));
-  }, [run]);
-
-  const summarizePeriod = useCallback((periodLabel: '日报' | '周报' | '月报', tasks: Task[]): Promise<string | null> => {
-    return run(async signal => chatCompletion([
-      { role: 'system', content: '你只输出用户可直接阅读的 Markdown 正文。' },
-      { role: 'user', content: buildPeriodSummaryPrompt(periodLabel, tasks) },
-    ], { signal, temperature: 0.4 }));
-  }, [run]);
-
   const chatWithTasks = useCallback((
     message: string,
     tasks: Task[],
@@ -179,8 +163,6 @@ export function useAiTask() {
     polishNotes,
     completeNotes,
     breakdownTask,
-    summarizeToday,
-    summarizePeriod,
     chatWithTasks,
     classifyTasks,
     generateExamPlan,

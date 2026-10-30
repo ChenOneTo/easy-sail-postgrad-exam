@@ -95,21 +95,6 @@ function compactTask(task: Task): string {
   ].join(' | ');
 }
 
-export function buildTodaySummaryPrompt(tasks: Task[]): string {
-  return buildPeriodSummaryPrompt('日报', tasks);
-}
-
-export function buildPeriodSummaryPrompt(periodLabel: '日报' | '周报' | '月报', tasks: Task[]): string {
-  return [
-    `你是任务复盘助手。请基于下面的真实任务数据，生成简洁的${periodLabel}。`,
-    '只输出 Markdown 正文，不要编造不存在的任务。',
-    `结构固定为：本期完成、本期未完成、下一步建议、简短复盘。`,
-    `当前日期：${todayStr()}`,
-    '任务数据：',
-    ...tasks.map(compactTask),
-  ].join('\n');
-}
-
 export function buildAiChatPrompt(
   message: string,
   tasks: Task[],

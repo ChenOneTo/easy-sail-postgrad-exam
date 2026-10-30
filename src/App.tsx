@@ -3,7 +3,6 @@ import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { CalendarView } from './components/CalendarView';
 import { KanbanBoard } from './components/KanbanBoard';
-import { ReviewPage } from './components/ReviewPage';
 import { AiAssistant } from './components/AiAssistant';
 import { DetailPanel } from './components/DetailPanel';
 import { QuickAdd } from './components/QuickAdd';
@@ -19,7 +18,7 @@ import { shouldShowSplashOnLaunch } from './lib/splash';
 
 export default function App() {
   const { currentView, currentSection, detailTaskId, theme, closeDetail } = useTaskStore();
-  const isSpecialSection = currentSection === 'review' || currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game';
+  const isSpecialSection = currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(
@@ -64,7 +63,6 @@ export default function App() {
           <TopBar onOpenNotifications={() => setNotificationsOpen(true)} />
           <div className="content">
             <div className="view-area">
-              {currentSection === 'review' && <ReviewPage />}
               {currentSection === 'exam' && <ExamPlanPage />}
               {currentSection === 'exam-vocab' && <ExamVocabPage />}
               {currentSection === 'exam-vocab-game' && <VocabGamePage />}
