@@ -6,6 +6,7 @@ import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import { dbReplaceAll } from '../lib/db';
 import { getExamVocabCloudSnapshot } from '../lib/exam-vocab-db';
+import { errText } from '../lib/error-text';
 import {
   getCloudDir, pickCloudDir, setCloudDir, saveToCloud, loadFromCloud,
   saveExamToCloud, saveExamVocabToCloud,
@@ -37,11 +38,6 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
   { key: 'about', label: '关于', icon: <Info size={16} /> },
 ];
 
-/** 错误信息转文本 */
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : '未知错误';
-}
-
 /** 汇总手动同步结果：已保存 / 已跳过 / 失败 */
 function formatSyncMsg(prefix: string, saved: string[], skipped: string[], failed: string[]): string {
   const parts: string[] = [];
@@ -71,6 +67,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [autoSave, setAutoSaveState] = useState(getAutoSave);
   const [autoInterval, setAutoIntervalState] = useState(getAutoInterval);
   const [cloudMsg, setCloudMsg] = useState('');
+  const [cloudBusy, setCloudBusy] = useState(false);
   const [pickingDir, setPickingDir] = useState(false);
 
   // 大模型设置配置状态
@@ -233,6 +230,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
    */
   const handleCloudSave = async () => {
     setCloudMsg('');
+    setCloudBusy(true);
     const saved: string[] = [];
     const skipped: string[] = [];
     const failed: string[] = [];
@@ -278,6 +276,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     }
 
     setCloudMsg(formatSyncMsg('已保存', saved, skipped, failed));
+    setCloudBusy(false);
   };
 
   /**
@@ -286,6 +285,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
    */
   const handleCloudLoad = async () => {
     setCloudMsg('');
+    setCloudBusy(true);
     const restored: string[] = [];
     const missing: string[] = [];
     const failed: string[] = [];
@@ -298,7 +298,9 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       restored.push(`${taskData.length} 条任务`);
     } catch (err) {
       console.warn('[CloudLoad] 任务加载失败:', err);
-      missing.push('任务');
+      const msg = errText(err);
+      if (/未找到云盘数据|暂无|没有云盘数据/i.test(msg)) missing.push('任务');
+      else failed.push(`任务（${msg}）`);
     }
 
     // 考研计划
@@ -307,7 +309,9 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       restored.push('考研计划');
     } catch (err) {
       console.warn('[CloudLoad] 考研计划加载失败:', err);
-      missing.push('考研计划');
+      const msg = errText(err);
+      if (/未找到云盘数据|暂无|没有云盘数据/i.test(msg)) missing.push('考研计划');
+      else failed.push(`考研计划（${msg}）`);
     }
 
     // 背单词（含闯关成绩）
@@ -330,6 +334,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     if (missing.length) parts.push(`云盘缺少：${missing.join('、')}`);
     if (failed.length) parts.push(`失败：${failed.join('；')}`);
     setCloudMsg(parts.join('；') || '未找到云盘数据');
+    setCloudBusy(false);
   };
 
   const handleToggleAutoSave = (enabled: boolean) => {
@@ -736,8 +741,12 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                         <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词进度）保存到云盘；从云盘加载会覆盖本地对应数据</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button style={btnStyle} onClick={handleCloudLoad}>从云盘加载</button>
-                        <button style={primaryBtnStyle} onClick={handleCloudSave}>保存到云盘</button>
+                        <button style={{ ...btnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudLoad} disabled={cloudBusy}>
+                          {cloudBusy ? '处理中…' : '从云盘加载'}
+                        </button>
+                        <button style={{ ...primaryBtnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudSave} disabled={cloudBusy}>
+                          {cloudBusy ? '处理中…' : '保存到云盘'}
+                        </button>
                       </div>
                     </div>
 

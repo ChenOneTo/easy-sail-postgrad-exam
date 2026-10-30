@@ -1,4 +1,5 @@
 import Database from '@tauri-apps/plugin-sql';
+import { errText } from './error-text';
 
 let _db: Database | null = null;
 
@@ -8,6 +9,52 @@ export async function getExamVocabDb(): Promise<Database> {
     _db = await Database.load('sqlite:easy-sail-postgrad-exam.db');
   }
   return _db;
+}
+
+// ========== 批量写入工具 ==========
+
+/** 每批拼多少行（100 行 × 13 列 ≈ 1300 个绑定变量，远低于 SQLite 变量上限） */
+const BATCH_SIZE = 100;
+
+/**
+ * 执行写语句，遇到数据库被占用（SQLITE_BUSY，多连接写冲突）时退避重试。
+ * 逐条 IPC 写入 thousands 行时容易与通知引擎等其它连接撞写锁。
+ */
+async function execWithRetry(db: Database, sql: string, values: unknown[], attempts = 4): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await db.execute(sql, values);
+      return;
+    } catch (err) {
+      const msg = errText(err);
+      if (attempt >= attempts || !/locked|busy/i.test(msg)) throw err;
+      await new Promise((r) => setTimeout(r, 300 * attempt));
+    }
+  }
+}
+
+/**
+ * 批量插入：把多行拼成一条多值 INSERT，减少 IPC 往返。
+ * 单条语句 1 万次 execute 会让写事务持续数分钟，极易撞上 SQLite 写锁。
+ */
+async function insertRows(
+  db: Database,
+  prefix: string,
+  columns: number,
+  rows: unknown[][],
+  batchSize = BATCH_SIZE,
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const slice = rows.slice(i, i + batchSize);
+    const tuples: string[] = [];
+    const values: unknown[] = [];
+    for (const row of slice) {
+      const start = values.length + 1;
+      tuples.push(`(${Array.from({ length: columns }, (_, c) => `$${start + c}`).join(',')})`);
+      values.push(...row);
+    }
+    await execWithRetry(db, `${prefix} ${tuples.join(',')}`, values);
+  }
 }
 
 // ========== 类型 ==========
@@ -803,84 +850,126 @@ export async function getExamVocabCloudSnapshot(): Promise<ExamVocabCloudSnapsho
 }
 
 /**
- * 用云端快照整体覆盖本地背单词调度数据（事务保证原子性）。
- * cards/reviews/hardwords/mnemonics 全量替换，profile 按 id=1 覆盖。words 不动（恢复后由首启检测补建）。
+ * 把快照写入数据库（先清空相关表，再批量插入）。
+ * 单独抽出以便恢复失败时用旧快照还原。
+ */
+async function writeExamVocabSnapshot(db: Database, snapshot: ExamVocabCloudSnapshot): Promise<void> {
+  await db.execute('DELETE FROM exam_vocab_cards');
+  await db.execute('DELETE FROM exam_vocab_reviews');
+  await db.execute('DELETE FROM exam_vocab_hardwords');
+  await db.execute('DELETE FROM exam_vocab_mnemonics');
+  await db.execute('DELETE FROM exam_vocab_game_runs');
+
+  const now = new Date().toISOString();
+
+  // 保留原始 id：reviews.card_id 引用此 id，若让 AUTOINCREMENT 重排则恢复后日志全部变孤儿
+  await insertRows(
+    db,
+    `INSERT INTO exam_vocab_cards (id, word_id, direction, state, step_idx, due, stability, difficulty, reps, lapses, last_reviewed_at, created_at, updated_at) VALUES`,
+    13,
+    (snapshot.cards ?? []).map((c) => [
+      c.id, c.wordId, c.direction, c.state, c.stepIdx, c.due, c.stability, c.difficulty,
+      c.reps, c.lapses, c.lastReviewedAt, c.createdAt || now, c.updatedAt || now,
+    ]),
+  );
+
+  await insertRows(
+    db,
+    `INSERT INTO exam_vocab_reviews (card_id, word_id, rating, state_before, interval_days, duration_ms, reviewed_at) VALUES`,
+    7,
+    (snapshot.reviews ?? []).map((r) => [
+      r.cardId, r.wordId, r.rating, r.stateBefore, r.intervalDays, r.durationMs, r.reviewedAt,
+    ]),
+  );
+
+  await insertRows(
+    db,
+    `INSERT INTO exam_vocab_hardwords (word_id, reason, again_streak, note, status, added_at, updated_at) VALUES`,
+    7,
+    (snapshot.hardwords ?? []).map((h) => [
+      h.wordId, h.reason || '', h.againStreak || 0, h.note || '', h.status, h.addedAt || now, h.updatedAt || now,
+    ]),
+  );
+
+  await insertRows(
+    db,
+    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, created_at, updated_at) VALUES`,
+    9,
+    (snapshot.mnemonics ?? []).map((m) => [
+      m.wordId, m.roots || '', m.mnemonic || '', m.method || '', m.scene || '',
+      m.sentence || '', m.sentenceZh || '', m.createdAt || now, m.updatedAt || now,
+    ]),
+  );
+
+  await insertRows(
+    db,
+    `INSERT INTO exam_vocab_game_runs (id, level, level_size, words_total, correct, answered, accuracy, duration_ms, passed, replay, started_at, finished_at) VALUES`,
+    12,
+    (snapshot.gameRuns ?? []).map((r) => [
+      r.id, r.level, r.levelSize, r.wordsTotal, r.correct, r.answered,
+      r.accuracy, r.durationMs, r.passed ? 1 : 0, r.replay ? 1 : 0,
+      r.startedAt || now, r.finishedAt || now,
+    ]),
+  );
+
+  const p = snapshot.profile;
+  await execWithRetry(
+    db,
+    `UPDATE exam_vocab_profile SET
+       card_direction = $1, target_retention = $2, max_reviews_per_day = $3,
+       phase1_start = $4, phase1_end = $5, phase1_new_per_day = $6,
+       phase2_start = $7, phase2_end = $8, phase2_new_per_day = $9,
+       phase3_start = $10, phase3_end = $11, phase3_new_per_day = $12,
+       last_study_date = $13, streak = $14, updated_at = $15
+     WHERE id = 1`,
+    [p.cardDirection, p.targetRetention, p.maxReviewsPerDay,
+     p.phase1Start, p.phase1End, p.phase1NewPerDay,
+     p.phase2Start, p.phase2End, p.phase2NewPerDay,
+     p.phase3Start, p.phase3End, p.phase3NewPerDay,
+     p.lastStudyDate, p.streak, new Date().toISOString()],
+  );
+}
+
+/**
+ * 用云端快照整体覆盖本地背单词调度数据。
+ * cards/reviews/hardwords/mnemonics/game_runs 全量替换，profile 按 id=1 覆盖。
+ * words 不动（恢复后由首启检测补建）。
+ *
+ * 健壮性要点：
+ * - 批量插入，避免上万次 IPC 让写事务持续过久而撞上 SQLite 写锁
+ * - 开事务失败时降级为非事务覆盖，不中断恢复
+ * - 非事务模式下中途失败，用覆盖前的旧快照还原本地数据
  */
 export async function replaceExamVocabData(snapshot: ExamVocabCloudSnapshot): Promise<void> {
   const db = await getExamVocabDb();
-  await db.execute('BEGIN TRANSACTION');
+  // 覆盖前留一份旧快照：非事务模式下中途失败时用它还原，避免本地数据被清空
+  const backup = await getExamVocabCloudSnapshot().catch(() => null);
+
+  let inTx = false;
   try {
-    await db.execute('DELETE FROM exam_vocab_cards');
-    await db.execute('DELETE FROM exam_vocab_reviews');
-    await db.execute('DELETE FROM exam_vocab_hardwords');
-    await db.execute('DELETE FROM exam_vocab_mnemonics');
-    await db.execute('DELETE FROM exam_vocab_game_runs');
-
-    // 保留原始 id：reviews.card_id 引用此 id，若让 AUTOINCREMENT 重排则恢复后日志全部变孤儿
-    for (const c of snapshot.cards) {
-      await db.execute(
-        `INSERT INTO exam_vocab_cards (id, word_id, direction, state, step_idx, due, stability, difficulty, reps, lapses, last_reviewed_at, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-        [c.id, c.wordId, c.direction, c.state, c.stepIdx, c.due, c.stability, c.difficulty, c.reps, c.lapses, c.lastReviewedAt, c.createdAt || new Date().toISOString(), c.updatedAt || new Date().toISOString()]
-      );
-    }
-    for (const r of snapshot.reviews ?? []) {
-      await db.execute(
-        `INSERT INTO exam_vocab_reviews (card_id, word_id, rating, state_before, interval_days, duration_ms, reviewed_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [r.cardId, r.wordId, r.rating, r.stateBefore, r.intervalDays, r.durationMs, r.reviewedAt]
-      );
-    }
-    for (const h of snapshot.hardwords ?? []) {
-      await db.execute(
-        `INSERT INTO exam_vocab_hardwords (word_id, reason, again_streak, note, status, added_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [h.wordId, h.reason || '', h.againStreak || 0, h.note || '', h.status, h.addedAt || new Date().toISOString(), h.updatedAt || new Date().toISOString()]
-      );
-    }
-    for (const m of snapshot.mnemonics ?? []) {
-      await db.execute(
-        `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [
-          m.wordId, m.roots || '', m.mnemonic || '', m.method || '', m.scene || '',
-          m.sentence || '', m.sentenceZh || '',
-          m.createdAt || new Date().toISOString(), m.updatedAt || new Date().toISOString(),
-        ]
-      );
-    }
-    for (const r of snapshot.gameRuns ?? []) {
-      await db.execute(
-        `INSERT INTO exam_vocab_game_runs
-           (id, level, level_size, words_total, correct, answered, accuracy, duration_ms, passed, replay, started_at, finished_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-        [
-          r.id, r.level, r.levelSize, r.wordsTotal, r.correct, r.answered,
-          r.accuracy, r.durationMs, r.passed ? 1 : 0, r.replay ? 1 : 0,
-          r.startedAt || new Date().toISOString(), r.finishedAt || new Date().toISOString(),
-        ]
-      );
-    }
-
-    const p = snapshot.profile;
-    await db.execute(
-      `UPDATE exam_vocab_profile SET
-         card_direction = $1, target_retention = $2, max_reviews_per_day = $3,
-         phase1_start = $4, phase1_end = $5, phase1_new_per_day = $6,
-         phase2_start = $7, phase2_end = $8, phase2_new_per_day = $9,
-         phase3_start = $10, phase3_end = $11, phase3_new_per_day = $12,
-         last_study_date = $13, streak = $14, updated_at = $15
-       WHERE id = 1`,
-      [p.cardDirection, p.targetRetention, p.maxReviewsPerDay,
-       p.phase1Start, p.phase1End, p.phase1NewPerDay,
-       p.phase2Start, p.phase2End, p.phase2NewPerDay,
-       p.phase3Start, p.phase3End, p.phase3NewPerDay,
-       p.lastStudyDate, p.streak, new Date().toISOString()]
-    );
-
-    await db.execute('COMMIT');
+    await db.execute('BEGIN TRANSACTION');
+    inTx = true;
   } catch (err) {
-    await db.execute('ROLLBACK');
+    console.warn('[ExamVocabDB] 开启事务失败，降级为非事务覆盖：', errText(err));
+  }
+
+  try {
+    await writeExamVocabSnapshot(db, snapshot);
+    if (inTx) {
+      await db.execute('COMMIT');
+      inTx = false;
+    }
+  } catch (err) {
+    if (inTx) {
+      try { await db.execute('ROLLBACK'); } catch { /* 回滚失败时保留原始错误 */ }
+    } else if (backup) {
+      console.warn('[ExamVocabDB] 覆盖中途失败，尝试用旧快照还原本地数据：', errText(err));
+      try {
+        await writeExamVocabSnapshot(db, backup);
+      } catch (restoreErr) {
+        console.error('[ExamVocabDB] 还原失败：', errText(restoreErr));
+      }
+    }
     throw err;
   }
 }
