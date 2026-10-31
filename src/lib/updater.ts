@@ -5,6 +5,12 @@ export type UpdateCheckResult =
   | { status: 'no-update' }
   | { status: 'updated'; version: string };
 
+export interface DownloadProgress {
+  /** 已下载字节；total 为 0 表示未知（部分服务器不返回 content-length） */
+  downloaded: number;
+  total: number;
+}
+
 export async function checkForUpdate(): Promise<{ version: string } | null> {
   if (!isTauri()) return null;
   const { check } = await import('@tauri-apps/plugin-updater');
@@ -12,7 +18,9 @@ export async function checkForUpdate(): Promise<{ version: string } | null> {
   return update ? { version: update.version } : null;
 }
 
-export async function checkAndInstallUpdate(): Promise<UpdateCheckResult> {
+export async function checkAndInstallUpdate(
+  onProgress?: (p: DownloadProgress) => void,
+): Promise<UpdateCheckResult> {
   if (!isTauri()) return { status: 'not-supported' };
 
   const [{ check }, { relaunch }] = await Promise.all([
@@ -23,7 +31,17 @@ export async function checkAndInstallUpdate(): Promise<UpdateCheckResult> {
   const update = await check();
   if (!update) return { status: 'no-update' };
 
-  await update.downloadAndInstall();
+  let total = 0;
+  let downloaded = 0;
+
+  await update.downloadAndInstall(progress => {
+    if (progress.event === 'Started') {
+      total = progress.data.contentLength ?? 0;
+    } else if (progress.event === 'Progress') {
+      downloaded += progress.data.chunkLength;
+      onProgress?.({ downloaded, total });
+    }
+  });
   await relaunch();
 
   return { status: 'updated', version: update.version };
