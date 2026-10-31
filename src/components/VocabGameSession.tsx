@@ -61,16 +61,16 @@ function MemoryCard({ word }: { word: GameWord }) {
   const mnemonic = useVocabGameStore((s) => s.session?.mnemonics[word.wordId]);
   const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
   const examExample = getExamExample(word.word);
-  const exampleEn = examExample?.en;
 
-  // 切到新词时自动播放单词读音，随后跟读一次真题例句
+  // 切到新词时自动连续播放单词读音三遍，间隔 2 秒（不含例句读音）
   useEffect(() => {
     if (!word.word) return;
-    speak(word.word);
-    if (!exampleEn) return;
-    const timer = window.setTimeout(() => speak(exampleEn), 1100);
-    return () => window.clearTimeout(timer);
-  }, [word.word, exampleEn]);
+    const timers: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      timers.push(window.setTimeout(() => speak(word.word), i * 2000));
+    }
+    return () => timers.forEach(t => window.clearTimeout(t));
+  }, [word.word]);
 
   const mark = marks?.[word.wordId];
 
