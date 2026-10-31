@@ -10,6 +10,7 @@ const TITLES: Record<SectionId, string> = {
   'project-work': '工作', 'project-study': '学习', 'project-life': '生活',
   'tag-urgent': '紧急', 'tag-important': '重要',
   exam: '考研计划', 'exam-vocab': '背单词', 'exam-vocab-game': '单词闯关',
+  'exam-reading': '阅读刷题',
 };
 
 const VIEW_MAP: Record<ViewMode, { label: string; icon: React.ReactNode }> = {
@@ -71,7 +72,7 @@ export function TopBar({ onOpenNotifications }: { onOpenNotifications?: () => vo
     setOverIdx(null);
   };
 
-  const hideChrome = currentView === 'ai' || currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game';
+  const hideChrome = currentView === 'ai' || currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading';
 
   return (
     <header className="topbar">

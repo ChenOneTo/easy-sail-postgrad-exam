@@ -291,6 +291,148 @@ pub fn run() {
                                 DROP TABLE IF EXISTS inspirations;
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 3,
+                            description: "add english reading practice tables",
+                            sql: r#"
+                                -- ===== 阅读文章 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_passages (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    passage_key  TEXT UNIQUE NOT NULL,
+                                    year         INTEGER NOT NULL,
+                                    text_no      INTEGER NOT NULL,
+                                    title        TEXT DEFAULT '',
+                                    topic        TEXT DEFAULT '',
+                                    difficulty   INTEGER DEFAULT 2,
+                                    word_count   INTEGER DEFAULT 0,
+                                    content      TEXT NOT NULL,
+                                    translation  TEXT DEFAULT '[]',
+                                    source_ref   TEXT DEFAULT '',
+                                    archived     INTEGER DEFAULT 0,
+                                    created_at   TEXT DEFAULT (datetime('now')),
+                                    updated_at   TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(year, text_no)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_reading_passage_year
+                                    ON exam_reading_passages(year, text_no, archived);
+
+                                -- ===== 题目 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_questions (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    question_key TEXT UNIQUE NOT NULL,
+                                    passage_id   INTEGER NOT NULL,
+                                    seq          INTEGER NOT NULL,
+                                    stem         TEXT NOT NULL,
+                                    options      TEXT NOT NULL DEFAULT '[]',
+                                    answer       TEXT NOT NULL CHECK (answer IN ('A','B','C','D')),
+                                    answer_alt   TEXT DEFAULT ''
+                                                 CHECK (answer_alt IN ('','A','B','C','D')),
+                                    disputed     INTEGER DEFAULT 0 CHECK (disputed IN (0,1)),
+                                    qtype        TEXT DEFAULT 'detail'
+                                                 CHECK (qtype IN ('detail','infer','main','vocab','attitude','example','other')),
+                                    locate_para  INTEGER DEFAULT 0,
+                                    locate_hint  TEXT DEFAULT '',
+                                    explanation  TEXT DEFAULT '',
+                                    distractors  TEXT DEFAULT '',
+                                    answer_note  TEXT DEFAULT '',
+                                    source_ref   TEXT DEFAULT '',
+                                    difficulty   INTEGER DEFAULT 2,
+                                    archived     INTEGER DEFAULT 0,
+                                    UNIQUE(passage_id, seq),
+                                    CHECK (answer_alt = '' OR answer_alt <> answer),
+                                    CHECK (disputed = 0 OR answer_alt <> '')
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_reading_q_passage
+                                    ON exam_reading_questions(passage_id, seq, archived);
+                                CREATE INDEX IF NOT EXISTS idx_reading_q_type
+                                    ON exam_reading_questions(qtype);
+
+                                -- ===== 练习会话 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_sessions (
+                                    id             TEXT PRIMARY KEY,
+                                    mode           TEXT NOT NULL CHECK (mode IN ('close','timed','set','wrong')),
+                                    scope          TEXT NOT NULL,
+                                    limit_seconds  INTEGER DEFAULT 0,
+                                    started_at     TEXT NOT NULL,
+                                    deadline_at    TEXT,
+                                    submitted_at   TEXT,
+                                    elapsed_ms     INTEGER DEFAULT 0,
+                                    question_count INTEGER DEFAULT 0,
+                                    answered_count INTEGER DEFAULT 0,
+                                    correct_count  INTEGER DEFAULT 0,
+                                    score          INTEGER DEFAULT 0,
+                                    overtime       INTEGER DEFAULT 0,
+                                    in_exam_slot   INTEGER DEFAULT 0,
+                                    status         TEXT DEFAULT 'ongoing'
+                                                   CHECK (status IN ('ongoing','submitted','abandoned')),
+                                    created_at     TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_reading_session_status
+                                    ON exam_reading_sessions(status, started_at);
+                                CREATE INDEX IF NOT EXISTS idx_reading_session_scope
+                                    ON exam_reading_sessions(scope, mode);
+
+                                -- ===== 会话题目 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_session_questions (
+                                    session_id  TEXT NOT NULL,
+                                    question_id INTEGER NOT NULL,
+                                    sort_order  INTEGER DEFAULT 0,
+                                    PRIMARY KEY (session_id, question_id)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_reading_sq_session
+                                    ON exam_reading_session_questions(session_id, sort_order);
+
+                                -- ===== 作答明细 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_attempts (
+                                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    session_id  TEXT NOT NULL,
+                                    question_id INTEGER NOT NULL,
+                                    user_answer TEXT DEFAULT '',
+                                    is_correct  INTEGER DEFAULT 0,
+                                    duration_ms INTEGER DEFAULT 0,
+                                    flagged     INTEGER DEFAULT 0,
+                                    answered_at TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(session_id, question_id)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_reading_attempt_session
+                                    ON exam_reading_attempts(session_id);
+                                CREATE INDEX IF NOT EXISTS idx_reading_attempt_question
+                                    ON exam_reading_attempts(question_id, answered_at);
+
+                                -- ===== 错题本 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_wrongbook (
+                                    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    question_id       INTEGER NOT NULL UNIQUE,
+                                    wrong_count       INTEGER DEFAULT 1,
+                                    last_wrong_answer TEXT DEFAULT '',
+                                    reason            TEXT DEFAULT '',
+                                    note              TEXT DEFAULT '',
+                                    status            TEXT DEFAULT 'new' CHECK (status IN ('new','grasped')),
+                                    correct_streak    INTEGER DEFAULT 0,
+                                    last_reviewed_at  TEXT,
+                                    added_at          TEXT DEFAULT (datetime('now')),
+                                    updated_at        TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_reading_wrong_status
+                                    ON exam_reading_wrongbook(status, added_at);
+
+                                -- ===== 配置 =====
+                                CREATE TABLE IF NOT EXISTS exam_reading_profile (
+                                    id                INTEGER PRIMARY KEY CHECK (id = 1),
+                                    close_seconds     INTEGER DEFAULT 0,
+                                    timed_seconds     INTEGER DEFAULT 1080,
+                                    set_seconds       INTEGER DEFAULT 4200,
+                                    exam_slot_start   TEXT DEFAULT '14:00',
+                                    exam_slot_end     TEXT DEFAULT '17:00',
+                                    slot_hint         INTEGER DEFAULT 1,
+                                    mock_years        TEXT DEFAULT '[]',
+                                    bank_version      INTEGER DEFAULT 0,
+                                    updated_at        TEXT DEFAULT (datetime('now'))
+                                );
+                                INSERT OR IGNORE INTO exam_reading_profile (id) VALUES (1);
+                            "#,
+                        },
                     ],
                 )
                 .build(),

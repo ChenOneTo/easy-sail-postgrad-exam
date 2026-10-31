@@ -13,12 +13,13 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { ExamPlanPage } from './components/ExamPlanPage';
 import { ExamVocabPage } from './components/ExamVocabPage';
 import { VocabGamePage } from './components/VocabGamePage';
+import { ExamReadingPage } from './components/ExamReadingPage';
 import { useTaskStore } from './stores/task-store';
 import { shouldShowSplashOnLaunch } from './lib/splash';
 
 export default function App() {
   const { currentView, currentSection, detailTaskId, theme, closeDetail } = useTaskStore();
-  const isSpecialSection = currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game';
+  const isSpecialSection = currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(
@@ -66,6 +67,7 @@ export default function App() {
               {currentSection === 'exam' && <ExamPlanPage />}
               {currentSection === 'exam-vocab' && <ExamVocabPage />}
               {currentSection === 'exam-vocab-game' && <VocabGamePage />}
+              {currentSection === 'exam-reading' && <ExamReadingPage />}
               {!isSpecialSection && currentView === 'calendar' && <CalendarView />}
               {!isSpecialSection && currentView === 'kanban' && <KanbanBoard />}
             </div>

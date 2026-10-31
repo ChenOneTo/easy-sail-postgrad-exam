@@ -3,9 +3,10 @@ import { persist } from 'zustand/middleware';
 import type { Task, KanbanStatus, ViewMode, SectionId, RecurrenceRule } from '../lib/types';
 import { dbFetchAll, dbInsert, dbUpdate, dbDelete } from '../lib/db';
 import { localDateStr } from '../lib/utils';
-import { initCloudSync, registerTaskGetter, registerExamGetter, registerExamVocabGetter } from '../lib/cloud';
+import { initCloudSync, registerTaskGetter, registerExamGetter, registerExamVocabGetter, registerExamReadingGetter } from '../lib/cloud';
 import { useExamStore } from './exam-store';
 import { useExamVocabStore } from './exam-vocab-store';
+import { useExamReadingStore } from './exam-reading-store';
 import { isTauri } from '../lib/tauri';
 
 export type AccentColor = 'green' | 'blue' | 'purple' | 'orange' | 'pink' | 'red';
@@ -458,6 +459,8 @@ export const useTaskStore = create<TaskStore>()(
   registerExamGetter(() => useExamStore.getState().getCloudSnapshot());
   // 背单词快照：需查库故为异步；用户进入过背单词页后才参与自动同步
   registerExamVocabGetter(() => useExamVocabStore.getState().getCloudSnapshot());
+  // 阅读快照：需查库故为异步；用户进入过阅读页后才参与自动同步
+  registerExamReadingGetter(() => useExamReadingStore.getState().getCloudSnapshot());
   // 默认开启开机自启动（仅 Tauri 环境）
   if (isTauri()) {
     try {

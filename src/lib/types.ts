@@ -13,6 +13,7 @@ export type SectionId =
   | 'exam'
   | 'exam-vocab'
   | 'exam-vocab-game'
+  | 'exam-reading'
   | 'ai';
 
 /** 重复提醒类型 */

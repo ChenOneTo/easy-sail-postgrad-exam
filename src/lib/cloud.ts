@@ -1,17 +1,20 @@
 import type { Task } from './types';
 import type { ExamCloudSnapshot } from './exam-db';
 import type { ExamVocabCloudSnapshot } from './exam-vocab-db';
+import type { ReadingBankSnapshot } from './exam-reading-db';
 import { isTauri } from './tauri';
 
 const CLOUD_DIR_KEY = 'easysail-exam-cloud-dir';
 const CLOUD_FILE = 'easysail-exam-tasks.json';
 const EXAM_CLOUD_FILE = 'easysail-exam-plan.json';
 const EXAM_VOCAB_CLOUD_FILE = 'easysail-exam-vocab.json';
+const EXAM_READING_CLOUD_FILE = 'easysail-exam-reading.json';
 const AUTO_SAVE_KEY = 'easysail-exam-cloud-autosave';
 const AUTO_INTERVAL_KEY = 'easysail-exam-cloud-interval';
 const CLOUD_DATA_KEY = 'easysail-exam-cloud-data'; // 浏览器模式 fallback
 const CLOUD_EXAM_DATA_KEY = 'easysail-exam-cloud-plan-data';
 const CLOUD_EXAM_VOCAB_DATA_KEY = 'easysail-exam-cloud-vocab-data';
+const CLOUD_EXAM_READING_DATA_KEY = 'easysail-exam-cloud-reading-data';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -128,6 +131,47 @@ function parseExamVocabData(text: string): ExamVocabCloudSnapshot {
   throw new Error('文件格式无法识别');
 }
 
+/** 将英语二阅读数据保存到云盘目录（独立文件，不含题库本体） */
+export async function saveExamReadingToCloud(snapshot: ReadingBankSnapshot): Promise<{ path: string; count: number }> {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    reading: snapshot,
+  };
+  return saveCollectionToCloud(EXAM_READING_CLOUD_FILE, data, CLOUD_EXAM_READING_DATA_KEY);
+}
+
+/** 从云盘目录读取阅读数据；云盘与本地均无数据时返回 null（不抛错），格式/IO 错误仍抛出 */
+export async function loadExamReadingFromCloud(): Promise<ReadingBankSnapshot | null> {
+  try {
+    return await loadCollectionFromCloud<ReadingBankSnapshot>(
+      EXAM_READING_CLOUD_FILE,
+      CLOUD_EXAM_READING_DATA_KEY,
+      parseExamReadingData,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('未找到云盘数据')) return null;
+    throw err;
+  }
+}
+
+/** 解析阅读数据（兼容 {reading:{...}} 与顶层字段两种格式） */
+function parseExamReadingData(text: string): ReadingBankSnapshot {
+  const data = JSON.parse(text);
+  const reading = data?.reading ?? data;
+  if (reading?.profile && Array.isArray(reading.sessions)) {
+    return {
+      profile: reading.profile,
+      sessions: Array.isArray(reading.sessions) ? reading.sessions : [],
+      sessionQuestions: Array.isArray(reading.sessionQuestions) ? reading.sessionQuestions : [],
+      attempts: Array.isArray(reading.attempts) ? reading.attempts : [],
+      wrongbook: Array.isArray(reading.wrongbook) ? reading.wrongbook : [],
+    } as ReadingBankSnapshot;
+  }
+  throw new Error('文件格式无法识别');
+}
+
 /** 解析考研数据（兼容 {exam:{...}} 与顶层字段两种格式） */
 function parseExamData(text: string): ExamCloudSnapshot {
   const data = JSON.parse(text);
@@ -154,19 +198,24 @@ export async function cloudFileExists(): Promise<boolean> {  const dir = getClo
         // 也检查背单词文件
         const vocabFilePath = await join(dir, EXAM_VOCAB_CLOUD_FILE);
         if (await exists(vocabFilePath)) return true;
+        // 也检查阅读文件
+        const readingFilePath = await join(dir, EXAM_READING_CLOUD_FILE);
+        if (await exists(readingFilePath)) return true;
       } catch {
         // 文件检查失败，继续检查 localStorage
       }
     }
     return !!localStorage.getItem(CLOUD_DATA_KEY)
       || !!localStorage.getItem(CLOUD_EXAM_DATA_KEY)
-      || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY);
+      || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY)
+      || !!localStorage.getItem(CLOUD_EXAM_READING_DATA_KEY);
   }
 
   // 浏览器 fallback
   return !!localStorage.getItem(CLOUD_DATA_KEY)
     || !!localStorage.getItem(CLOUD_EXAM_DATA_KEY)
-    || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY);
+    || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY)
+    || !!localStorage.getItem(CLOUD_EXAM_READING_DATA_KEY);
 }
 
 /** 解析任务数据（兼容纯数组和对象格式） */
@@ -277,6 +326,7 @@ export async function pickCloudDir(): Promise<string | null> {
 let _getTasks: (() => Task[]) | null = null;
 let _getExam: (() => ExamCloudSnapshot | null) | null = null;
 let _getExamVocab: (() => Promise<ExamVocabCloudSnapshot | null>) | null = null;
+let _getExamReading: (() => Promise<ReadingBankSnapshot | null>) | null = null;
 
 /** 注册获取任务的回调（由 store 调用） */
 export function registerTaskGetter(fn: () => Task[]) {
@@ -296,6 +346,11 @@ export function registerExamVocabGetter(fn: () => Promise<ExamVocabCloudSnapshot
   _getExamVocab = fn;
 }
 
+/** 注册阅读快照回调：未加载/无题库/无写入时返回 null，自动同步将跳过该文件 */
+export function registerExamReadingGetter(fn: () => Promise<ReadingBankSnapshot | null>) {
+  _getExamReading = fn;
+}
+
 function startAutoSave() {
   stopAutoSave();
   const interval = getAutoInterval() * 1000;
@@ -307,6 +362,8 @@ function startAutoSave() {
       if (exam) await saveExamToCloud(exam);
       const vocab = await _getExamVocab?.();
       if (vocab) await saveExamVocabToCloud(vocab);
+      const reading = await _getExamReading?.();
+      if (reading) await saveExamReadingToCloud(reading);
       console.log('[Cloud] 自动保存完成');
     } catch (err) {
       console.warn('[Cloud] 自动保存失败:', err);
