@@ -6399,7 +6399,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-status-tag.new { color: var(--text-tertiary); background: var(--bg-tertiary); }
 
 /* —— 统计 —— */
-.vg-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.vg-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .vg-stat-card {
   padding: 16px 18px;
   background: var(--bg-secondary);
@@ -6409,6 +6409,33 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-stat-card span { font-size: 12px; color: var(--text-secondary); }
 .vg-stat-card strong { display: block; margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .vg-stat-card small { margin-left: 4px; font-size: 12px; font-weight: 400; color: var(--text-tertiary); }
+/* 未学 / 见过 / 熟悉 / 掌握 分布：分段条 + 四列数值 */
+.vg-dist-bar {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+  margin: 12px 0 2px;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  border-radius: 999px;
+}
+.vg-dist-seg { min-width: 0; height: 100%; flex-basis: 0; }
+.vg-dist-seg.new { background: var(--text-tertiary); }
+.vg-dist-seg.seen { background: color-mix(in srgb, var(--brand-primary) 40%, var(--text-tertiary)); }
+.vg-dist-seg.familiar { background: color-mix(in srgb, var(--brand-primary) 70%, var(--text-tertiary)); }
+.vg-dist-seg.mastered { background: var(--brand-primary); }
+.vg-dist-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.vg-dist-item { min-width: 0; padding: 10px 0 2px; }
+.vg-dist-name { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-secondary); }
+.vg-dist-item strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 20px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.vg-dist-item strong small { margin-left: 3px; font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
+.vg-dist-percent { font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .vg-stats-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 16px; }
 .vg-score-row {
   min-height: 54px;
@@ -6970,7 +6997,8 @@ input, textarea, select { font: inherit; color: inherit; }
   .vg-group-count { margin: 0; text-align: left; }
   .vg-group-count strong { font-size: 26px; }
   .vg-continue { flex: 1; }
-  .vg-stat-grid { grid-template-columns: 1fr; }
+  .vg-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vg-dist-list { grid-template-columns: 1fr 1fr; }
   .vg-word-row { grid-template-columns: minmax(100px, 1fr) minmax(130px, 1.4fr) 62px 24px; gap: 9px; padding: 8px 12px; }
   .vg-screen-top { padding: 0 16px; grid-template-columns: 1fr auto; }
   .vg-screen-phase { display: none; }
@@ -6981,6 +7009,7 @@ input, textarea, select { font: inherit; color: inherit; }
   .vg-head h2 { font-size: 20px; }
   .vg-head-ops { width: 100%; }
   .vg-chip { order: 3; }
+  .vg-stat-card strong { font-size: 22px; }
   .vg-word-row { grid-template-columns: minmax(0, 1fr) auto 24px; }
   .vg-word-def { grid-column: 1 / -1; grid-row: 2; padding-bottom: 3px; }
   .vg-word-row .vg-status-tag { grid-column: 2; grid-row: 1; }

@@ -31,6 +31,17 @@ const STATUS_LABEL: Record<WordStatus, string> = {
   mastered: '掌握',
 };
 
+/** 四档固定顺序：未学 → 见过 → 熟悉 → 掌握 */
+const STATUS_ORDER: WordStatus[] = ['new', 'seen', 'familiar', 'mastered'];
+
+/** 统计页口径：new 即「还没学过」的词 */
+const STATUS_STAT_LABEL: Record<WordStatus, string> = {
+  new: '未学',
+  seen: '见过',
+  familiar: '熟悉',
+  mastered: '掌握',
+};
+
 /** 通关正确率选项，全部关卡统一生效 */
 const PASS_OPTIONS = [0.6, 0.7, 0.8, 0.9] as const;
 
@@ -54,6 +65,17 @@ function fmtRunDate(value: string): string {
 /** 分钟数展示：整数不带小数点，小数最多两位 */
 function formatMinutes(minutes: number): string {
   return String(Math.round(minutes * 100) / 100);
+}
+
+/** 累计时长卡片文案：满 60 分钟折算为「X 小时 Y 分」，避免出现四位数分钟 */
+function fmtTotalDuration(minutes: number): { value: string; unit: string } {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return { value: String(m), unit: '分钟' };
+  const hours = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest > 0
+    ? { value: `${hours} 小时 ${rest}`, unit: '分钟' }
+    : { value: String(hours), unit: '小时' };
 }
 
 function daysUntil(dateStr: string, today: string): number {
@@ -219,12 +241,16 @@ export function VocabGamePage() {
   const todayPassed = game.progress?.todayPassed ?? 0;
   const todayMinutes = game.progress?.todayMinutes ?? 0;
   const avgAccuracy = Math.round((game.progress?.avgAccuracy ?? 0) * 100);
+  /** 四档合计（= 已建卡的未归档词数），作为占比分母 */
+  const statusTotal = STATUS_ORDER.reduce((sum, key) => sum + game.statusCounts[key], 0);
+  const statusPercent = (n: number) => (statusTotal > 0 ? Math.round((n / statusTotal) * 100) : 0);
   const examDays = daysUntil(profile.phase3End, todayStr);
   const preview = game.previewWords;
   const rangeText = preview.length > 0
     ? `${preview[0].word} ~ ${preview[preview.length - 1].word}`
     : '全部单词已学完';
   const weekTotal = game.weekly.reduce((sum, d) => sum + d.minutes, 0);
+  const totalDuration = fmtTotalDuration(game.progress?.totalMinutes ?? 0);
   const ringLength = 2 * Math.PI * 52;
   const mistakes = hardwords.filter((h) => h.status === 'new');
   const wbSource = wbQuery.trim() ? (wbResults ?? []) : preview;
@@ -482,7 +508,7 @@ export function VocabGamePage() {
 
             <section className="vg-status-block">
               <h4 className="vg-section-label">单词掌握分布</h4>
-              {(['new', 'seen', 'familiar', 'mastered'] as WordStatus[]).map((key) => (
+              {STATUS_ORDER.map((key) => (
                 <div className="vg-status-row" key={key}>
                   <span className="vg-status-name">
                     <i className={`vg-dot ${key}`} />{STATUS_LABEL[key]}
@@ -588,10 +614,41 @@ export function VocabGamePage() {
           </div>
 
           <div className="vg-stat-grid">
+            <div className="vg-stat-card">
+              <span>总学习时长</span>
+              <strong>{totalDuration.value}<small>{totalDuration.unit}</small></strong>
+            </div>
             <div className="vg-stat-card"><span>平均正确率</span><strong>{avgAccuracy}<small>%</small></strong></div>
             <div className="vg-stat-card"><span>累计通关</span><strong>{game.progress?.passedLevels ?? 0}<small>关</small></strong></div>
             <div className="vg-stat-card"><span>已掌握单词</span><strong>{game.statusCounts.mastered}<small>词</small></strong></div>
           </div>
+
+          <section className="vg-panel">
+            <div className="vg-panel-head">
+              <h4>单词掌握分布</h4>
+              <span className="vg-panel-total">共 {statusTotal} 词</span>
+            </div>
+            <div className="vg-dist-bar" aria-hidden="true">
+              {STATUS_ORDER.map((key) => (
+                <span
+                  key={key}
+                  className={`vg-dist-seg ${key}`}
+                  style={{ flexGrow: game.statusCounts[key] }}
+                />
+              ))}
+            </div>
+            <div className="vg-dist-list">
+              {STATUS_ORDER.map((key) => (
+                <div className="vg-dist-item" key={key}>
+                  <span className="vg-dist-name">
+                    <i className={`vg-dot ${key}`} />{STATUS_STAT_LABEL[key]}
+                  </span>
+                  <strong>{game.statusCounts[key]}<small>词</small></strong>
+                  <span className="vg-dist-percent">{statusPercent(game.statusCounts[key])}%</span>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <div className="vg-stats-grid">
             <section className="vg-panel">

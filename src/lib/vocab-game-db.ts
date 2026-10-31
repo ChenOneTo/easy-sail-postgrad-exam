@@ -36,6 +36,8 @@ export interface GameProgress {
   avgAccuracy: number;
   todayPassed: number;
   todayMinutes: number;
+  /** 累计学习时长（分钟，含背单词与闯关的全部复习记录） */
+  totalMinutes: number;
 }
 
 export interface WordStatusCounts {
@@ -134,7 +136,8 @@ export async function fetchGameProgress(): Promise<GameProgress> {
       (SELECT COUNT(*) FROM exam_vocab_game_runs
         WHERE passed = 1 AND replay = 0 AND date(finished_at, 'localtime') = date('now', 'localtime')) AS todayPassed,
       (SELECT COALESCE(SUM(duration_ms), 0) FROM exam_vocab_reviews
-        WHERE date(reviewed_at, 'localtime') = date('now', 'localtime')) AS todayMs
+        WHERE date(reviewed_at, 'localtime') = date('now', 'localtime')) AS todayMs,
+      (SELECT COALESCE(SUM(duration_ms), 0) FROM exam_vocab_reviews) AS totalMs
   `);
   const r = rows[0] ?? {};
   return {
@@ -144,6 +147,7 @@ export async function fetchGameProgress(): Promise<GameProgress> {
     avgAccuracy: (r.avgAccuracy as number) ?? 0,
     todayPassed: (r.todayPassed as number) ?? 0,
     todayMinutes: Math.round(((r.todayMs as number) ?? 0) / 60000),
+    totalMinutes: Math.round(((r.totalMs as number) ?? 0) / 60000),
   };
 }
 
