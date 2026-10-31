@@ -4,12 +4,14 @@ import { useTaskStore, ACCENT_COLORS } from '../stores/task-store';
 import { useExamStore } from '../stores/exam-store';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { useVocabGameStore } from '../stores/vocab-game-store';
+import { useExamReadingStore } from '../stores/exam-reading-store';
 import { dbReplaceAll } from '../lib/db';
 import { getExamVocabCloudSnapshot } from '../lib/exam-vocab-db';
+import { getExamReadingCloudSnapshot } from '../lib/exam-reading-db';
 import { errText } from '../lib/error-text';
 import {
   getCloudDir, pickCloudDir, setCloudDir, saveToCloud, loadFromCloud,
-  saveExamToCloud, saveExamVocabToCloud,
+  saveExamToCloud, saveExamVocabToCloud, saveExamReadingToCloud,
   getAutoSave, setAutoSave, getAutoInterval, setAutoInterval,
 } from '../lib/cloud';
 import {
@@ -275,6 +277,24 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       failed.push(`背单词（${errText(err)}）`);
     }
 
+    // 英语二阅读：练习会话 + 作答明细 + 错题本
+    try {
+      if (!isTauri()) {
+        skipped.push('阅读（浏览器模式不支持）');
+      } else {
+        const snapshot = await getExamReadingCloudSnapshot();
+        const hasData = snapshot.sessions.length > 0 || snapshot.attempts.length > 0 || snapshot.wrongbook.length > 0;
+        if (!hasData) {
+          skipped.push('阅读（本地暂无进度）');
+        } else {
+          await saveExamReadingToCloud(snapshot);
+          saved.push(`阅读（${snapshot.sessions.length} 次练习 / ${snapshot.wrongbook.length} 条错题）`);
+        }
+      }
+    } catch (err: unknown) {
+      failed.push(`阅读（${errText(err)}）`);
+    }
+
     setCloudMsg(formatSyncMsg('已保存', saved, skipped, failed));
     setCloudBusy(false);
   };
@@ -327,6 +347,16 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     } catch (err) {
       console.warn('[CloudLoad] 背单词加载失败:', err);
       failed.push(`背单词（${errText(err)}）`);
+    }
+
+    // 英语二阅读
+    try {
+      const { restored: ok } = await useExamReadingStore.getState().restoreFromCloud();
+      if (ok) restored.push('阅读进度');
+      else missing.push('阅读');
+    } catch (err) {
+      console.warn('[CloudLoad] 阅读加载失败:', err);
+      failed.push(`阅读（${errText(err)}）`);
     }
 
     const parts: string[] = [];
@@ -714,6 +744,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                   <div>• <b>easysail-exam-tasks.json</b> — 任务清单</div>
                   <div>• <b>easysail-exam-plan.json</b> — 考研计划（科目 / 阶段 / 考务）</div>
                   <div>• <b>easysail-exam-vocab.json</b> — 背单词进度（词卡调度 / 难词本 / AI 助记 / 闯关成绩）</div>
+                  <div>• <b>easysail-exam-reading.json</b> — 英语二阅读（练习会话 / 作答明细 / 错题本）</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <input
@@ -738,7 +769,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                     <div className="setting-row">
                       <div>
                         <div className="setting-label">手动同步</div>
-                        <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词进度）保存到云盘；从云盘加载会覆盖本地对应数据</div>
+                        <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词 / 阅读进度）保存到云盘；从云盘加载会覆盖本地对应数据</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button style={{ ...btnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudLoad} disabled={cloudBusy}>
