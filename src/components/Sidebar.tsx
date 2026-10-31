@@ -22,6 +22,11 @@ const NAV_GROUPS: NavGroup[] = [
     title: '学习计划',
     items: [
       { id: 'exam', label: '考研计划', icon: <GraduationCap size={16} /> },
+    ],
+  },
+  {
+    title: '考研英语',
+    items: [
       { id: 'exam-vocab', label: '背单词', icon: <BookOpen size={16} /> },
       { id: 'exam-vocab-game', label: '单词闯关', icon: <Swords size={16} /> },
       { id: 'exam-reading', label: '阅读刷题', icon: <Newspaper size={16} /> },
