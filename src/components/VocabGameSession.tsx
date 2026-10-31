@@ -42,6 +42,14 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
       {sentence && (
         <p className="vg-mnemonic-example">
           <span className="vg-mnemonic-tag">例句</span>{sentence}
+          <button
+            className="vg-example-speak"
+            type="button"
+            aria-label="播放 AI 例句"
+            onClick={() => speak(sentence)}
+          >
+            <Volume2 size={13} />
+          </button>
           {sentenceZh && <em>{sentenceZh}</em>}
         </p>
       )}
