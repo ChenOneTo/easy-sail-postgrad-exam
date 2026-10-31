@@ -300,3 +300,34 @@ export function normalizeMnemonicDraft(raw: unknown): AiMnemonicDraft | null {
     sentenceZh: limitText(obj.sentenceZh, 200),
   };
 }
+
+// —— 阅读复盘：选中单词的语境翻译 ——
+
+export interface AiReadingWordDraft {
+  /** 原样返回选中的单词/短语 */
+  word: string;
+  phonetic: string;
+  /** 常见考研释义 */
+  meaning: string;
+  /** 在本句中的具体含义、搭配或指代 */
+  context: string;
+  /** 所在句子的中文翻译 */
+  sentenceTranslation: string;
+  /** 词根、固定搭配、易混词或语法提示（可选） */
+  note: string;
+}
+
+/** 校验阅读单词翻译草稿；没有有效释义时返回 null，避免脏数据上屏 */
+export function normalizeReadingWordDraft(raw: unknown): AiReadingWordDraft | null {
+  const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const meaning = limitText(obj.meaning, 300);
+  if (!meaning) return null;
+  return {
+    word: limitText(obj.word, 80),
+    phonetic: limitText(obj.phonetic, 80),
+    meaning,
+    context: limitText(obj.context, 300),
+    sentenceTranslation: limitText(obj.sentenceTranslation, 400),
+    note: limitText(obj.note, 200),
+  };
+}

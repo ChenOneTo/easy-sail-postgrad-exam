@@ -1,8 +1,10 @@
 /**
  * 阅读复盘视图：逐题显示答案、定位、解析、干扰项与错因。
  */
-import { useMemo, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Minus, RotateCw, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { ArrowLeft, Check, ChevronDown, Loader2, Minus, RotateCw, Sparkles, X } from 'lucide-react'
+import { canUseAi } from '../lib/ai'
+import type { AiReadingWordDraft } from '../lib/ai-json'
 import { updateReadingWrongReason } from '../lib/exam-reading-db'
 import type {
   ReadingAttempt,
@@ -10,6 +12,7 @@ import type {
   ReadingSession as ReadingSessionRow,
   ReadingWrongItem,
 } from '../lib/exam-reading-db'
+import { useAiTask } from '../hooks/useAiTask'
 import { useExamReadingStore } from '../stores/exam-reading-store'
 
 interface Props {
@@ -49,6 +52,39 @@ function fmtDuration(ms: number): string {
 
 function globalNo(q: ReadingQuestionWithPassage): number {
   return 20 + (q.textNo - 1) * 5 + q.seq
+}
+
+interface AiMenuState {
+  x: number
+  y: number
+  word: string
+  sentence: string
+  title: string
+  ready: boolean
+}
+
+interface AiWordState extends Omit<AiMenuState, 'ready'> {
+  draft: AiReadingWordDraft | null
+}
+
+/** 去掉选中文本两端标点、压缩空白；只处理英文原文 */
+function cleanSelection(raw: string): string {
+  return raw
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '')
+}
+
+/** 取包含目标词的句子；找不到时退化为段落开头 */
+function sentenceAround(text: string, word: string): string {
+  const idx = text.toLowerCase().indexOf(word.toLowerCase())
+  if (idx < 0) return text.slice(0, 400)
+  let start = idx
+  while (start > 0 && !'.!?'.includes(text[start - 1])) start--
+  let end = idx + word.length
+  while (end < text.length && !'.!?'.includes(text[end])) end++
+  if (end < text.length) end++
+  return text.slice(start, end).trim().slice(0, 500)
 }
 
 interface Group {
@@ -101,6 +137,104 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
     return !attempt || !attempt.isCorrect
   })
   const scoreFull = session.mode === 'set' ? 40 : session.mode === 'timed' || session.mode === 'close' ? 10 : 0
+
+  const { translateReadingWord, loading: aiLoading, error: aiError, abort } = useAiTask()
+  const [aiMenu, setAiMenu] = useState<AiMenuState | null>(null)
+  const [aiWord, setAiWord] = useState<AiWordState | null>(null)
+  const lastSelectionRef = useRef<{ word: string; sentence: string; at: number } | null>(null)
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setAiMenu(null)
+      setAiWord(null)
+      abort()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [abort])
+
+  /** 读取当前选区并定位所在段落；返回 null 表示不是有效的英文原文选区 */
+  const getSelectionContext = (group: Group): { word: string; sentence: string } | null => {
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed) return null
+    const word = cleanSelection(selection.toString())
+    if (word.length < 2 || word.length > 80) return null
+
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+    const startNode = range?.startContainer
+    const startEl = startNode instanceof Element ? startNode : startNode?.parentElement
+    if (!startEl || !startEl.closest('.reading-review-passage')) return null
+
+    const paraEl = startEl.closest('p[data-para-index]') as HTMLElement | null
+    const paraIndex = paraEl ? Number(paraEl.dataset.paraIndex) : -1
+    const paragraph = Number.isInteger(paraIndex) && paraIndex >= 0
+      ? group.paragraphs[paraIndex] || ''
+      : group.paragraphs.join(' ')
+    return { word, sentence: sentenceAround(paragraph, word) }
+  }
+
+  /** 左键选词或右键按下时缓存，防止部分 WebView 在右键时清空 selection */
+  const captureSelection = (group: Group) => {
+    const ctx = getSelectionContext(group)
+    if (ctx) lastSelectionRef.current = { ...ctx, at: Date.now() }
+  }
+
+  /** 右键原文：弹出 AI 翻译菜单 */
+  const openAiMenu = (e: MouseEvent<HTMLElement>, group: Group) => {
+    const current = getSelectionContext(group)
+    const last = lastSelectionRef.current
+    const fallback = last && Date.now() - last.at < 5000
+      ? { word: last.word, sentence: last.sentence }
+      : null
+    const ctx = current || fallback
+    if (!ctx) return
+
+    e.preventDefault()
+    setAiWord(null)
+    setAiMenu({
+      x: Math.max(8, Math.min(e.clientX, window.innerWidth - 240)),
+      y: Math.max(8, Math.min(e.clientY, window.innerHeight - 140)),
+      word: ctx.word,
+      sentence: ctx.sentence,
+      title: group.title,
+      ready: canUseAi(),
+    })
+  }
+
+  const runTranslation = async (word: string, sentence: string, title: string, x: number, y: number) => {
+    setAiWord({ x, y, word, sentence, title, draft: null })
+    const draft = await translateReadingWord(word, sentence, title)
+    if (!draft) return
+    setAiWord((prev) => (
+      prev && prev.word === word && prev.sentence === sentence
+        ? { ...prev, draft }
+        : prev
+    ))
+  }
+
+  const startAiTranslate = () => {
+    if (!aiMenu) return
+    const { word, sentence, title } = aiMenu
+    setAiMenu(null)
+    void runTranslation(
+      word,
+      sentence,
+      title,
+      Math.max(8, Math.min(aiMenu.x, window.innerWidth - 400)),
+      Math.max(8, Math.min(aiMenu.y + 8, window.innerHeight - 360)),
+    )
+  }
+
+  const retryTranslation = () => {
+    if (!aiWord) return
+    void runTranslation(aiWord.word, aiWord.sentence, aiWord.title, aiWord.x, aiWord.y)
+  }
+
+  const closeAiWord = () => {
+    setAiWord(null)
+    abort()
+  }
 
   const setReason = async (questionId: number, reason: string) => {
     try {
@@ -174,9 +308,17 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
             </div>
 
             {open && (
-              <article className="reading-review-passage">
+              <article
+                className="reading-review-passage"
+                onMouseDown={(e) => { if (e.button === 2) captureSelection(group) }}
+                onMouseUp={() => captureSelection(group)}
+                onContextMenu={(e) => openAiMenu(e, group)}
+              >
+                <div className="reading-review-passage-hint">
+                  <Sparkles size={13} /> 选中单词后右键，可使用 AI 翻译
+                </div>
                 {group.paragraphs.map((p, i) => (
-                  <p key={i}><span className="reading-para-no">[{i + 1}]</span>{p}</p>
+                  <p key={i} data-para-index={i}><span className="reading-para-no">[{i + 1}]</span>{p}</p>
                 ))}
               </article>
             )}
@@ -273,6 +415,92 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
           </section>
         )
       })}
+
+      {aiMenu && (
+        <div className="reading-ai-layer" onMouseDown={() => setAiMenu(null)}>
+          <div
+            className="reading-ai-menu"
+            style={{ left: aiMenu.x, top: aiMenu.y }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="reading-ai-menu-word">{aiMenu.word}</div>
+            <button
+              className="reading-ai-menu-item"
+              disabled={!aiMenu.ready}
+              onClick={startAiTranslate}
+            >
+              <Sparkles size={14} />
+              <span>AI 翻译 · 语境释义</span>
+            </button>
+            {!aiMenu.ready && (
+              <p className="reading-ai-menu-hint">AI 未开启或未配置，请到设置中检查</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {aiWord && (
+        <div className="reading-ai-layer" onMouseDown={closeAiWord}>
+          <div
+            className="reading-ai-card"
+            style={{ left: aiWord.x, top: aiWord.y }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="reading-ai-card-head">
+              <span className="reading-ai-card-title"><Sparkles size={14} /> AI 翻译</span>
+              <b>{aiWord.draft?.word || aiWord.word}</b>
+              {aiWord.draft?.phonetic && <span className="reading-ai-phonetic">{aiWord.draft.phonetic}</span>}
+              <button className="icon-btn" onClick={closeAiWord} aria-label="关闭"><X size={14} /></button>
+            </div>
+
+            {aiLoading && (
+              <div className="reading-ai-loading"><Loader2 size={15} className="spin" /> 正在结合语境翻译…</div>
+            )}
+
+            {aiError && !aiLoading && (
+              <div className="reading-ai-error">
+                <b>翻译失败</b>
+                <p>{aiError}</p>
+                <div className="reading-ai-error-ops">
+                  <button className="exam-ghost-btn" onClick={retryTranslation}>重试</button>
+                  <span>请确认已在设置中开启 AI 并配置模型</span>
+                </div>
+              </div>
+            )}
+
+            {aiWord.draft && !aiLoading && (
+              <div className="reading-ai-body">
+                <div className="reading-ai-row">
+                  <span>释义</span>
+                  <p>{aiWord.draft.meaning}</p>
+                </div>
+                {aiWord.draft.context && (
+                  <div className="reading-ai-row">
+                    <span>语境</span>
+                    <p>{aiWord.draft.context}</p>
+                  </div>
+                )}
+                <div className="reading-ai-sentence">
+                  <span>原句</span>
+                  <p>{aiWord.sentence}</p>
+                  {aiWord.draft.sentenceTranslation && (
+                    <>
+                      <span>翻译</span>
+                      <p>{aiWord.draft.sentenceTranslation}</p>
+                    </>
+                  )}
+                </div>
+                {aiWord.draft.note && (
+                  <div className="reading-ai-row">
+                    <span>提示</span>
+                    <p>{aiWord.draft.note}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

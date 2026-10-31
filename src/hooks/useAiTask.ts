@@ -8,6 +8,7 @@ import {
   buildExamPlanPrompt,
   buildPolishNotesPrompt,
   buildQuickAddPrompt,
+  buildReadingWordPrompt,
   buildVocabMnemonicPrompt,
 } from '../lib/prompts';
 import {
@@ -17,12 +18,14 @@ import {
   normalizeAiTaskDraft,
   normalizeExamPlanDraft,
   normalizeMnemonicDraft,
+  normalizeReadingWordDraft,
   parseAiJson,
   type AiBreakdownDraft,
   type AiChatDraft,
   type AiClassifyDraft,
   type AiExamPlanDraft,
   type AiMnemonicDraft,
+  type AiReadingWordDraft,
   type AiTaskDraft,
 } from '../lib/ai-json';
 import type { Task } from '../lib/types';
@@ -154,6 +157,17 @@ export function useAiTask() {
     });
   }, [run]);
 
+  /** 阅读复盘：选中单词/短语的语境翻译 */
+  const translateReadingWord = useCallback((word: string, sentence: string, title: string): Promise<AiReadingWordDraft | null> => {
+    return run(async signal => {
+      const content = await chatCompletion([
+        { role: 'system', content: '你只输出可解析 JSON。' },
+        { role: 'user', content: buildReadingWordPrompt(word, sentence, title) },
+      ], { signal, temperature: 0.3 });
+      return normalizeReadingWordDraft(parseAiJson(content));
+    });
+  }, [run]);
+
   return {
     status,
     loading: status === 'loading',
@@ -167,5 +181,6 @@ export function useAiTask() {
     classifyTasks,
     generateExamPlan,
     generateMnemonic,
+    translateReadingWord,
   };
 }

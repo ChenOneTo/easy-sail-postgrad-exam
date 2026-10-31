@@ -176,3 +176,23 @@ export function buildVocabMnemonicPrompt(word: string, meaning: string): string 
   ].join('\n');
 }
 
+/** 阅读复盘：选中单词/短语的语境翻译 */
+export function buildReadingWordPrompt(word: string, sentence: string, title: string): string {
+  return [
+    '你是考研英语二阅读精读助手。用户在复盘一篇真题时选中了一个单词或短语，请结合句子语境给出精确、简洁的中文解释。',
+    '只返回 JSON，不要输出 Markdown code block，不要解释 JSON 之外的内容。',
+    'JSON schema: {"word":"string","phonetic":"string","meaning":"string","context":"string","sentenceTranslation":"string","note":"string"}',
+    '要求：',
+    '1. word 原样返回选中的单词/短语；若是短语，phonetic 可以为空；',
+    '2. phonetic 用带斜杠的音标，如 /ˈprəʊses/；只给一个常见读音；',
+    '3. meaning 给常见考研释义（中文，最多 3 个义项，用分号分隔）；',
+    '4. context 说明它在本句中的具体含义、搭配或指代（中文，60 字内）；',
+    '5. sentenceTranslation 是所在句子的准确中文翻译；',
+    '6. note 可选：词根、固定搭配、易混词或语法提示（中文，80 字内）；',
+    '7. 如果选中的是专有名词、拼写片段或短语，结合上下文解释，不要编造。',
+    `文章：${title}`,
+    `所在句：${sentence}`,
+    `选中内容：${word}`,
+  ].join('\n');
+}
+
