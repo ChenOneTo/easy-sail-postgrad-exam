@@ -1,4 +1,6 @@
 import Database from '@tauri-apps/plugin-sql';
+import { errText } from './error-text';
+import { insertRows } from './sql-util';
 
 let _db: Database | null = null;
 
@@ -239,77 +241,99 @@ export async function deleteExamTask(id: number): Promise<void> {
 
 // ========== 云盘备份恢复 ==========
 
+/** 读取本地考试数据快照（恢复失败时用于还原） */
+async function readExamSnapshot(): Promise<ExamCloudSnapshot> {
+  const [profile, subjects, phases, tasks] = await Promise.all([
+    fetchExamProfile(), fetchExamSubjects(), fetchExamPhases(), fetchExamTasks(),
+  ]);
+  return { profile, subjects, phases, tasks };
+}
+
 /**
- * 用云端快照整体覆盖本地考试数据（事务保证原子性）。
+ * 把快照写入本地考试数据。
  * 科目按 key 合并（保留本地自增 id，阶段 subject_id 自动重映射），
  * 阶段/任务全量替换，profile 单例行更新。
+ *
+ * 不使用 BEGIN/COMMIT（连接池下手动事务不可靠，见 sql-util 说明）。
+ */
+async function writeExamSnapshot(db: Database, snapshot: ExamCloudSnapshot): Promise<void> {
+  // 1. 科目按 key 合并（不删除本地已有科目，避免破坏其他引用）
+  for (const s of snapshot.subjects) {
+    await db.execute(
+      'UPDATE exam_subjects SET name = $1, color = $2, sort_order = $3, archived = 0 WHERE key = $4',
+      [s.name, s.color, s.sortOrder ?? 0, s.key]
+    );
+    await db.execute(
+      'INSERT OR IGNORE INTO exam_subjects (key, name, color, sort_order) VALUES ($1, $2, $3, $4)',
+      [s.key, s.name, s.color, s.sortOrder ?? 0]
+    );
+  }
+
+  // 2. 云端科目 id → 本地科目 id 重映射（经由 key）
+  const localRows = await db.select<Record<string, unknown>[]>('SELECT id, key FROM exam_subjects');
+  const localIdByKey = new Map(localRows.map(r => [r.key as string, r.id as number]));
+  const cloudIdToLocal = new Map<number, number>();
+  for (const s of snapshot.subjects) {
+    const localId = localIdByKey.get(s.key);
+    if (localId !== undefined) cloudIdToLocal.set(s.id, localId);
+  }
+
+  // 3. 阶段全量替换（重映射 subject_id）
+  await db.execute('DELETE FROM exam_phases');
+  let phaseOrder = 0;
+  await insertRows(
+    db,
+    `INSERT INTO exam_phases (subject_id, name, start_date, end_date, goal, sort_order) VALUES`,
+    6,
+    snapshot.phases.flatMap((p) => {
+      const subjectId = cloudIdToLocal.get(p.subjectId);
+      if (subjectId === undefined) return [];
+      return [[subjectId, p.name, p.startDate, p.endDate, p.goal || '', p.sortOrder ?? phaseOrder++]];
+    }),
+  );
+
+  // 4. 任务全量替换
+  await db.execute('DELETE FROM exam_tasks');
+  const now = new Date().toISOString();
+  await insertRows(
+    db,
+    `INSERT INTO exam_tasks (subject_key, title, notes, status, plan_date, started_date,
+       completed_at, sort_order, created_at, updated_at) VALUES`,
+    10,
+    snapshot.tasks.map((t) => [
+      t.subjectKey, t.title, t.notes || '',
+      t.status === 'doing' || t.status === 'done' ? t.status : 'todo',
+      t.planDate ?? null, t.startedDate ?? null, t.completedAt ?? null,
+      t.sortOrder ?? 0, t.createdAt || now, t.updatedAt || now,
+    ]),
+  );
+
+  // 5. Profile 单例行更新
+  await db.execute(
+    `UPDATE exam_profile SET exam_date = $1, target_note = $2, daily_goal_minutes = $3, updated_at = $4 WHERE id = 1`,
+    [snapshot.profile.examDate ?? null, snapshot.profile.targetNote || '', snapshot.profile.dailyGoalMinutes ?? 120, new Date().toISOString()]
+  );
+}
+
+/**
+ * 用云端快照整体覆盖本地考试数据。
+ * 覆盖前先读本地快照；无事务保护，中途失败时用它还原。
  */
 export async function replaceExamData(snapshot: ExamCloudSnapshot): Promise<void> {
   const db = await getExamDb();
-  await db.execute('BEGIN TRANSACTION');
+  const backup = await readExamSnapshot().catch(() => null);
+
   try {
-    // 1. 科目按 key 合并（不删除本地已有科目，避免破坏其他引用）
-    for (const s of snapshot.subjects) {
-      await db.execute(
-        'UPDATE exam_subjects SET name = $1, color = $2, sort_order = $3, archived = 0 WHERE key = $4',
-        [s.name, s.color, s.sortOrder ?? 0, s.key]
-      );
-      await db.execute(
-        'INSERT OR IGNORE INTO exam_subjects (key, name, color, sort_order) VALUES ($1, $2, $3, $4)',
-        [s.key, s.name, s.color, s.sortOrder ?? 0]
-      );
-    }
-
-    // 2. 云端科目 id → 本地科目 id 重映射（经由 key）
-    const localRows = await db.select<Record<string, unknown>[]>('SELECT id, key FROM exam_subjects');
-    const localIdByKey = new Map(localRows.map(r => [r.key as string, r.id as number]));
-    const cloudIdToLocal = new Map<number, number>();
-    for (const s of snapshot.subjects) {
-      const localId = localIdByKey.get(s.key);
-      if (localId !== undefined) cloudIdToLocal.set(s.id, localId);
-    }
-
-    // 3. 阶段全量替换（重映射 subject_id）
-    await db.execute('DELETE FROM exam_phases');
-    let phaseOrder = 0;
-    for (const p of snapshot.phases) {
-      const subjectId = cloudIdToLocal.get(p.subjectId);
-      if (subjectId === undefined) continue;
-      await db.execute(
-        `INSERT INTO exam_phases (subject_id, name, start_date, end_date, goal, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [subjectId, p.name, p.startDate, p.endDate, p.goal || '', p.sortOrder ?? phaseOrder]
-      );
-      phaseOrder++;
-    }
-
-    // 4. 任务全量替换
-    await db.execute('DELETE FROM exam_tasks');
-    for (const t of snapshot.tasks) {
-      await db.execute(
-        `INSERT INTO exam_tasks (subject_key, title, notes, status, plan_date, started_date,
-           completed_at, sort_order, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [
-          t.subjectKey, t.title, t.notes || '',
-          t.status === 'doing' || t.status === 'done' ? t.status : 'todo',
-          t.planDate ?? null, t.startedDate ?? null, t.completedAt ?? null,
-          t.sortOrder ?? 0,
-          t.createdAt || new Date().toISOString(),
-          t.updatedAt || new Date().toISOString(),
-        ]
-      );
-    }
-
-    // 5. Profile 单例行更新
-    await db.execute(
-      `UPDATE exam_profile SET exam_date = $1, target_note = $2, daily_goal_minutes = $3, updated_at = $4 WHERE id = 1`,
-      [snapshot.profile.examDate ?? null, snapshot.profile.targetNote || '', snapshot.profile.dailyGoalMinutes ?? 120, new Date().toISOString()]
-    );
-
-    await db.execute('COMMIT');
+    await writeExamSnapshot(db, snapshot);
   } catch (err) {
-    await db.execute('ROLLBACK');
+    if (backup) {
+      console.warn('[ExamDB] 覆盖中途失败，尝试用旧快照还原本地数据：', errText(err));
+      try {
+        await writeExamSnapshot(db, backup);
+      } catch (restoreErr) {
+        console.error('[ExamDB] 还原失败：', errText(restoreErr));
+      }
+    }
     throw err;
   }
 }

@@ -1,6 +1,7 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { Task, KanbanStatus, RecurrenceRule } from './types';
 import { localDateStr } from './utils';
+import { insertRows } from './sql-util';
 
 let _db: Database | null = null;
 const DB_URL = 'sqlite:easy-sail-postgrad-exam.db';
@@ -164,37 +165,35 @@ export async function dbDelete(id: number): Promise<void> {
   await db.execute('DELETE FROM tasks WHERE id = $1', [id]);
 }
 
-/** 批量写入任务（同步用，事务保证原子性） */
+/**
+ * 批量写入任务（云盘恢复用）。
+ *
+ * 不用 BEGIN/COMMIT：tauri-plugin-sql 底层是连接池，BEGIN 与后续语句可能落到
+ * 不同连接，会留下未提交事务（后续报 cannot start a transaction within a transaction
+ * 或 database is locked）。改为先删后批量插入的 autocommit 写入。
+ */
 export async function dbReplaceAll(tasks: Task[]): Promise<void> {
   const db = await getDb();
-  await db.execute('BEGIN TRANSACTION');
-  try {
-    await db.execute('DELETE FROM tasks');
-    for (const t of tasks) {
-      await db.execute(
-        `INSERT INTO tasks (id, title, notes, project_id, kanban, starred, completed,
-           completed_at, due_date, tags, sort_order, created_at, updated_at,
-           reminder_at, reminder_enabled, reminder_text, recurrence,
-           snoozed_until, last_notified_at, start_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
-        [
-          t.id, t.title, t.notes, t.projectId, t.kanban,
-          t.starred ? 1 : 0, t.completed ? 1 : 0,
-          t.completedAt, t.dueDate, JSON.stringify(t.tags),
-          t.sortOrder, t.createdAt, t.updatedAt,
-          t.reminderAt || null,
-          t.reminderEnabled ? 1 : 0,
-          t.reminderText || null,
-          t.recurrence ? JSON.stringify(t.recurrence) : null,
-          t.snoozedUntil || null,
-          t.lastNotifiedAt || null,
-          t.startDate || null,
-        ]
-      );
-    }
-    await db.execute('COMMIT');
-  } catch (err) {
-    await db.execute('ROLLBACK');
-    throw err;
-  }
+  await db.execute('DELETE FROM tasks');
+  await insertRows(
+    db,
+    `INSERT INTO tasks (id, title, notes, project_id, kanban, starred, completed,
+       completed_at, due_date, tags, sort_order, created_at, updated_at,
+       reminder_at, reminder_enabled, reminder_text, recurrence,
+       snoozed_until, last_notified_at, start_date) VALUES`,
+    20,
+    tasks.map((t) => [
+      t.id, t.title, t.notes, t.projectId, t.kanban,
+      t.starred ? 1 : 0, t.completed ? 1 : 0,
+      t.completedAt, t.dueDate, JSON.stringify(t.tags),
+      t.sortOrder, t.createdAt, t.updatedAt,
+      t.reminderAt || null,
+      t.reminderEnabled ? 1 : 0,
+      t.reminderText || null,
+      t.recurrence ? JSON.stringify(t.recurrence) : null,
+      t.snoozedUntil || null,
+      t.lastNotifiedAt || null,
+      t.startDate || null,
+    ]),
+  );
 }

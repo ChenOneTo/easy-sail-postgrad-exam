@@ -6,7 +6,7 @@
  */
 import Database from '@tauri-apps/plugin-sql'
 import rawBank from '../assets/exam-reading/reading-bank.json?raw'
-import { errText } from './error-text'
+import { execWithRetry, insertRows } from './sql-util'
 
 let _db: Database | null = null
 
@@ -322,19 +322,6 @@ function rowToProfile(row: Record<string, unknown>): ReadingProfile {
 }
 
 // ========== 工具 ==========
-
-async function execWithRetry(db: Database, sql: string, values: unknown[], attempts = 4): Promise<void> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await db.execute(sql, values)
-      return
-    } catch (err) {
-      const msg = errText(err)
-      if (attempt >= attempts || !/locked|busy/i.test(msg)) throw err
-      await new Promise((r) => setTimeout(r, 250 * attempt))
-    }
-  }
-}
 
 function makeSessionId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -1037,55 +1024,67 @@ export async function replaceExamReadingData(snapshot: ReadingBankSnapshot): Pro
   await db.execute('DELETE FROM exam_reading_wrongbook')
 
   let skipped = 0
-  for (const s of snapshot.sessions || []) {
-    await execWithRetry(
-      db,
-      `INSERT INTO exam_reading_sessions
-         (id, mode, scope, limit_seconds, started_at, deadline_at, submitted_at, elapsed_ms,
-          question_count, answered_count, correct_count, score, overtime, in_exam_slot, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-      [
-        s.id, s.mode, s.scope, s.limitSeconds, s.startedAt, s.deadlineAt, s.submittedAt,
-        s.elapsedMs, s.questionCount, s.answeredCount, s.correctCount, s.score,
-        s.overtime ? 1 : 0, s.inExamSlot ? 1 : 0, s.status,
-      ],
-    )
-  }
+  const now = new Date().toISOString()
+
+  // 批量多值 INSERT，避免逐条 IPC 让恢复过程持续过久（撞 SQLite 写锁）
+  await insertRows(
+    db,
+    `INSERT INTO exam_reading_sessions
+       (id, mode, scope, limit_seconds, started_at, deadline_at, submitted_at, elapsed_ms,
+        question_count, answered_count, correct_count, score, overtime, in_exam_slot, status) VALUES`,
+    15,
+    (snapshot.sessions || []).map((s) => [
+      s.id, s.mode, s.scope, s.limitSeconds, s.startedAt, s.deadlineAt, s.submittedAt,
+      s.elapsedMs, s.questionCount, s.answeredCount, s.correctCount, s.score,
+      s.overtime ? 1 : 0, s.inExamSlot ? 1 : 0, s.status,
+    ]),
+  )
+
+  const sessionQuestionRows: unknown[][] = []
   for (const item of snapshot.sessionQuestions || []) {
     const id = idByKey.get(item.questionKey)
     if (!id) { skipped++; continue }
-    await execWithRetry(
-      db,
-      'INSERT OR IGNORE INTO exam_reading_session_questions (session_id, question_id, sort_order) VALUES ($1,$2,$3)',
-      [item.sessionId, id, item.sortOrder],
-    )
+    sessionQuestionRows.push([item.sessionId, id, item.sortOrder])
   }
+  await insertRows(
+    db,
+    'INSERT OR IGNORE INTO exam_reading_session_questions (session_id, question_id, sort_order) VALUES',
+    3,
+    sessionQuestionRows,
+  )
+
+  const attemptRows: unknown[][] = []
   for (const item of snapshot.attempts || []) {
     const id = idByKey.get(item.questionKey)
     if (!id) { skipped++; continue }
-    await execWithRetry(
-      db,
-      `INSERT INTO exam_reading_attempts
-         (session_id, question_id, user_answer, is_correct, duration_ms, flagged, answered_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [item.sessionId, id, item.userAnswer, item.isCorrect ? 1 : 0, item.durationMs, item.flagged ? 1 : 0, item.answeredAt],
-    )
+    attemptRows.push([
+      item.sessionId, id, item.userAnswer, item.isCorrect ? 1 : 0, item.durationMs, item.flagged ? 1 : 0, item.answeredAt,
+    ])
   }
+  await insertRows(
+    db,
+    `INSERT INTO exam_reading_attempts
+       (session_id, question_id, user_answer, is_correct, duration_ms, flagged, answered_at) VALUES`,
+    7,
+    attemptRows,
+  )
+
+  const wrongRows: unknown[][] = []
   for (const item of snapshot.wrongbook || []) {
     const id = idByKey.get(item.questionKey)
     if (!id) { skipped++; continue }
-    await execWithRetry(
-      db,
-      `INSERT INTO exam_reading_wrongbook
-         (question_id, wrong_count, last_wrong_answer, reason, note, status, correct_streak, last_reviewed_at, added_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [
-        id, item.wrongCount, item.lastWrongAnswer, item.reason, item.note, item.status,
-        item.correctStreak, item.lastReviewedAt, item.addedAt || new Date().toISOString(),
-        item.updatedAt || new Date().toISOString(),
-      ],
-    )
+    wrongRows.push([
+      id, item.wrongCount, item.lastWrongAnswer, item.reason, item.note, item.status,
+      item.correctStreak, item.lastReviewedAt, item.addedAt || now, item.updatedAt || now,
+    ])
   }
+  await insertRows(
+    db,
+    `INSERT INTO exam_reading_wrongbook
+       (question_id, wrong_count, last_wrong_answer, reason, note, status, correct_streak, last_reviewed_at, added_at, updated_at) VALUES`,
+    10,
+    wrongRows,
+  )
 
   const p = snapshot.profile
   await updateReadingProfile(p)

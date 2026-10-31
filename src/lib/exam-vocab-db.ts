@@ -1,5 +1,6 @@
 import Database from '@tauri-apps/plugin-sql';
 import { errText } from './error-text';
+import { execWithRetry, insertRows } from './sql-util';
 
 let _db: Database | null = null;
 
@@ -9,52 +10,6 @@ export async function getExamVocabDb(): Promise<Database> {
     _db = await Database.load('sqlite:easy-sail-postgrad-exam.db');
   }
   return _db;
-}
-
-// ========== 批量写入工具 ==========
-
-/** 每批拼多少行（100 行 × 13 列 ≈ 1300 个绑定变量，远低于 SQLite 变量上限） */
-const BATCH_SIZE = 100;
-
-/**
- * 执行写语句，遇到数据库被占用（SQLITE_BUSY，多连接写冲突）时退避重试。
- * 逐条 IPC 写入 thousands 行时容易与通知引擎等其它连接撞写锁。
- */
-async function execWithRetry(db: Database, sql: string, values: unknown[], attempts = 4): Promise<void> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await db.execute(sql, values);
-      return;
-    } catch (err) {
-      const msg = errText(err);
-      if (attempt >= attempts || !/locked|busy/i.test(msg)) throw err;
-      await new Promise((r) => setTimeout(r, 300 * attempt));
-    }
-  }
-}
-
-/**
- * 批量插入：把多行拼成一条多值 INSERT，减少 IPC 往返。
- * 单条语句 1 万次 execute 会让写事务持续数分钟，极易撞上 SQLite 写锁。
- */
-async function insertRows(
-  db: Database,
-  prefix: string,
-  columns: number,
-  rows: unknown[][],
-  batchSize = BATCH_SIZE,
-): Promise<void> {
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const slice = rows.slice(i, i + batchSize);
-    const tuples: string[] = [];
-    const values: unknown[] = [];
-    for (const row of slice) {
-      const start = values.length + 1;
-      tuples.push(`(${Array.from({ length: columns }, (_, c) => `$${start + c}`).join(',')})`);
-      values.push(...row);
-    }
-    await execWithRetry(db, `${prefix} ${tuples.join(',')}`, values);
-  }
 }
 
 // ========== 类型 ==========
@@ -370,6 +325,13 @@ export async function fetchVocabWordCount(): Promise<number> {
   return rows[0]?.count ?? 0;
 }
 
+/** 全表词数（含 archived，用于导入前后差值统计） */
+async function countVocabWords(): Promise<number> {
+  const db = await getExamVocabDb();
+  const rows = await db.select<{ count: number }[]>('SELECT COUNT(*) AS count FROM exam_vocab_words');
+  return rows[0]?.count ?? 0;
+}
+
 /** 单元号 → 核心区判定（U01-U13=核心） */
 export function isCoreUnit(unit: string): boolean {
   const n = parseInt(unit.replace(/^U/i, ''), 10);
@@ -419,7 +381,7 @@ export interface ImportResult { imported: number; skipped: number; }
 /**
  * 从 TSV 文本批量导入词库（首启空库触发）。按 word 唯一键 upsert：
  * 新增词追加默认方向卡（state=new），已存在词保留全部调度状态不动。
- * 整个导入在一个事务内完成。
+ * 按批 autocommit 写入（不用手动事务，原因见 sql-util 顶部说明）。
  */
 export async function importVocabWordsFromTsv(tsv: string, defaultDirection: CardDirection = 'en2zh'): Promise<ImportResult> {
   const db = await getExamVocabDb();
@@ -436,31 +398,41 @@ export async function importVocabWordsFromTsv(tsv: string, defaultDirection: Car
     parsed.push({ word: word.trim(), meaning: meaning.trim(), unit: unit.toUpperCase(), seq, core: isCoreUnit(unit) ? 1 : 0 });
   }
 
-  let imported = 0;
-  let skipped = 0;
-  await db.execute('BEGIN TRANSACTION');
-  try {
-    for (const p of parsed) {
-      const res = await db.execute(
-        `INSERT OR IGNORE INTO exam_vocab_words (word, meaning, unit, seq, core_zone) VALUES ($1, $2, $3, $4, $5)`,
-        [p.word, p.meaning, p.unit, p.seq, p.core]
-      );
-      if (res.rowsAffected > 0) {
-        imported++;
-        const wordId = res.lastInsertId;
-        await db.execute(
-          `INSERT OR IGNORE INTO exam_vocab_cards (word_id, direction, state, due) VALUES ($1, $2, 'new', NULL)`,
-          [wordId, defaultDirection]
-        );
-      } else {
-        skipped++;
-      }
-    }
-    await db.execute('COMMIT');
-  } catch (err) {
-    await db.execute('ROLLBACK');
-    throw err;
+  const before = await countVocabWords();
+
+  // 不用 BEGIN/COMMIT：连接池下事务可能落不到同一连接，留下未提交事务
+  await insertRows(
+    db,
+    'INSERT OR IGNORE INTO exam_vocab_words (word, meaning, unit, seq, core_zone) VALUES',
+    5,
+    parsed.map((p) => [p.word, p.meaning, p.unit, p.seq, p.core]),
+    200,
+  );
+
+  const after = await countVocabWords();
+  const imported = Math.max(0, after - before);
+  const skipped = Math.max(0, parsed.length - imported);
+
+  // 为本次涉及的词补建卡片（INSERT OR IGNORE 幂等，已存在的调度状态不受影响）
+  const words = parsed.map((p) => p.word);
+  const LOOKUP = 400;
+  for (let i = 0; i < words.length; i += LOOKUP) {
+    const chunk = words.slice(i, i + LOOKUP);
+    const placeholders = chunk.map((_, k) => `$${k + 1}`).join(',');
+    const rows = await db.select<{ id: number }[]>(
+      `SELECT id FROM exam_vocab_words WHERE word IN (${placeholders})`,
+      chunk,
+    );
+    if (rows.length === 0) continue;
+    await insertRows(
+      db,
+      `INSERT OR IGNORE INTO exam_vocab_cards (word_id, direction, state, due) VALUES`,
+      4,
+      rows.map((r) => [r.id, defaultDirection, 'new', null]),
+      200,
+    );
   }
+
   return { imported, skipped };
 }
 
@@ -935,34 +907,19 @@ async function writeExamVocabSnapshot(db: Database, snapshot: ExamVocabCloudSnap
  * cards/reviews/hardwords/mnemonics/game_runs 全量替换，profile 按 id=1 覆盖。
  * words 不动（恢复后由首启检测补建）。
  *
- * 健壮性要点：
- * - 批量插入，避免上万次 IPC 让写事务持续过久而撞上 SQLite 写锁
- * - 开事务失败时降级为非事务覆盖，不中断恢复
- * - 非事务模式下中途失败，用覆盖前的旧快照还原本地数据
+ * 不使用 BEGIN/COMMIT：连接池下 BEGIN 与后续语句可能落到不同连接，会留下
+ * 未提交事务（后续报 cannot start a transaction within a transaction / database is locked）。
+ * 改为批量 autocommit 写入，并在覆盖前留一份旧快照，失败时用它还原本地数据。
  */
 export async function replaceExamVocabData(snapshot: ExamVocabCloudSnapshot): Promise<void> {
   const db = await getExamVocabDb();
-  // 覆盖前留一份旧快照：非事务模式下中途失败时用它还原，避免本地数据被清空
+  // 覆盖前留一份旧快照：无事务保护，中途失败时用它还原，避免本地数据被清空
   const backup = await getExamVocabCloudSnapshot().catch(() => null);
-
-  let inTx = false;
-  try {
-    await db.execute('BEGIN TRANSACTION');
-    inTx = true;
-  } catch (err) {
-    console.warn('[ExamVocabDB] 开启事务失败，降级为非事务覆盖：', errText(err));
-  }
 
   try {
     await writeExamVocabSnapshot(db, snapshot);
-    if (inTx) {
-      await db.execute('COMMIT');
-      inTx = false;
-    }
   } catch (err) {
-    if (inTx) {
-      try { await db.execute('ROLLBACK'); } catch { /* 回滚失败时保留原始错误 */ }
-    } else if (backup) {
+    if (backup) {
       console.warn('[ExamVocabDB] 覆盖中途失败，尝试用旧快照还原本地数据：', errText(err));
       try {
         await writeExamVocabSnapshot(db, backup);
