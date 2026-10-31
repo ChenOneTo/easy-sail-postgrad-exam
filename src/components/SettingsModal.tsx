@@ -617,7 +617,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                 <div className="setting-row">
                   <div>
                     <div className="setting-label">开机自启动</div>
-                    <div className="setting-desc">系统启动时自动运行轻舟考研台</div>
+                    <div className="setting-desc">系统启动时自动运行轻舟AI考研</div>
                   </div>
                   <div
                     className={`toggle${autoStart ? ' active' : ''}${!isTauri() ? ' disabled' : ''}`}
@@ -945,7 +945,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                 }}>
                   <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>隐私说明</div>
                   <div>• API Key 仅保存在本地存储，不会上传到任何第三方服务器</div>
-                  <div>• 对话请求直接发送到你配置的服务地址，轻舟考研台不经过任何中转</div>
+                  <div>• 对话请求直接发送到你配置的服务地址，轻舟AI考研不经过任何中转</div>
                 </div>
 
                 {/* 模型新增/编辑弹窗 */}
@@ -1135,7 +1135,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                   <div className="about-meta">
                     <div className="about-item">
                       <span className="about-label">应用名称</span>
-                      <span className="about-value">轻舟考研台</span>
+                      <span className="about-value">轻舟AI考研</span>
                     </div>
                     <div className="about-item">
                       <span className="about-label">作者</span>

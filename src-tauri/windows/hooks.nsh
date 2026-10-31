@@ -2,7 +2,7 @@
 ; Tauri NSIS installer hooks
 ;
 ; 目标：productName 保持英文 "Easy Sail Exam"（决定安装包与安装目录名，保持 ASCII），
-; 但安装后系统里看到的快捷方式和「程序和功能」条目使用中文「轻舟考研台」。
+; 但安装后系统里看到的快捷方式和「程序和功能」条目使用中文「轻舟AI考研」。
 ;
 ; 两个关键约束：
 ; 1. 本文件被 include 在模板 `!define PRODUCTNAME` 之前，函数体在编译期立即展开，
@@ -14,13 +14,13 @@
 ;    因此两处都做改名，幂等且互不冲突。
 ;
 ; 中文名用 ${U+XXXX} 转义书写，保持本文件纯 ASCII，规避 NSIS 源文件编码问题。
-;   轻 U+8F7B  舟 U+821F  考 U+8003  研 U+7814  台 U+53F0  -> "轻舟考研台"
+;   轻 U+8F7B  舟 U+821F  A U+0041  I U+0049  考 U+8003  研 U+7814  -> "轻舟AI考研"
 ; ==========================================================================
 
 !include "LogicLib.nsh"
 
 !define APP_NAME_EN "Easy Sail Exam"
-!define APP_DISPLAY_NAME "${U+8F7B}${U+821F}${U+8003}${U+7814}${U+53F0}"
+!define APP_DISPLAY_NAME "${U+8F7B}${U+821F}${U+0041}${U+0049}${U+8003}${U+7814}"
 
 ; 把指定目录下以英文产品名命名的 .lnk 改名为中文名
 !macro RenameShortcutIn DIR

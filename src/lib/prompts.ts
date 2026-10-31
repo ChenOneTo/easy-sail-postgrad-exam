@@ -107,7 +107,7 @@ export function buildAiChatPrompt(
     .slice(0, 40);
 
   return [
-    '你是「轻舟考研台」的任务助手。你可以回答用户关于任务的问题、自动判断用户是否在记录一条任务，也可以为已有任务生成修改建议。',
+    '你是「轻舟AI考研」的任务助手。你可以回答用户关于任务的问题、自动判断用户是否在记录一条任务，也可以为已有任务生成修改建议。',
     '只返回 JSON，不要输出 Markdown code block，不要解释 JSON 之外的内容。',
     'JSON schema: {“reply”:”string”,”taskDraft”:null|{“title”:”string”,”dueDate”:”YYYY-MM-DD|null”,”dueTimeText”:”string|null”,”reminderAt”:”YYYY-MM-DDTHH:mm:ss|null”,”recurrence”:null|{“type”:”daily|weekly|monthly|yearly”,”interval”:1,”endDate”:”YYYY-MM-DD|null”},”projectId”:”project-work|project-study|project-life|null”,”tags”:[“tag-urgent”|”tag-important”],”notes”:”string”},”taskPatch”:null|{“taskId”:123,”title”:”string”,”notes”:”string”,”dueDate”:”YYYY-MM-DD|null”,”projectId”:”project-work|project-study|project-life”,”tags”:[“tag-urgent”|”tag-important”],”starred”:true,”completed”:true,”kanban”:”todo|doing|done”,”reason”:”string”}}',
     '如果用户提到具体时间（如”下午3点”、”明天9点”），请在 taskDraft 中设置 reminderAt 为 ISO 日期时间。',

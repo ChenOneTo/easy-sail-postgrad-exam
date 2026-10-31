@@ -46,9 +46,9 @@ export function SplashScreen({ onEnter }: { onEnter: () => void }) {
       <div className="splash-content">
         <div className="splash-hero">
           <div className="splash-logo-wrap">
-            <img src="/logo.svg" alt="轻舟考研台" className="splash-logo" />
+            <img src="/logo.svg" alt="轻舟AI考研" className="splash-logo" />
           </div>
-          <h1 className="splash-title">轻舟考研台</h1>
+          <h1 className="splash-title">轻舟AI考研</h1>
           <p className="splash-subtitle">你的考研备考助手</p>
           <p className="splash-tagline">考研计划 · 背单词 · 任务管理</p>
         </div>

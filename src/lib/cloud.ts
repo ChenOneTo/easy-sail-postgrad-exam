@@ -311,7 +311,7 @@ export async function pickCloudDir(): Promise<string | null> {
   // 非 Tauri 环境或对话框出错：回退到手动输入
   const manual = prompt(
     '请输入云盘同步目录的完整路径：\n' +
-    '（例如 C:\\Users\\xxx\\OneDrive\\轻舟考研台）\n\n' +
+    '（例如 C:\\Users\\xxx\\OneDrive\\轻舟AI考研）\n\n' +
     '提示：当前为浏览器模式，数据将保存在浏览器本地存储中。'
   );
   if (manual?.trim()) {

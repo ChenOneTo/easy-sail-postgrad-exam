@@ -6,12 +6,12 @@
 
 ## 项目概览
 
-「轻舟考研台」— 基于 **Tauri v2 + React 19 + TypeScript** 的跨平台桌面应用。
+「轻舟AI考研」— 基于 **Tauri v2 + React 19 + TypeScript** 的跨平台桌面应用。
 
 - 前端：Vite 8 + Tailwind CSS v4 + Zustand 5
 - 后端：Rust，位于 `src-tauri/`
 - 存储：本地 SQLite，通过 `tauri-plugin-sql` 访问
-- 英文名 / 产物名（productName）`Easy Sail Exam`，中文名 `轻舟考研台`，
+- 英文名 / 产物名（productName）`Easy Sail Exam`，中文名 `轻舟AI考研`，
   包名 `easy-sail-postgrad-exam`，标识符 `com.easysail.postgradexam`
 - 产物名保持 ASCII；安装后的快捷方式与「程序和功能」显示名由
   `src-tauri/windows/hooks.nsh` 改写为中文。注意该钩子里重复写了一份
@@ -108,7 +108,7 @@ Command plugin:sql|execute not allowed by ACL
 ```bash
 git add -A
 git commit -F <消息文件>          # 见下方「提交信息」
-git tag -a v1.0.x -m "轻舟考研台 v1.0.x"
+git tag -a v1.0.x -m "轻舟AI考研 v1.0.x"
 git push origin main && git push origin v1.0.x
 ```
 

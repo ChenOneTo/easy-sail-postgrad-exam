@@ -78,9 +78,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
-          releaseName: '轻舟考研台 v__VERSION__'
+          releaseName: '轻舟AI考研 v__VERSION__'
           releaseBody: |
-            ## 轻舟考研台 v__VERSION__
+            ## 轻舟AI考研 v__VERSION__
 
             自动构建的桌面应用安装包，本次仅提供 Windows 版本。
 

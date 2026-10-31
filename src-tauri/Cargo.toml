@@ -1,7 +1,7 @@
 [package]
 name = "easy-sail-postgrad-exam"
 version = "1.0.0"
-description = "轻舟考研台 - 考研备考桌面应用"
+description = "轻舟AI考研 - 考研备考桌面应用"
 authors = ["you"]
 edition = "2021"
 
