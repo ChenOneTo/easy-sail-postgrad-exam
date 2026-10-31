@@ -2,8 +2,9 @@
  * 背单词发音封装（零新增依赖、零 Rust 改动）。
  *
  * - 系统 TTS：WebView2（Edge Chromium）原生支持 window.speechSynthesis，离线可用。
- * - 在线真人：有道词典 dictvoice 接口（type=2 美音 / type=1 英音），联网可用。
- * - 在线播放失败（限流/断网/超时）自动回退系统 TTS，不抛错。
+ * - 在线单词：有道词典 dictvoice（type=2 美音 / type=1 英音）；但它只对词库词条有音频，
+ *   整句一律回 500，因此例句改走百度翻译 TTS（gettts），同样无需密钥。
+ * - 在线播放失败（限流/断网/超时）按音源顺序换源，全部失败再回退系统 TTS，不抛错。
  *
  * 发音运行时合成，不落库；设置项按设备存于 localStorage（发音源/语速/翻面自动播）。
  */
@@ -85,45 +86,93 @@ function speakSystem(word: string, rate: number, lang = 'en-US'): void {
   } catch { /* 静默：合成不可用时直接放弃 */ }
 }
 
-// —— 在线真人 ——
+// —— 在线发音 ——
 
 let _audio: HTMLAudioElement | null = null;
+let _audioTimer = 0;
 
-function speakOnline(word: string, accent: 1 | 2, fallbackRate: number): void {
-  const fallbackLang = accent === 1 ? ACCENT_LANG.uk : ACCENT_LANG.us;
-  try {
-    if (_audio) { _audio.pause(); _audio = null; }
-    const audio = new Audio(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=${accent}`);
-    _audio = audio;
-    // 8s 超时或加载/播放失败 → 回退系统 TTS（保持同一口音）
-    const timer = setTimeout(() => {
-      if (!_audio) return;
-      _audio = null;
-      audio.pause();
-      speakSystem(word, fallbackRate, fallbackLang);
-    }, 8000);
-    audio.addEventListener('error', () => {
-      clearTimeout(timer);
-      if (_audio === audio) _audio = null;
-      speakSystem(word, fallbackRate, fallbackLang);
-    }, { once: true });
-    audio.addEventListener('ended', () => {
-      clearTimeout(timer);
-      if (_audio === audio) _audio = null;
-    }, { once: true });
-    void audio.play().catch(() => {
-      clearTimeout(timer);
-      if (_audio === audio) _audio = null;
-      speakSystem(word, fallbackRate, fallbackLang);
-    });
-  } catch {
-    speakSystem(word, fallbackRate, fallbackLang);
+/** 停掉当前在线音频与超时计时器 */
+function clearAudio(): void {
+  if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
+  if (_audio) {
+    try { _audio.pause(); } catch { /* ignore */ }
+    _audio = null;
   }
+}
+
+/** 含空白即按整句处理；单词 / 连字符词走词典音源 */
+function isSentence(text: string): boolean {
+  return /\s/.test(text.trim());
+}
+
+/** 单词真人发音（有道词典，type 1=英音 2=美音，可区分英/美） */
+function wordAudioUrl(text: string, accent: 1 | 2): string {
+  return `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${accent}`;
+}
+
+/**
+ * 整句朗读（百度翻译 TTS）。
+ *
+ * 有道 dictvoice 只对其词库里的词条返回音频，任意整句都回 500
+ * `returned null audio`，所以例句以前必然回退系统 TTS——表现为「例句读音
+ * 不跟随联网读音设置」。百度 gettts 支持任意整句，同样无需密钥。
+ * spd 取值 1–5（3≈常速），按设置的语速折算；该音源不区分英/美口音。
+ */
+function sentenceAudioUrl(text: string, rate: number): string {
+  const spd = Math.min(5, Math.max(1, Math.round(rate * 3)));
+  return `https://fanyi.baidu.com/gettts?lan=en&text=${encodeURIComponent(text)}&spd=${spd}&source=web`;
+}
+
+/**
+ * 依次尝试多个在线音源：某个源加载失败 / 播放被拒 / 8s 内没出声就换下一个，
+ * 全部失败才回退系统 TTS。已开始播放的音频不会被后面的源打断。
+ */
+function playAudioChain(urls: string[], onAllFailed: () => void): void {
+  const [url, ...rest] = urls;
+  if (!url) { onAllFailed(); return; }
+  clearAudio();
+
+  let audio: HTMLAudioElement;
+  try {
+    audio = new Audio(url);
+  } catch {
+    playAudioChain(rest, onAllFailed);
+    return;
+  }
+  _audio = audio;
+
+  let settled = false;
+  const next = () => {
+    if (settled) return;
+    settled = true;
+    clearAudio();
+    playAudioChain(rest, onAllFailed);
+  };
+  _audioTimer = window.setTimeout(next, 8000);
+  // 一旦开始出声就撤掉超时，避免长句播到一半被下一个源打断
+  audio.addEventListener('playing', () => {
+    if (_audio === audio && _audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
+  }, { once: true });
+  audio.addEventListener('error', next, { once: true });
+  audio.addEventListener('ended', () => {
+    if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
+    if (_audio === audio) _audio = null;
+  }, { once: true });
+  void audio.play().catch(next);
+}
+
+function speakOnline(text: string, accent: 1 | 2, rate: number): void {
+  const fallbackLang = accent === 1 ? ACCENT_LANG.uk : ACCENT_LANG.us;
+  // 整句只走百度（有道对整句必失败，多试一次只会拖慢回退）；单词优先有道
+  const urls = isSentence(text)
+    ? [sentenceAudioUrl(text, rate)]
+    : [wordAudioUrl(text, accent), sentenceAudioUrl(text, rate)];
+  playAudioChain(urls, () => speakSystem(text, rate, fallbackLang));
 }
 
 // —— 对外入口 ——
 
-/** 播放单词发音（按设置选源，在线失败回退系统，关闭源则静默） */
+/** 播放发音（单词与整句通用：单词走词典音源、整句走百度 TTS；在线失败回退系统，关闭源则静默） */
 export function speak(word: string): void {
   const cfg = readConfig();
   if (cfg.source === 'off' || !word) return;
@@ -150,7 +199,7 @@ export function stopSpeak(): void {
   try {
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   } catch { /* ignore */ }
-  if (_audio) { try { _audio.pause(); } catch { /* ignore */ } _audio = null; }
+  clearAudio();
 }
 
 /** 预热：部分浏览器需触发一次 getVoices 才会异步加载语音列表 */
