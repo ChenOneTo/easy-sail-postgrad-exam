@@ -125,8 +125,10 @@ export async function searchGameWords(keyword: string, limit = 100): Promise<Voc
 }
 
 /**
- * 复习关取词：全部到期复习词（state=review 且 due ≤ now），不截断。
- * 与「今日待复习」计数同口径（闯关方向 en2zh），按到期时间升序。
+ * 复习关取词：全部到期需复习的词，不截断。
+ * 口径包含「学习中 / 重新学习 / 到期复习」三类（即 due ≤ now 且 state ≠ new）：
+ * 新卡首次评分后停在 learning 步骤等下一次到期，只取 review 会永远漏掉这批词。
+ * 与「今日待复习」计数、背单词页队列口径一致；学习中优先，其次按到期时间。
  */
 export async function fetchGameDueWords(nowIso: string): Promise<VocabQueueItem[]> {
   const db = await getExamVocabDb();
@@ -134,9 +136,10 @@ export async function fetchGameDueWords(nowIso: string): Promise<VocabQueueItem[
     SELECT c.*, w.word, w.meaning, w.unit, w.core_zone
     FROM exam_vocab_cards c
     JOIN exam_vocab_words w ON w.id = c.word_id
-    WHERE c.state = 'review' AND c.due IS NOT NULL AND c.due <= $1
+    WHERE c.state IN ('learning','relearning','review')
+      AND c.due IS NOT NULL AND c.due <= $1
       AND c.direction = $2 AND w.archived = 0
-    ORDER BY c.due ASC
+    ORDER BY CASE c.state WHEN 'learning' THEN 0 WHEN 'relearning' THEN 1 ELSE 2 END, c.due ASC
   `, [nowIso, GAME_DIRECTION]);
   return rows.map(rowToQueueItem);
 }
@@ -148,7 +151,8 @@ export async function fetchGameDueCount(nowIso: string): Promise<number> {
     `SELECT COUNT(*) AS count
      FROM exam_vocab_cards c
      JOIN exam_vocab_words w ON w.id = c.word_id
-     WHERE c.state = 'review' AND c.due IS NOT NULL AND c.due <= $1
+     WHERE c.state IN ('learning','relearning','review')
+       AND c.due IS NOT NULL AND c.due <= $1
        AND c.direction = $2 AND w.archived = 0`,
     [nowIso, GAME_DIRECTION]
   );

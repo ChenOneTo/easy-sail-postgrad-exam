@@ -110,7 +110,7 @@ export interface VocabGameStore {
   statusCounts: WordStatusCounts;
   weekly: DailyMinutes[];
   runs: GameRun[];
-  /** 到期复习数（今日待复习卡片，按当前背单词方向统计） */
+  /** 到期需复习词数（学习中 + 到期复习，闯关方向；与复习关取词同口径） */
   dueCount: number;
   /** 当前关卡（下一关）的词，用于首页词范围与单词本 */
   previewWords: GameWord[];
