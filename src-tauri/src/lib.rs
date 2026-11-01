@@ -433,6 +433,121 @@ pub fn run() {
                                 INSERT OR IGNORE INTO exam_reading_profile (id) VALUES (1);
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 4,
+                            description: "add 199 management comprehensive practice tables",
+                            sql: r#"
+                                -- ===== 199 管综题库（数学 1-25 / 逻辑 26-55） =====
+                                CREATE TABLE IF NOT EXISTS exam_mgmt_questions (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    question_key TEXT UNIQUE NOT NULL,
+                                    subject      TEXT NOT NULL CHECK (subject IN ('math','logic')),
+                                    year         INTEGER NOT NULL,
+                                    qno          INTEGER NOT NULL,
+                                    qtype        TEXT NOT NULL CHECK (qtype IN ('ps','csd','logic')),
+                                    topic        TEXT DEFAULT '',
+                                    stem         TEXT NOT NULL,
+                                    options      TEXT NOT NULL DEFAULT '[]',
+                                    answer       TEXT NOT NULL CHECK (answer IN ('A','B','C','D','E')),
+                                    answer_alt   TEXT DEFAULT '' CHECK (answer_alt IN ('','A','B','C','D','E')),
+                                    disputed     INTEGER DEFAULT 0 CHECK (disputed IN (0,1)),
+                                    explanation  TEXT DEFAULT '',
+                                    knowledge    TEXT DEFAULT '',
+                                    has_figure   INTEGER DEFAULT 0 CHECK (has_figure IN (0,1)),
+                                    archived     INTEGER DEFAULT 0,
+                                    created_at   TEXT DEFAULT (datetime('now')),
+                                    updated_at   TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(subject, year, qno)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_q_subject
+                                    ON exam_mgmt_questions(subject, archived, year, qno);
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_q_topic
+                                    ON exam_mgmt_questions(subject, topic);
+
+                                -- ===== 练习会话 =====
+                                CREATE TABLE IF NOT EXISTS exam_mgmt_sessions (
+                                    id             TEXT PRIMARY KEY,
+                                    subject        TEXT NOT NULL CHECK (subject IN ('math','logic')),
+                                    mode           TEXT NOT NULL CHECK (mode IN ('drill','timed','set','wrong')),
+                                    scope          TEXT NOT NULL,
+                                    limit_seconds  INTEGER DEFAULT 0,
+                                    started_at     TEXT NOT NULL,
+                                    deadline_at    TEXT,
+                                    submitted_at   TEXT,
+                                    elapsed_ms     INTEGER DEFAULT 0,
+                                    question_count INTEGER DEFAULT 0,
+                                    answered_count INTEGER DEFAULT 0,
+                                    correct_count  INTEGER DEFAULT 0,
+                                    score          INTEGER DEFAULT 0,
+                                    full_score     INTEGER DEFAULT 0,
+                                    overtime       INTEGER DEFAULT 0,
+                                    in_exam_slot   INTEGER DEFAULT 0,
+                                    status         TEXT DEFAULT 'ongoing'
+                                                   CHECK (status IN ('ongoing','submitted','abandoned')),
+                                    created_at     TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_session_status
+                                    ON exam_mgmt_sessions(subject, status, started_at);
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_session_scope
+                                    ON exam_mgmt_sessions(subject, scope, mode);
+
+                                -- ===== 会话题目 =====
+                                CREATE TABLE IF NOT EXISTS exam_mgmt_session_questions (
+                                    session_id  TEXT NOT NULL,
+                                    question_id INTEGER NOT NULL,
+                                    sort_order  INTEGER DEFAULT 0,
+                                    PRIMARY KEY (session_id, question_id)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_sq_session
+                                    ON exam_mgmt_session_questions(session_id, sort_order);
+
+                                -- ===== 作答明细 =====
+                                CREATE TABLE IF NOT EXISTS exam_mgmt_attempts (
+                                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    session_id  TEXT NOT NULL,
+                                    question_id INTEGER NOT NULL,
+                                    user_answer TEXT DEFAULT '',
+                                    is_correct  INTEGER DEFAULT 0,
+                                    duration_ms INTEGER DEFAULT 0,
+                                    flagged     INTEGER DEFAULT 0,
+                                    answered_at TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(session_id, question_id)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_attempt_session
+                                    ON exam_mgmt_attempts(session_id);
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_attempt_question
+                                    ON exam_mgmt_attempts(question_id, answered_at);
+
+                                -- ===== 错题本 =====
+                                CREATE TABLE IF NOT EXISTS exam_mgmt_wrongbook (
+                                    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    question_id       INTEGER NOT NULL UNIQUE,
+                                    user_answer       TEXT DEFAULT '',
+                                    reason            TEXT DEFAULT '',
+                                    note              TEXT DEFAULT '',
+                                    status            TEXT DEFAULT 'new' CHECK (status IN ('new','grasped')),
+                                    wrong_count       INTEGER DEFAULT 1,
+                                    correct_streak    INTEGER DEFAULT 0,
+                                    last_reviewed_at  TEXT,
+                                    added_at          TEXT DEFAULT (datetime('now')),
+                                    updated_at        TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_mgmt_wrong_status
+                                    ON exam_mgmt_wrongbook(status, added_at);
+
+                                -- ===== 配置 =====
+                                CREATE TABLE IF NOT EXISTS exam_mgmt_profile (
+                                    id           INTEGER PRIMARY KEY CHECK (id = 1),
+                                    math_seconds INTEGER DEFAULT 3600,
+                                    logic_seconds INTEGER DEFAULT 3300,
+                                    slot_hint    INTEGER DEFAULT 1,
+                                    bank_version INTEGER DEFAULT 0,
+                                    updated_at   TEXT DEFAULT (datetime('now'))
+                                );
+                                INSERT OR IGNORE INTO exam_mgmt_profile (id) VALUES (1);
+                            "#,
+                        },
                     ],
                 )
                 .build(),

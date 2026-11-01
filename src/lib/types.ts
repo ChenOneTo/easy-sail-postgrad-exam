@@ -14,6 +14,8 @@ export type SectionId =
   | 'exam-vocab'
   | 'exam-vocab-game'
   | 'exam-reading'
+  | 'exam-mgmt-math'
+  | 'exam-mgmt-logic'
   | 'ai';
 
 /** 重复提醒类型 */

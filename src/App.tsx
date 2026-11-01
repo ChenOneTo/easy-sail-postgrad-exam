@@ -14,12 +14,15 @@ import { ExamPlanPage } from './components/ExamPlanPage';
 import { ExamVocabPage } from './components/ExamVocabPage';
 import { VocabGamePage } from './components/VocabGamePage';
 import { ExamReadingPage } from './components/ExamReadingPage';
+import { MgmtPracticePage } from './components/MgmtPracticePage';
 import { useTaskStore } from './stores/task-store';
 import { shouldShowSplashOnLaunch } from './lib/splash';
 
 export default function App() {
   const { currentView, currentSection, detailTaskId, theme, closeDetail } = useTaskStore();
-  const isSpecialSection = currentSection === 'exam' || currentSection === 'exam-vocab' || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading';
+  const isSpecialSection = currentSection === 'exam' || currentSection === 'exam-vocab'
+    || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading'
+    || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(
@@ -68,6 +71,8 @@ export default function App() {
               {currentSection === 'exam-vocab' && <ExamVocabPage />}
               {currentSection === 'exam-vocab-game' && <VocabGamePage />}
               {currentSection === 'exam-reading' && <ExamReadingPage />}
+              {currentSection === 'exam-mgmt-math' && <MgmtPracticePage subject="math" />}
+              {currentSection === 'exam-mgmt-logic' && <MgmtPracticePage subject="logic" />}
               {!isSpecialSection && currentView === 'calendar' && <CalendarView />}
               {!isSpecialSection && currentView === 'kanban' && <KanbanBoard />}
             </div>

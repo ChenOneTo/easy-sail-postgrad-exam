@@ -27,6 +27,7 @@
 | `npm run lint` | ESLint 检查 |
 | `npm run build:phonetics` | 重新生成英美双音标 `phonetics.json`（仅词表变化时；构建期下载 ipa-dict / Britfone） |
 | `npm run build:examples` | 重新生成考研真题语境 `exam-examples.json`（数据源 CC BY-NC-SA 4.0） |
+| `npm run build:mgmt` | 重新生成 199 管综真题题库 `mgmt-bank.json`（源目录 `MGMT_SOURCE_DIR`，默认 `~/data/work-buddy/考研管综真题`） |
 
 无测试套件。提交前必须跑通 `npm run build` 与 `npm run lint`。
 

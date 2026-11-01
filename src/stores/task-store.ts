@@ -3,10 +3,11 @@ import { persist } from 'zustand/middleware';
 import type { Task, KanbanStatus, ViewMode, SectionId, RecurrenceRule } from '../lib/types';
 import { dbFetchAll, dbInsert, dbUpdate, dbDelete } from '../lib/db';
 import { localDateStr } from '../lib/utils';
-import { initCloudSync, registerTaskGetter, registerExamGetter, registerExamVocabGetter, registerExamReadingGetter } from '../lib/cloud';
+import { initCloudSync, registerTaskGetter, registerExamGetter, registerExamVocabGetter, registerExamReadingGetter, registerExamMgmtGetter } from '../lib/cloud';
 import { useExamStore } from './exam-store';
 import { useExamVocabStore } from './exam-vocab-store';
 import { useExamReadingStore } from './exam-reading-store';
+import { useExamMgmtStore } from './exam-mgmt-store';
 import { isTauri } from '../lib/tauri';
 
 export type AccentColor = 'green' | 'blue' | 'purple' | 'orange' | 'pink' | 'red';
@@ -461,6 +462,8 @@ export const useTaskStore = create<TaskStore>()(
   registerExamVocabGetter(() => useExamVocabStore.getState().getCloudSnapshot());
   // 阅读快照：需查库故为异步；用户进入过阅读页后才参与自动同步
   registerExamReadingGetter(() => useExamReadingStore.getState().getCloudSnapshot());
+  // 管综刷题快照：需查库故为异步；用户进入过刷题页后才参与自动同步
+  registerExamMgmtGetter(() => useExamMgmtStore.getState().getCloudSnapshot());
   // 默认开启开机自启动（仅 Tauri 环境）
   if (isTauri()) {
     try {

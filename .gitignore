@@ -18,6 +18,8 @@ src-tauri/gen/
 
 # 阅读题库中间产物（PDF 文本、draft.json、review.csv）
 reading-source/
+# 管综题库中间产物（复核清单）
+exam-mgmt-source/
 
 # Editor directories and files
 .vscode/*

@@ -2,6 +2,7 @@ import type { Task } from './types';
 import type { ExamCloudSnapshot } from './exam-db';
 import type { ExamVocabCloudSnapshot } from './exam-vocab-db';
 import type { ReadingBankSnapshot } from './exam-reading-db';
+import type { MgmtSnapshot } from './exam-mgmt-db';
 import { isTauri } from './tauri';
 
 const CLOUD_DIR_KEY = 'easysail-exam-cloud-dir';
@@ -9,12 +10,14 @@ const CLOUD_FILE = 'easysail-exam-tasks.json';
 const EXAM_CLOUD_FILE = 'easysail-exam-plan.json';
 const EXAM_VOCAB_CLOUD_FILE = 'easysail-exam-vocab.json';
 const EXAM_READING_CLOUD_FILE = 'easysail-exam-reading.json';
+const EXAM_MGMT_CLOUD_FILE = 'easysail-exam-mgmt.json';
 const AUTO_SAVE_KEY = 'easysail-exam-cloud-autosave';
 const AUTO_INTERVAL_KEY = 'easysail-exam-cloud-interval';
 const CLOUD_DATA_KEY = 'easysail-exam-cloud-data'; // 浏览器模式 fallback
 const CLOUD_EXAM_DATA_KEY = 'easysail-exam-cloud-plan-data';
 const CLOUD_EXAM_VOCAB_DATA_KEY = 'easysail-exam-cloud-vocab-data';
 const CLOUD_EXAM_READING_DATA_KEY = 'easysail-exam-cloud-reading-data';
+const CLOUD_EXAM_MGMT_DATA_KEY = 'easysail-exam-cloud-mgmt-data';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -172,6 +175,47 @@ function parseExamReadingData(text: string): ReadingBankSnapshot {
   throw new Error('文件格式无法识别');
 }
 
+/** 将 199 管综刷题数据保存到云盘目录（独立文件，不含题库本体） */
+export async function saveExamMgmtToCloud(snapshot: MgmtSnapshot): Promise<{ path: string; count: number }> {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    mgmt: snapshot,
+  };
+  return saveCollectionToCloud(EXAM_MGMT_CLOUD_FILE, data, CLOUD_EXAM_MGMT_DATA_KEY);
+}
+
+/** 从云盘目录读取 199 管综数据；云盘与本地均无数据时返回 null（不抛错），格式/IO 错误仍抛出 */
+export async function loadExamMgmtFromCloud(): Promise<MgmtSnapshot | null> {
+  try {
+    return await loadCollectionFromCloud<MgmtSnapshot>(
+      EXAM_MGMT_CLOUD_FILE,
+      CLOUD_EXAM_MGMT_DATA_KEY,
+      parseExamMgmtData,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('未找到云盘数据')) return null;
+    throw err;
+  }
+}
+
+/** 解析管综数据（兼容 {mgmt:{...}} 与顶层字段两种格式） */
+function parseExamMgmtData(text: string): MgmtSnapshot {
+  const data = JSON.parse(text);
+  const mgmt = data?.mgmt ?? data;
+  if (mgmt?.profile && Array.isArray(mgmt.sessions)) {
+    return {
+      profile: mgmt.profile,
+      sessions: Array.isArray(mgmt.sessions) ? mgmt.sessions : [],
+      sessionQuestions: Array.isArray(mgmt.sessionQuestions) ? mgmt.sessionQuestions : [],
+      attempts: Array.isArray(mgmt.attempts) ? mgmt.attempts : [],
+      wrongbook: Array.isArray(mgmt.wrongbook) ? mgmt.wrongbook : [],
+    } as MgmtSnapshot;
+  }
+  throw new Error('文件格式无法识别');
+}
+
 /** 解析考研数据（兼容 {exam:{...}} 与顶层字段两种格式） */
 function parseExamData(text: string): ExamCloudSnapshot {
   const data = JSON.parse(text);
@@ -201,6 +245,9 @@ export async function cloudFileExists(): Promise<boolean> {  const dir = getClo
         // 也检查阅读文件
         const readingFilePath = await join(dir, EXAM_READING_CLOUD_FILE);
         if (await exists(readingFilePath)) return true;
+        // 也检查管综刷题文件
+        const mgmtFilePath = await join(dir, EXAM_MGMT_CLOUD_FILE);
+        if (await exists(mgmtFilePath)) return true;
       } catch {
         // 文件检查失败，继续检查 localStorage
       }
@@ -208,14 +255,16 @@ export async function cloudFileExists(): Promise<boolean> {  const dir = getClo
     return !!localStorage.getItem(CLOUD_DATA_KEY)
       || !!localStorage.getItem(CLOUD_EXAM_DATA_KEY)
       || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY)
-      || !!localStorage.getItem(CLOUD_EXAM_READING_DATA_KEY);
+      || !!localStorage.getItem(CLOUD_EXAM_READING_DATA_KEY)
+      || !!localStorage.getItem(CLOUD_EXAM_MGMT_DATA_KEY);
   }
 
   // 浏览器 fallback
   return !!localStorage.getItem(CLOUD_DATA_KEY)
     || !!localStorage.getItem(CLOUD_EXAM_DATA_KEY)
     || !!localStorage.getItem(CLOUD_EXAM_VOCAB_DATA_KEY)
-    || !!localStorage.getItem(CLOUD_EXAM_READING_DATA_KEY);
+    || !!localStorage.getItem(CLOUD_EXAM_READING_DATA_KEY)
+    || !!localStorage.getItem(CLOUD_EXAM_MGMT_DATA_KEY);
 }
 
 /** 解析任务数据（兼容纯数组和对象格式） */
@@ -327,6 +376,7 @@ let _getTasks: (() => Task[]) | null = null;
 let _getExam: (() => ExamCloudSnapshot | null) | null = null;
 let _getExamVocab: (() => Promise<ExamVocabCloudSnapshot | null>) | null = null;
 let _getExamReading: (() => Promise<ReadingBankSnapshot | null>) | null = null;
+let _getExamMgmt: (() => Promise<MgmtSnapshot | null>) | null = null;
 
 /** 注册获取任务的回调（由 store 调用） */
 export function registerTaskGetter(fn: () => Task[]) {
@@ -351,6 +401,11 @@ export function registerExamReadingGetter(fn: () => Promise<ReadingBankSnapshot 
   _getExamReading = fn;
 }
 
+/** 注册管综刷题快照回调：未加载/无题库/无写入时返回 null，自动同步将跳过该文件 */
+export function registerExamMgmtGetter(fn: () => Promise<MgmtSnapshot | null>) {
+  _getExamMgmt = fn;
+}
+
 function startAutoSave() {
   stopAutoSave();
   const interval = getAutoInterval() * 1000;
@@ -364,6 +419,8 @@ function startAutoSave() {
       if (vocab) await saveExamVocabToCloud(vocab);
       const reading = await _getExamReading?.();
       if (reading) await saveExamReadingToCloud(reading);
+      const mgmt = await _getExamMgmt?.();
+      if (mgmt) await saveExamMgmtToCloud(mgmt);
       console.log('[Cloud] 自动保存完成');
     } catch (err) {
       console.warn('[Cloud] 自动保存失败:', err);

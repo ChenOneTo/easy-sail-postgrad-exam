@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "build:phonetics": "node scripts/build-phonetics.mjs",
     "build:examples": "node scripts/build-examples.mjs",
+    "build:mgmt": "node scripts/build-mgmt-bank.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri": "tauri"
