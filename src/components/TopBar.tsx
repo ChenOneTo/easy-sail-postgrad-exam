@@ -10,7 +10,8 @@ const TITLES: Record<SectionId, string> = {
   'project-work': '工作', 'project-study': '学习', 'project-life': '生活',
   'tag-urgent': '紧急', 'tag-important': '重要',
   exam: '考研计划', 'exam-vocab': '背单词', 'exam-vocab-game': '单词闯关',
-  'exam-reading': '阅读刷题', 'exam-mgmt-math': '数学刷题', 'exam-mgmt-logic': '逻辑刷题',
+  'exam-reading': '阅读刷题', 'exam-prefs': '偏好设置',
+  'exam-mgmt-math': '数学刷题', 'exam-mgmt-logic': '逻辑刷题',
 };
 
 const VIEW_MAP: Record<ViewMode, { label: string; icon: React.ReactNode }> = {
@@ -74,6 +75,7 @@ export function TopBar({ onOpenNotifications }: { onOpenNotifications?: () => vo
 
   const hideChrome = currentView === 'ai' || currentSection === 'exam' || currentSection === 'exam-vocab'
     || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading'
+    || currentSection === 'exam-prefs'
     || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic';
 
   return (

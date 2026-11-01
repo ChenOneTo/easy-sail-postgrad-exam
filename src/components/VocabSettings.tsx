@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import {
-  CloudUpload, CloudDownload, ChevronDown, RefreshCw,
+  CloudUpload, CloudDownload, ChevronDown, RefreshCw, Volume2,
 } from 'lucide-react';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
-import { getTtsConfig, saveTtsConfig } from '../lib/vocab-tts';
-import type { TtsSource } from '../lib/vocab-tts';
+import { useTaskStore } from '../stores/task-store';
 
-/** 设置面板：方向 / 保留率 / 最大复习 / 三阶段 / 发音 / 重导词表 / 云备份恢复 */
+/** 设置面板：方向 / 保留率 / 最大复习 / 三阶段 / 重导词表 / 云备份恢复（发音见「偏好设置」页） */
 export function VocabSettings({ busy, msg, onBackup, onRestore }: {
   busy: boolean;
   msg: string;
@@ -18,17 +17,12 @@ export function VocabSettings({ busy, msg, onBackup, onRestore }: {
   const switchDirection = useExamVocabStore((s) => s.switchDirection);
   const reimportWords = useExamVocabStore((s) => s.reimportWords);
   const lastError = useExamVocabStore((s) => s.lastError);
+  const setSection = useTaskStore((s) => s.setSection);
 
-  const [tts, setTts] = useState(getTtsConfig());
   const [importMsg, setImportMsg] = useState('');
   const [reimportBusy, setReimportBusy] = useState(false);
   const [maxR, setMaxR] = useState(String(profile.maxReviewsPerDay));
   const [retention, setRetention] = useState(String(profile.targetRetention));
-
-  const updateTts = (patch: Partial<typeof tts>) => {
-    const next = saveTtsConfig(patch);
-    setTts(next);
-  };
 
   const commitNum = (raw: string, min: number, cur: number, apply: (n: number) => void, reset: (s: string) => void) => {
     const n = Number(raw);
@@ -93,41 +87,11 @@ export function VocabSettings({ busy, msg, onBackup, onRestore }: {
       <PhaseRow label="阶段三" start={profile.phase3Start} end={profile.phase3End} perDay={profile.phase3NewPerDay}
         onStart={(v) => void saveProfile({ phase3Start: v })} onEnd={(v) => void saveProfile({ phase3End: v })} onPerDay={(n) => void saveProfile({ phase3NewPerDay: n })} />
 
-      {/* 发音 */}
+      {/* 发音已迁到「偏好设置」页 */}
       <div className="vocab-settings-subtitle">发音</div>
-      <div className="vocab-settings-grid">
-        <label className="vocab-field">
-          <span className="vocab-field-label">发音源</span>
-          <select value={tts.source} onChange={(e) => updateTts({ source: e.target.value as TtsSource })}>
-            <option value="system">系统 TTS（离线）</option>
-            <option value="online">在线真人（联网）</option>
-            <option value="off">关闭</option>
-          </select>
-        </label>
-        <label className="vocab-field">
-          <span className="vocab-field-label">口音（在线）</span>
-          <select value={tts.accent} onChange={(e) => updateTts({ accent: Number(e.target.value) as 1 | 2 })}>
-            <option value={2}>美音</option>
-            <option value={1}>英音</option>
-          </select>
-        </label>
-        <label className="vocab-field">
-          <span className="vocab-field-label">语速（0.7–1.2）</span>
-          <input
-            type="number" min={0.7} max={1.2} step={0.05} value={tts.rate}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              if (Number.isFinite(n)) updateTts({ rate: Math.min(1.2, Math.max(0.7, n)) });
-            }}
-          />
-        </label>
-        <label className="vocab-field vocab-field-row">
-          <span className="vocab-field-label">翻面自动播放</span>
-          <label className="vocab-switch" title={tts.autoPlayOnFlip ? '点击关闭' : '点击开启'}>
-            <input type="checkbox" checked={tts.autoPlayOnFlip} onChange={(e) => updateTts({ autoPlayOnFlip: e.target.checked })} />
-            <span className="vocab-slider" />
-          </label>
-        </label>
+      <div className="vocab-settings-hint">
+        <Volume2 size={11} /> 发音源 / 口音 / 语速 / 翻面自动播放已移至
+        <button className="vocab-settings-link" onClick={() => setSection('exam-prefs')}>偏好设置</button>
       </div>
 
       {/* 重导 + 云 */}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain } from 'lucide-react';
+import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain, SlidersHorizontal } from 'lucide-react';
 import { useTaskStore } from '../stores/task-store';
 import { TASK_TYPES } from '../lib/types';
 import type { SectionId } from '../lib/types';
@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'exam-vocab', label: '背单词', icon: <BookOpen size={16} /> },
       { id: 'exam-vocab-game', label: '单词闯关', icon: <Swords size={16} /> },
       { id: 'exam-reading', label: '阅读刷题', icon: <Newspaper size={16} /> },
+      { id: 'exam-prefs', label: '偏好设置', icon: <SlidersHorizontal size={16} /> },
     ],
   },
   {
