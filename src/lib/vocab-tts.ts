@@ -1,13 +1,18 @@
 /**
- * 背单词发音封装（零新增依赖、零 Rust 改动）。
+ * 背单词发音封装（无新增依赖、无 Rust 改动）。
  *
- * - 系统 TTS：WebView2（Edge Chromium）原生支持 window.speechSynthesis，离线可用。
+ * - 系统 TTS：WebView2（Edge Chromium）/ WKWebView 原生支持 window.speechSynthesis，离线可用。
  * - 在线单词：有道词典 dictvoice（type=2 美音 / type=1 英音）；但它只对词库词条有音频，
  *   整句一律回 500，因此例句改走百度翻译 TTS（gettts），同样无需密钥。
+ * - 在线音频必须由 Rust 侧取字节（tauri-plugin-http）：WebView 里 `<audio src>` 会把
+ *   `tauri://localhost` 当 Referer 发出去，百度据此返回 200 + 0 字节，表现为
+ *   「设了在线真人却仍是离线读音」。
  * - 在线播放失败（限流/断网/超时）按音源顺序换源，全部失败再回退系统 TTS，不抛错。
  *
  * 发音运行时合成，不落库；设置项按设备存于 localStorage（发音源/语速/翻面自动播）。
  */
+
+import { isTauri } from './tauri';
 
 export type TtsSource = 'system' | 'online' | 'off';
 
@@ -89,14 +94,38 @@ function speakSystem(word: string, rate: number, lang = 'en-US'): void {
 // —— 在线发音 ——
 
 let _audio: HTMLAudioElement | null = null;
+/** 自建的 blob URL，切换/结束时回收 */
+let _audioUrl: string | null = null;
 let _audioTimer = 0;
+/** 播放代次：切卡或重复点击以最新一次为准，避免慢请求晚到后突然出声 */
+let _speakSeq = 0;
 
-/** 停掉当前在线音频与超时计时器 */
+/** 单次在线音频的超时：取不回、或 8 秒没出声就换下一个音源 */
+const AUDIO_TIMEOUT_MS = 8000;
+/** 低于该字节数按空响应处理（被 Referer 拦时百度回 200 + 0 字节） */
+const MIN_AUDIO_BYTES = 1024;
+/** 音频字节缓存条数上限：同一句反复播放不必重新下载 */
+const BUFFER_CACHE_MAX = 40;
+const _bufferCache = new Map<string, { buf: ArrayBuffer; mime: string }>();
+
+function cacheBuffer(url: string, value: { buf: ArrayBuffer; mime: string }): void {
+  if (_bufferCache.size >= BUFFER_CACHE_MAX) {
+    const oldest = _bufferCache.keys().next().value;
+    if (oldest) _bufferCache.delete(oldest);
+  }
+  _bufferCache.set(url, value);
+}
+
+/** 停掉当前在线音频、超时计时器与自建的 blob URL */
 function clearAudio(): void {
   if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
   if (_audio) {
     try { _audio.pause(); } catch { /* ignore */ }
     _audio = null;
+  }
+  if (_audioUrl) {
+    try { URL.revokeObjectURL(_audioUrl); } catch { /* ignore */ }
+    _audioUrl = null;
   }
 }
 
@@ -124,50 +153,117 @@ function sentenceAudioUrl(text: string, rate: number): string {
 }
 
 /**
- * 依次尝试多个在线音源：某个源加载失败 / 播放被拒 / 8s 内没出声就换下一个，
- * 全部失败才回退系统 TTS。已开始播放的音频不会被后面的源打断。
+ * 取音频字节。
+ *
+ * 必须走 Rust 侧 HTTP（tauri-plugin-http）：WebView 直接 `new Audio(url)` 会给请求
+ * 带上 tauri://localhost 的 Referer，百度 gettts 对此返回 200 + 0 字节（听感就是
+ * 「在线真人没生效」）。纯浏览器 dev 环境没有 Rust 侧，返回 null 交给 <audio> 直连。
  */
-function playAudioChain(urls: string[], onAllFailed: () => void): void {
-  const [url, ...rest] = urls;
-  if (!url) { onAllFailed(); return; }
-  clearAudio();
+async function fetchAudio(url: string): Promise<{ buf: ArrayBuffer; mime: string } | null> {
+  const cached = _bufferCache.get(url);
+  if (cached) return cached;
+  if (!isTauri()) return null;
 
-  let audio: HTMLAudioElement;
   try {
-    audio = new Audio(url);
+    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? window.setTimeout(() => ctrl.abort(), AUDIO_TIMEOUT_MS) : 0;
+    try {
+      const res = await tauriFetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength < MIN_AUDIO_BYTES) return null;
+      const value = { buf, mime: res.headers.get('content-type') ?? 'audio/mpeg' };
+      cacheBuffer(url, value);
+      return value;
+    } finally {
+      if (timer) window.clearTimeout(timer);
+    }
   } catch {
-    playAudioChain(rest, onAllFailed);
-    return;
+    return null;
   }
-  _audio = audio;
-
-  let settled = false;
-  const next = () => {
-    if (settled) return;
-    settled = true;
-    clearAudio();
-    playAudioChain(rest, onAllFailed);
-  };
-  _audioTimer = window.setTimeout(next, 8000);
-  // 一旦开始出声就撤掉超时，避免长句播到一半被下一个源打断
-  audio.addEventListener('playing', () => {
-    if (_audio === audio && _audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
-  }, { once: true });
-  audio.addEventListener('error', next, { once: true });
-  audio.addEventListener('ended', () => {
-    if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
-    if (_audio === audio) _audio = null;
-  }, { once: true });
-  void audio.play().catch(next);
 }
 
-function speakOnline(text: string, accent: 1 | 2, rate: number): void {
-  const fallbackLang = accent === 1 ? ACCENT_LANG.uk : ACCENT_LANG.us;
+/**
+ * 播放一条音频链接，resolve(true) 表示已经出声。
+ * owned 为 true 时 url 是本模块创建的 blob URL，结束时回收。
+ */
+function playSource(url: string, owned: boolean): Promise<boolean> {
+  return new Promise((resolve) => {
+    let audio: HTMLAudioElement;
+    try {
+      audio = new Audio(url);
+    } catch {
+      if (owned) URL.revokeObjectURL(url);
+      resolve(false);
+      return;
+    }
+
+    clearAudio();
+    _audio = audio;
+    if (owned) _audioUrl = url;
+
+    let settled = false;
+    const settle = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
+      if (!ok) clearAudio();
+      resolve(ok);
+    };
+
+    _audioTimer = window.setTimeout(() => settle(false), AUDIO_TIMEOUT_MS);
+    // 一旦开始出声就撤掉超时，避免长句播到一半被下一个源打断
+    audio.addEventListener('playing', () => settle(true), { once: true });
+    audio.addEventListener('error', () => settle(false), { once: true });
+    audio.addEventListener('ended', () => {
+      if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
+      if (_audio === audio) { _audio = null; clearAudio(); }
+    }, { once: true });
+    void audio.play().catch(() => settle(false));
+  });
+}
+
+/**
+ * 依次尝试多个在线音源：取不到字节 / 播不出来（含超时）就换下一个。
+ * 返回 true 表示已出声，或已被更新的播放请求取代（无需再回退系统 TTS）。
+ */
+async function playAudioChain(urls: string[], seq: number): Promise<boolean> {
+  for (const url of urls) {
+    const got = await fetchAudio(url);
+    if (seq !== _speakSeq) return true;
+    if (!got) {
+      // 浏览器 dev（无 Rust 侧）：退回让 <audio> 自己拉
+      if (!isTauri() && await playSource(url, false)) return true;
+      continue;
+    }
+    let objectUrl: string;
+    try {
+      objectUrl = URL.createObjectURL(new Blob([got.buf], { type: got.mime }));
+    } catch {
+      continue;
+    }
+    if (await playSource(objectUrl, true)) return true;
+    if (seq !== _speakSeq) return true;
+  }
+  return false;
+}
+
+async function speakOnline(
+  text: string,
+  accent: 1 | 2,
+  rate: number,
+  fallbackLang: string,
+  seq: number,
+): Promise<void> {
+  clearAudio();
   // 整句只走百度（有道对整句必失败，多试一次只会拖慢回退）；单词优先有道
   const urls = isSentence(text)
     ? [sentenceAudioUrl(text, rate)]
     : [wordAudioUrl(text, accent), sentenceAudioUrl(text, rate)];
-  playAudioChain(urls, () => speakSystem(text, rate, fallbackLang));
+  if (await playAudioChain(urls, seq)) return;
+  if (seq !== _speakSeq) return;
+  speakSystem(text, rate, fallbackLang);
 }
 
 // —— 对外入口 ——
@@ -176,10 +272,11 @@ function speakOnline(text: string, accent: 1 | 2, rate: number): void {
 export function speak(word: string): void {
   const cfg = readConfig();
   if (cfg.source === 'off' || !word) return;
+  const lang = cfg.accent === 1 ? ACCENT_LANG.uk : ACCENT_LANG.us;
   if (cfg.source === 'online') {
-    speakOnline(word, cfg.accent, cfg.rate);
+    void speakOnline(word, cfg.accent, cfg.rate, lang, ++_speakSeq);
   } else {
-    speakSystem(word, cfg.rate, cfg.accent === 1 ? ACCENT_LANG.uk : ACCENT_LANG.us);
+    speakSystem(word, cfg.rate, lang);
   }
 }
 
@@ -188,7 +285,7 @@ export function speakAccent(word: string, accent: SpeakAccent): void {
   const cfg = readConfig();
   if (cfg.source === 'off' || !word) return;
   if (cfg.source === 'online') {
-    speakOnline(word, accent === 'uk' ? 1 : 2, cfg.rate);
+    void speakOnline(word, accent === 'uk' ? 1 : 2, cfg.rate, ACCENT_LANG[accent], ++_speakSeq);
   } else {
     speakSystem(word, cfg.rate, ACCENT_LANG[accent]);
   }
@@ -196,6 +293,7 @@ export function speakAccent(word: string, accent: SpeakAccent): void {
 
 /** 停止当前发音（切卡/卸载时调用） */
 export function stopSpeak(): void {
+  _speakSeq += 1;
   try {
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   } catch { /* ignore */ }
