@@ -276,6 +276,15 @@ input, textarea, select { font: inherit; color: inherit; }
   border-top: 1px solid var(--border-default);
 }
 
+.sidebar-version {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+  text-align: center;
+  user-select: none;
+}
+
 .sidebar-ai-summary {
   padding: 0 4px 8px;
 }

@@ -589,10 +589,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal settings-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <div>
-            <h2>设置</h2>
-            <div className="modal-header-sub">版本 v{appVersion || '获取中...'}</div>
-          </div>
+          <h2>设置</h2>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
         <div className="settings-layout">

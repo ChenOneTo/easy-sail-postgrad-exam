@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain, SlidersHorizontal } from 'lucide-react';
 import { useTaskStore } from '../stores/task-store';
 import { TASK_TYPES } from '../lib/types';
 import type { SectionId } from '../lib/types';
 import { useReminderHistoryStore } from '../stores/reminder-history-store';
+import { isTauri } from '../lib/tauri';
 
 const KNOWN_TYPE_IDS = TASK_TYPES.map(t => t.id);
 
@@ -58,6 +59,28 @@ function getCount(tasks: ReturnType<typeof useTaskStore.getState>['tasks'], s: S
 export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSettings: () => void; onOpenNotifications?: () => void }) {
   const { tasks, currentSection, setSection } = useTaskStore();
   const unreadCount = useReminderHistoryStore((s) => s.records.filter((r) => !r.read && !r.dismissed).length);
+  const [appVersion, setAppVersion] = useState(() => (
+    isTauri() ? '' : import.meta.env.VITE_APP_VERSION || ''
+  ));
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    const fallbackVersion = import.meta.env.VITE_APP_VERSION || '';
+
+    import('@tauri-apps/api/app')
+      .then(({ getVersion }) => getVersion())
+      .then(version => {
+        if (!cancelled) setAppVersion(version || fallbackVersion);
+      })
+      .catch(() => {
+        if (!cancelled) setAppVersion(fallbackVersion);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 缓存各导航项的计数，避免每次渲染重复遍历
   const counts = useMemo(() => {
@@ -118,6 +141,7 @@ export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSetting
           <span className="nav-icon"><Settings size={16} /></span>
           <span className="nav-label">设置</span>
         </div>
+        {appVersion && <div className="sidebar-version">v{appVersion}</div>}
       </div>
     </aside>
   );
