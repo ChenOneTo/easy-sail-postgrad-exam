@@ -119,7 +119,7 @@ function MemoryCard({ word }: { word: GameWord }) {
               <div className="vg-example-head">
                 <span
                   className="vg-example-tag"
-                  title="真题语境来自 exam-data/NETEMVocabulary（CC BY-NC-SA 4.0）"
+                  title="真题语境取自英语（二）历年试题原文；部分短语来自 exam-data/NETEMVocabulary（CC BY-NC-SA 4.0）"
                 >真题语境</span>
                 <span className="vg-example-source">
                   {examExample.source}{examExample.count >= 2 ? ` · 出现 ${examExample.count} 次` : ''}

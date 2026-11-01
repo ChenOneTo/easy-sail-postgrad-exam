@@ -20,6 +20,8 @@ src-tauri/gen/
 reading-source/
 # 管综题库中间产物（复核清单）
 exam-mgmt-source/
+# 英语二真题语料中间产物（PDF 提取结果）
+scripts/.exam-corpus/
 
 # Editor directories and files
 .vscode/*

@@ -26,7 +26,8 @@
 | `npm run build` | `tsc -b` + Vite 构建 |
 | `npm run lint` | ESLint 检查 |
 | `npm run build:phonetics` | 重新生成英美双音标 `phonetics.json`（仅词表变化时；构建期下载 ipa-dict / Britfone） |
-| `npm run build:examples` | 重新生成考研真题语境 `exam-examples.json`（数据源 CC BY-NC-SA 4.0） |
+| `npm run build:corpus` | 从英语二试题 PDF 提取真题语料到 `scripts/.exam-corpus/corpus.json`（需 pypdf；源目录 `NETEM_PDF_DIR`，默认 `~/data/work-buddy/考研英语二真题/原件存档`） |
+| `npm run build:examples` | 重新生成考研真题语境 `exam-examples.json`（合并语料 + NETEMVocabulary CC BY-NC-SA 4.0） |
 | `npm run build:mgmt` | 重新生成 199 管综真题题库 `mgmt-bank.json`（源目录 `MGMT_SOURCE_DIR`，默认 `~/data/work-buddy/考研管综真题`） |
 
 无测试套件。提交前必须跑通 `npm run build` 与 `npm run lint`。
@@ -48,6 +49,28 @@
   `documentElement` 上的 `data-theme` / `data-accent` 属性切换。
 
 新增业务模块请沿用现有分层：`xxx-db.ts` → `xxx-store.ts` → `XxxPage.tsx`。
+
+### 单词闯关的真题语境（两个来源，勿混）
+
+`src/assets/exam-vocab/exam-examples.json` 由 `scripts/build-examples.mjs` 生成：
+
+1. `exam-data/NETEMVocabulary`（CC BY-NC-SA 4.0）：2005–2023 真题，多为短语级摘录；
+   离线或下载失败时回退到现有产物，保证可重跑。
+2. 本地英语（二）试题 PDF 提取的**完整句子**：`npm run build:corpus` →
+   `scripts/.exam-corpus/corpus.json`（中间产物，已 gitignore）。同词命中时优先于来源 1。
+
+维护约定：
+
+- 只收**官方试题卷**（当前 2025/2026）。2022–2024 是院校托管扫描件，PDF 文字层
+  讹误密集（`ga me` / `fora tip` / `address address`），已从 `RELIABLE_YEARS` 排除；
+  人工校对后可用 `NETEM_YEARS=2022,2023,2024,2025,2026` 重跑。
+- 文字层讹误在 `scripts/exam-corpus-fixes.json` 里手工修：`replacements` 做片段替换，
+  `drop` 按前缀剔除整句（题目说明、引号残缺句、数字明显被 OCR 改错的句子）。
+- 中文译文在 `scripts/exam-example-zh.json`，键是英文句子前缀（规范化后前缀匹配）。
+  语料条目缺译文时前端只显示英文行，不会显示错配中文。
+- 语料条目的 `source` 形如 `2026 英语二 · Text 1`（**带中点**）。重跑时据此把
+  旧语料条目排除出「旧源」，避免换年份后残留。
+- 完形填空原文挖空密集且需回填答案，暂不收录，只取阅读（Text 1–4）、新题型与翻译。
 
 ### 新增页面必须同步的 4 处（易漏）
 

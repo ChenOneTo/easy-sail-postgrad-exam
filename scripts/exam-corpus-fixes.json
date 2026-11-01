@@ -1,0 +1,109 @@
+{
+  "_comment": "英语二真题语料的人工校对表（PDF 文字层的 OCR 讹误）。replacements 在成句前做全局片段替换，片段需在原卷中唯一；drop 为整句剔除（按前缀匹配）。新增年份入库前请对照原卷校对后追加。",
+  "replacements": [
+    [
+      "libraries anda certain image",
+      "libraries and a certain image"
+    ],
+    [
+      "protectour libraries",
+      "protect our libraries"
+    ],
+    [
+      "they maybe surprised",
+      "they may be surprised"
+    ],
+    [
+      "as longas we're equipped",
+      "as long as we're equipped"
+    ],
+    [
+      "allow fora reduction",
+      "allow for a reduction"
+    ],
+    [
+      "the city of Chicago as whole",
+      "the city of Chicago as a whole"
+    ],
+    [
+      "in anyway it sees fit",
+      "in any way it sees fit"
+    ],
+    [
+      "It gains Microsoft broad rights",
+      "It gives Microsoft broad rights"
+    ],
+    [
+      "when oud how people tip",
+      "when and how people tip"
+    ],
+    [
+      "customers fora tip",
+      "customers for a tip"
+    ],
+    [
+      "creeping into new kind of services",
+      "creeping into new kinds of services"
+    ],
+    [
+      "as lowas US $2.13",
+      "as low as US $2.13"
+    ],
+    [
+      "about whereto plant trees",
+      "about where to plant trees"
+    ],
+    [
+      "the desire fora visually",
+      "the desire for a visually"
+    ],
+    [
+      "if the process your scrapping",
+      "if the process you're scrapping"
+    ],
+    [
+      "important use the language",
+      "important to use the language"
+    ],
+    [
+      "improvement standout",
+      "improvement stand out"
+    ],
+    [
+      "you will standout",
+      "you will stand out"
+    ],
+    [
+      "set aside \" cold wards \"",
+      "set aside \"cold wards\""
+    ],
+    [
+      "National Health service (NHS)",
+      "National Health Service (NHS)"
+    ],
+    [
+      "Nearly 75 years on; with",
+      "Nearly 75 years on, with"
+    ],
+    [
+      "option— in terms of travel time and cost— for",
+      "option — in terms of travel time and cost — for"
+    ],
+    [
+      "tip flation",
+      "tipflation"
+    ],
+    [
+      "perhaps the both felt unwell",
+      "perhaps they both felt unwell"
+    ]
+  ],
+  "drop": [
+    "There are two extra subheadings",
+    "This means that anyway it sees fit",
+    "With AI's potential to simplify our professional lives",
+    "That’s one big bottleneck",
+    "Notably, tipping primarily benefits",
+    "Customers now routinely see menus of suggested default options"
+  ]
+}
