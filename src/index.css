@@ -204,6 +204,7 @@ input, textarea, select { font: inherit; color: inherit; }
   height: 32px;
   flex-shrink: 0;
   object-fit: contain;
+  border-radius: 8px;
 }
 
 .sidebar-brand { overflow: hidden; }
