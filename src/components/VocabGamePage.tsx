@@ -6,7 +6,6 @@ import {
 import { useVocabGameStore, wordStatusOf } from '../stores/vocab-game-store';
 import type { GameWord, WordStatus } from '../stores/vocab-game-store';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
-import { useTaskStore } from '../stores/task-store';
 import { getPhonetics } from '../lib/vocab-phonetics';
 import { speak, speakAccent } from '../lib/vocab-tts';
 import { localDateStr } from '../lib/utils';
@@ -159,7 +158,6 @@ export function VocabGamePage() {
   const hardwords = useExamVocabStore((s) => s.hardwords);
   const addHardword = useExamVocabStore((s) => s.addHardword);
   const markHardwordGrasped = useExamVocabStore((s) => s.markHardwordGrasped);
-  const setSection = useTaskStore((s) => s.setSection);
 
   const [tab, setTab] = useState<Tab>('quest');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -169,6 +167,7 @@ export function VocabGamePage() {
   const [detailNote, setDetailNote] = useState('');
   const [draft, setDraft] = useState(game.settings);
   const [starting, setStarting] = useState(false);
+  const [startingReview, setStartingReview] = useState(false);
   const [banner, setBanner] = useState('');
 
   // —— 单词本 ——
@@ -296,6 +295,14 @@ export function VocabGamePage() {
     setLevelsOpen(false);
     const ok = await game.startLevel(target);
     if (!ok) setBanner('关卡装载失败，请稍后再试。');
+  };
+
+  /** 今日复习关：全部到期复习词合并成一关，装载失败由 store 的 loadError 提示 */
+  const startReviewGame = async () => {
+    if (startingReview) return;
+    setStartingReview(true);
+    await game.startReview();
+    setStartingReview(false);
   };
 
   const addDetailToHardword = async () => {
@@ -554,9 +561,18 @@ export function VocabGamePage() {
                 <div className="vg-review-label"><RotateCw size={15} /> 今日待复习</div>
                 <div className="vg-review-count">{game.dueCount}<small>词</small></div>
               </div>
-              <p>根据遗忘曲线生成，完成复习可巩固长期记忆。</p>
-              <button className="vg-primary-btn" type="button" onClick={() => setSection('exam-vocab')}>
-                去复习 <ArrowRight size={16} />
+              <p>
+                {game.dueCount > 0
+                  ? '到期单词合并成一个复习关：先过词卡，再测验，通过才算复习完成。'
+                  : '今天没有到期的复习单词，保持当前节奏即可。'}
+              </p>
+              <button
+                className="vg-primary-btn"
+                type="button"
+                disabled={game.dueCount === 0 || startingReview}
+                onClick={() => void startReviewGame()}
+              >
+                {startingReview ? '装载复习关…' : '开始复习关'} <ArrowRight size={16} />
               </button>
             </section>
           </aside>

@@ -238,24 +238,33 @@ export function VocabGameSession() {
 
   const passPct = Math.round(session.passAccuracy * 100);
   const remaining = Math.max(0, Math.ceil((session.phaseEndsAt - now) / 1000));
+  const levelLabel = session.isReview ? '今日复习关' : `第 ${session.level} 关`;
   const phaseTitle = session.phase === 'memory'
-    ? `第 ${session.level} 关 · ${session.isReplay ? '复习闯关' : '记忆阶段'}`
+    ? `${levelLabel} · ${session.isReview ? '复习记忆' : session.isReplay ? '复习闯关' : '记忆阶段'}`
     : session.phase === 'quiz'
-      ? `第 ${session.level} 关 · ${session.isReplay ? '复习测验' : '随堂测验'}`
-      : `第 ${session.level} 关 · ${session.isReplay ? '复习结果' : '闯关结果'}`;
+      ? `${levelLabel} · ${session.isReview || session.isReplay ? '复习测验' : '随堂测验'}`
+      : `${levelLabel} · ${session.isReview || session.isReplay ? '复习结果' : '闯关结果'}`;
   const phaseSubtitle = session.phase === 'memory'
-    ? session.isReplay
-      ? '重闯已通过的关卡，标记与测验仍会更新单词复习计划'
-      : '先建立第一印象，模糊的词会被重点复习'
+    ? session.isReview
+      ? '全部到期单词已汇总成本关，完成测验并达到通过线才算复习完成'
+      : session.isReplay
+        ? '重闯已通过的关卡，标记与测验仍会更新单词复习计划'
+        : '先建立第一印象，模糊的词会被重点复习'
     : session.phase === 'quiz'
-      ? session.isReplay
-        ? `重闯不改变关卡进度，正确率达到 ${passPct}% 判定通过`
-        : `选择正确释义，正确率达到 ${passPct}% 即通关`
-      : session.isRetry
-        ? '错词重测不重复计入关卡进度'
+      ? session.isReview
+        ? `复习测验，正确率达到 ${passPct}% 才算完成本次复习`
         : session.isReplay
-          ? '复习成绩已记录，关卡进度保持不变'
-          : '本次成绩已同步到背单词复习计划';
+          ? `重闯不改变关卡进度，正确率达到 ${passPct}% 判定通过`
+          : `选择正确释义，正确率达到 ${passPct}% 即通关`
+      : session.isReview
+        ? session.result?.passed
+          ? '复习完成，单词已按遗忘曲线安排下一次复习'
+          : '未达到通过线，到期单词会保留在待复习列表'
+        : session.isRetry
+          ? '错词重测不重复计入关卡进度'
+          : session.isReplay
+            ? '复习成绩已记录，关卡进度保持不变'
+            : '本次成绩已同步到背单词复习计划';
 
   const totalSteps = session.phase === 'quiz' ? session.quiz.length : session.words.length;
   const step = session.phase === 'quiz' ? session.quizIndex + 1 : session.memoryIndex + 1;
@@ -354,7 +363,7 @@ export function VocabGameSession() {
 
         {session.phase === 'quiz' && question && (
           <article className="vg-word-card vg-quiz-card">
-            <div className="vg-quiz-label">随堂测验 · 选择正确释义</div>
+            <div className="vg-quiz-label">{session.isReview ? '复习测验' : '随堂测验'} · 选择正确释义</div>
             <p className="vg-quiz-prompt">请选择该单词的中文释义</p>
             <h2 className="vg-quiz-word">{question.word}</h2>
             <div className="vg-quiz-options">
@@ -403,16 +412,22 @@ export function VocabGameSession() {
               {session.result.passed ? <Check size={28} /> : <RotateCcw size={26} />}
             </span>
             <h2>
-              {session.isReplay
-                ? (session.result.passed ? '复习完成' : '复习结束')
-                : (session.result.passed ? '本关通过' : '还差一点')}
+              {session.isReview
+                ? (session.result.passed ? '复习完成' : '复习未通过')
+                : session.isReplay
+                  ? (session.result.passed ? '复习完成' : '复习结束')
+                  : (session.result.passed ? '本关通过' : '还差一点')}
             </h2>
             <p className="vg-result-subtitle">
-              {session.isReplay
-                ? '本次为复习闯关，成绩已计入复习记录，不改变关卡进度。'
-                : session.result.passed
-                  ? `正确率达到 ${passPct}%，下一关已解锁。`
-                  : `正确率达到 ${passPct}% 即可通过，重测错词后再来一次。`}
+              {session.isReview
+                ? session.result.passed
+                  ? `正确率达到 ${passPct}%，今日到期单词已全部复习完成。`
+                  : `正确率达到 ${passPct}% 才算复习完成，到期单词仍保留在待复习列表。`
+                : session.isReplay
+                  ? '本次为复习闯关，成绩已计入复习记录，不改变关卡进度。'
+                  : session.result.passed
+                    ? `正确率达到 ${passPct}%，下一关已解锁。`
+                    : `正确率达到 ${passPct}% 即可通过，重测错词后再来一次。`}
             </p>
             <div className="vg-result-score">{session.result.score}<small> 分</small></div>
             <div className="vg-result-stats">
@@ -422,14 +437,25 @@ export function VocabGameSession() {
             </div>
             <div className="vg-result-actions">
               <button className="vg-secondary-btn" type="button" onClick={exit}>返回学习台</button>
-              <button
-                className="vg-primary-btn"
-                type="button"
-                disabled={session.result.wrongWordIds.length === 0 || session.busy}
-                onClick={retryWrong}
-              >
-                {session.busy ? '记录中…' : `重测错词（${session.result.wrongWordIds.length}）`}
-              </button>
+              {session.isReview && !session.result.passed ? (
+                <button
+                  className="vg-primary-btn"
+                  type="button"
+                  disabled={session.busy}
+                  onClick={retryWrong}
+                >
+                  {session.busy ? '记录中…' : `重新复习（${session.words.length}）`}
+                </button>
+              ) : (
+                <button
+                  className="vg-primary-btn"
+                  type="button"
+                  disabled={session.result.wrongWordIds.length === 0 || session.busy}
+                  onClick={retryWrong}
+                >
+                  {session.busy ? '记录中…' : `重测错词（${session.result.wrongWordIds.length}）`}
+                </button>
+              )}
             </div>
             {session.lastError && <p className="vg-result-error">{session.lastError}</p>}
             <p className="vg-result-hint">按 Esc 退出学习</p>

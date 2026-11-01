@@ -7,7 +7,7 @@ import {
 import type { AiMnemonicDraft } from '../lib/ai-json';
 import { canGenerateMnemonic, generateVocabMnemonic } from '../lib/vocab-mnemonic';
 import {
-  fetchGameProgress, fetchLevelWords, fetchRecentRuns, fetchWeeklyMinutes,
+  fetchGameDueCount, fetchGameDueWords, fetchGameProgress, fetchLevelWords, fetchRecentRuns, fetchWeeklyMinutes,
   fetchWordStatusCounts, insertGameRun, searchGameWords,
 } from '../lib/vocab-game-db';
 import type { DailyMinutes, GameProgress, GameRun, WordStatusCounts } from '../lib/vocab-game-db';
@@ -92,6 +92,8 @@ export interface GameSession {
   isRetry: boolean;
   /** 重闯已通关卡：可写成绩表，但 replay=1 不计入关卡进度 */
   isReplay: boolean;
+  /** 今日复习关：到期复习词合并成一关，测验通过才回写调度与复习进度 */
+  isReview: boolean;
   /** 按 wordId 缓存的 AI 助记；进入关卡后后台预生成 */
   mnemonics: Record<number, GameMnemonic>;
   result: GameResult | null;
@@ -121,6 +123,8 @@ export interface VocabGameStore {
   saveSettings: (updates: Partial<GameSettings>) => void;
   /** 不传关卡号 = 继续当前关；传已通关的关卡号 = 重闯（不推进进度） */
   startLevel: (level?: number) => Promise<boolean>;
+  /** 今日复习关：全部到期复习词合并成一关 */
+  startReview: () => Promise<boolean>;
   mark: (wordId: number, mark: WordMark) => void;
   /** 单条助记生成失败后的重试 */
   retryMnemonic: (wordId: number) => Promise<void>;
@@ -143,6 +147,15 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 const EMPTY_COUNTS: WordStatusCounts = { new: 0, seen: 0, familiar: 0, mastered: 0 };
+
+/**
+ * 阶段时长按词数折算：复习关词数不定，以「每关词数」为基准等比例放大。
+ * 普通关词数等于每关词数，折算后与设置值一致；词数不足时也不低于基准。
+ */
+function phaseMinutes(baseMin: number, wordCount: number, levelSize: number): number {
+  const scale = levelSize > 0 ? Math.max(1, wordCount / levelSize) : 1;
+  return Math.max(1, Math.round(baseMin * scale * 100) / 100);
+}
 
 /** 分钟数只约束「>0」，允许小数，不设上下限 */
 function positiveMinutes(value: unknown, fallback: number): number {
@@ -283,7 +296,8 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
     const preview = await fetchLevelWords(progress.passedWords, size);
     let dueCount = 0;
     try {
-      dueCount = await useExamVocabStore.getState().dueReviewCount(new Date().toISOString());
+      // 与复习关取词同口径：只统计闯关方向，避免双向模式下数字与词表不一致
+      dueCount = await fetchGameDueCount(new Date().toISOString());
     } catch { /* 复习计数失败不影响闯关概览 */ }
     set({ progress, statusCounts, weekly, runs, dueCount, previewWords: preview.map(withPhonetic) });
   },
@@ -336,6 +350,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
           durationMs: 0,
           isRetry: false,
           isReplay,
+          isReview: false,
           mnemonics: {},
           result: null,
           busy: false,
@@ -349,6 +364,50 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
       return true;
     } catch (err) {
       set({ loadError: `关卡装载失败：${err instanceof Error ? err.message : String(err)}` });
+      return false;
+    }
+  },
+
+  startReview: async () => {
+    const { settings } = get();
+    try {
+      const words = (await fetchGameDueWords(new Date().toISOString())).map(withPhonetic);
+      if (words.length === 0) {
+        set({ loadError: '今天没有到期的复习单词。' });
+        return false;
+      }
+      const now = Date.now();
+      const memoryMin = phaseMinutes(settings.memoryMin, words.length, settings.levelSize);
+      set({
+        session: {
+          level: 0,
+          size: words.length,
+          passAccuracy: settings.passAccuracy,
+          phase: 'memory',
+          words,
+          memoryIndex: 0,
+          marks: {},
+          phaseEndsAt: now + memoryMin * 60 * 1000,
+          quiz: [],
+          quizIndex: 0,
+          startedAt: now,
+          durationMs: 0,
+          isRetry: false,
+          isReplay: false,
+          isReview: true,
+          mnemonics: {},
+          result: null,
+          busy: false,
+          lastError: '',
+        },
+        loadError: '',
+      });
+      mnemonicAbort?.abort();
+      // 复习关词数可能上百，只复用已缓存的助记，不在后台批量生成
+      void preloadMnemonics(set, get, words, now, 0);
+      return true;
+    } catch (err) {
+      set({ loadError: `复习关装载失败：${err instanceof Error ? err.message : String(err)}` });
       return false;
     }
   },
@@ -403,7 +462,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
         phase: 'quiz',
         quiz,
         quizIndex: 0,
-        phaseEndsAt: Date.now() + get().settings.quizMin * 60 * 1000,
+        phaseEndsAt: Date.now() + phaseMinutes(get().settings.quizMin, s.words.length, get().settings.levelSize) * 60 * 1000,
       },
     });
   },
@@ -436,8 +495,30 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
 
   retryWrong: () => {
     const s = get().session;
-    if (!s?.result || s.result.wrongWordIds.length === 0) return;
+    if (!s?.result) return;
     mnemonicAbort?.abort();
+    // 复习关未通过：到期词未写回调度，直接整关回到记忆阶段重来
+    if (s.isReview && !s.result.passed) {
+      const now = Date.now();
+      set({
+        session: {
+          ...s,
+          phase: 'memory',
+          memoryIndex: 0,
+          marks: {},
+          quiz: [],
+          quizIndex: 0,
+          result: null,
+          busy: false,
+          lastError: '',
+          durationMs: 0,
+          startedAt: now,
+          phaseEndsAt: now + phaseMinutes(get().settings.memoryMin, s.words.length, get().settings.levelSize) * 60 * 1000,
+        },
+      });
+      return;
+    }
+    if (s.result.wrongWordIds.length === 0) return;
     const wrongIds = new Set(s.result.wrongWordIds);
     const words = s.words.filter((w) => wrongIds.has(w.wordId));
     const quiz = buildQuiz(words);
@@ -454,7 +535,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
         busy: false,
         lastError: '',
         startedAt: Date.now(),
-        phaseEndsAt: Date.now() + get().settings.quizMin * 60 * 1000,
+        phaseEndsAt: Date.now() + phaseMinutes(get().settings.quizMin, words.length, get().settings.levelSize) * 60 * 1000,
       },
     });
   },
@@ -513,18 +594,30 @@ async function finishQuiz(set: SetFn, get: () => VocabGameStore): Promise<void> 
   const vocab = useExamVocabStore.getState();
   const perMs = Math.max(1, Math.round(durationMs / Math.max(1, total)));
   let failed = '';
-  for (const q of s.quiz) {
-    const word = s.words.find((w) => w.wordId === q.wordId);
-    if (!word) continue;
-    const isCorrect = !!q.options.find((o) => o.id === q.picked)?.correct;
-    try {
-      await vocab.rateCard(word, isCorrect ? Rating.Good : Rating.Again, perMs);
-    } catch {
-      failed = '部分单词的复习记录写入失败，可在背单词页重试。';
+  /**
+   * 复习关：测验通过才回写 FSRS 调度，未通过时到期时间不变、单词仍留在
+   * 「今日待复习」里；只把答错的词记入难词本，避免白白重来。
+   */
+  const commitResult = !s.isReview || result.passed;
+  if (commitResult) {
+    for (const q of s.quiz) {
+      const word = s.words.find((w) => w.wordId === q.wordId);
+      if (!word) continue;
+      const isCorrect = !!q.options.find((o) => o.id === q.picked)?.correct;
+      try {
+        await vocab.rateCard(word, isCorrect ? Rating.Good : Rating.Again, perMs);
+      } catch {
+        failed = '部分单词的复习记录写入失败，可在背单词页重试。';
+      }
+    }
+  } else {
+    for (const wordId of wrongWordIds) {
+      try { await vocab.addHardword(wordId, 'game-review'); } catch { /* 难词本失败不影响结果页 */ }
     }
   }
 
-  if (!s.isRetry) {
+  // 复习关不写闯关成绩表，避免复习词计入关卡进度
+  if (!s.isRetry && !s.isReview) {
     try {
       await insertGameRun({
         level: s.level,
@@ -584,12 +677,15 @@ function setMnemonic(
  * 1. 批量读库，已缓存的直接置为 ready；
  * 2. 缺的并发 3 路生成并逐个回写，用户翻到后面单词时通常已经就绪；
  * 3. 单条失败只标记 error，可在卡片上点重试。
+ *
+ * generateLimit 限制本轮生成数量：复习关词数不定，传 0 表示只复用缓存。
  */
 async function preloadMnemonics(
   set: SetFn,
   get: () => VocabGameStore,
   words: GameWord[],
   token: number,
+  generateLimit = Infinity,
 ): Promise<void> {
   if (!canGenerateMnemonic()) return;
 
@@ -613,14 +709,15 @@ async function preloadMnemonics(
 
   const s = get().session;
   if (!s || s.startedAt !== token) return;
+  const targets = missing.slice(0, Math.max(0, generateLimit));
   const mnemonics: Record<number, GameMnemonic> = { ...s.mnemonics, ...ready };
-  for (const w of missing) mnemonics[w.wordId] = { status: 'loading' };
+  for (const w of targets) mnemonics[w.wordId] = { status: 'loading' };
   set({ session: { ...s, mnemonics } });
-  if (missing.length === 0) return;
+  if (targets.length === 0) return;
 
   const controller = new AbortController();
   mnemonicAbort = controller;
-  const queue = [...missing];
+  const queue = [...targets];
   const worker = async (): Promise<void> => {
     for (;;) {
       if (controller.signal.aborted) return;
@@ -644,6 +741,6 @@ async function preloadMnemonics(
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(3, missing.length) }, () => worker()));
+  await Promise.all(Array.from({ length: Math.min(3, targets.length) }, () => worker()));
   if (mnemonicAbort === controller) mnemonicAbort = null;
 }

@@ -7060,10 +7060,25 @@ input, textarea, select { font: inherit; color: inherit; }
 
 @media (max-width: 1240px) {
   .vg-layout { grid-template-columns: 1fr; }
-  .vg-aside { display: none; }
+  /* 窄窗口不再隐藏学习状态：排到主内容前，内部改两列压缩高度 */
+  .vg-aside {
+    order: -1;
+    position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 24px;
+  }
+  .vg-aside-head { grid-column: 1 / -1; }
+  .vg-progress-block { border-bottom: none; }
+  .vg-status-block { padding-top: 16px; border-bottom: none; }
+  .vg-review-block { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) {
   .vg-page { padding: 16px; }
+  .vg-aside { grid-template-columns: 1fr; }
+  .vg-progress-block { border-bottom: 1px solid var(--border-default); }
+  .vg-status-block { padding-top: 14px; border-bottom: 1px solid var(--border-default); }
   .vg-pace {
     width: 100%;
     margin-left: 0;

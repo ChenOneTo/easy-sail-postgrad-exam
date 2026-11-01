@@ -124,6 +124,37 @@ export async function searchGameWords(keyword: string, limit = 100): Promise<Voc
   return rows.map(rowToQueueItem);
 }
 
+/**
+ * 复习关取词：全部到期复习词（state=review 且 due ≤ now），不截断。
+ * 与「今日待复习」计数同口径（闯关方向 en2zh），按到期时间升序。
+ */
+export async function fetchGameDueWords(nowIso: string): Promise<VocabQueueItem[]> {
+  const db = await getExamVocabDb();
+  const rows = await db.select<Record<string, unknown>[]>(`
+    SELECT c.*, w.word, w.meaning, w.unit, w.core_zone
+    FROM exam_vocab_cards c
+    JOIN exam_vocab_words w ON w.id = c.word_id
+    WHERE c.state = 'review' AND c.due IS NOT NULL AND c.due <= $1
+      AND c.direction = $2 AND w.archived = 0
+    ORDER BY c.due ASC
+  `, [nowIso, GAME_DIRECTION]);
+  return rows.map(rowToQueueItem);
+}
+
+/** 今日待复习数：只统计闯关方向，与复习关取词口径一致 */
+export async function fetchGameDueCount(nowIso: string): Promise<number> {
+  const db = await getExamVocabDb();
+  const rows = await db.select<{ count: number }[]>(
+    `SELECT COUNT(*) AS count
+     FROM exam_vocab_cards c
+     JOIN exam_vocab_words w ON w.id = c.word_id
+     WHERE c.state = 'review' AND c.due IS NOT NULL AND c.due <= $1
+       AND c.direction = $2 AND w.archived = 0`,
+    [nowIso, GAME_DIRECTION]
+  );
+  return rows[0]?.count ?? 0;
+}
+
 export async function fetchGameProgress(): Promise<GameProgress> {
   const db = await getExamVocabDb();
   // 所有进度口径都排除重闯记录（replay = 1），否则重刷已通关卡会重复累加进度
