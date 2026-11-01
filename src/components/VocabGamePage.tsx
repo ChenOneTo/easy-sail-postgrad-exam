@@ -354,6 +354,14 @@ export function VocabGamePage() {
         </div>
       </header>
 
+      <div className="vg-exam-banner">
+        <span className="vg-exam-icon"><CalendarDays size={18} /></span>
+        <div className="vg-exam-banner-copy">
+          <span>距离考研</span>
+          <strong>还有 <b>{examDays >= 0 ? examDays : 0}</b> 天，保持你的节奏</strong>
+        </div>
+      </div>
+
       {(game.loadError || banner) && (
         <div className="vg-alert">
           <span>{game.loadError || banner}</span>
@@ -528,14 +536,6 @@ export function VocabGamePage() {
                 去复习 <ArrowRight size={16} />
               </button>
             </section>
-
-            <div className="vg-exam-card">
-              <span className="vg-exam-icon"><CalendarDays size={19} /></span>
-              <div>
-                <span>距离考研</span>
-                <strong>还有 <b>{examDays >= 0 ? examDays : 0}</b> 天，保持你的节奏</strong>
-              </div>
-            </div>
           </aside>
         </div>
       )}

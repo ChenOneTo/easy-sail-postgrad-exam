@@ -6280,20 +6280,36 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-review-block p { margin: 7px 0 11px; font-size: 11px; line-height: 1.65; color: var(--text-secondary); }
 .vg-review-block .vg-primary-btn { width: 100%; }
 
-.vg-exam-card { display: flex; align-items: center; gap: 10px; padding: 14px 0 0; }
+/* 考研倒计时：页面顶部横条 */
+.vg-exam-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
 .vg-exam-icon {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   display: grid;
   place-items: center;
-  color: var(--text-secondary);
-  background: var(--bg-tertiary);
-  border-radius: 10px;
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  border-radius: 9px;
 }
-.vg-exam-card span { font-size: 11px; color: var(--text-tertiary); }
-.vg-exam-card strong { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); }
-.vg-exam-card strong b { font-size: 16px; color: var(--brand-primary); }
+.vg-exam-banner-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.vg-exam-banner-copy strong { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.vg-exam-banner-copy strong b { margin: 0 2px; font-size: 18px; color: var(--brand-primary); }
 
 /* —— 通用按钮 —— */
 .vg-primary-btn {
