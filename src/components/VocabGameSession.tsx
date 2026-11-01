@@ -152,11 +152,13 @@ function MemoryCard({ word }: { word: GameWord }) {
         </button>
       )}
       <p className="vg-word-tip">
-        {mark === 'known'
-          ? '已标记为「认识」，测验时仍会正常出题。'
-          : mark === 'fuzzy'
-            ? '已标记为「有点模糊」，答错会自动进入难词本。'
-            : '先试着回忆释义，再翻开核对。'}
+        {mark === 'mastered'
+          ? '已标记为「已掌握」，本关测验会跳过该词，之后也不再进入复习。'
+          : mark === 'known'
+            ? '已标记为「认识」，测验时仍会正常出题。'
+            : mark === 'fuzzy'
+              ? '已标记为「有点模糊」，答错会自动进入难词本。'
+              : '先试着回忆释义，再翻开核对。'}
       </p>
     </article>
   );
@@ -204,7 +206,7 @@ export function VocabGameSession() {
     return () => window.clearTimeout(timer);
   }, [session?.phase, pickedId, nextQuestion]);
 
-  // 键盘映射：记忆 1/2 标记、←/→ 切卡、空格发音；测验 1-4 选项、Enter 下一题
+  // 键盘映射：记忆 1/2/3 标记、←/→ 切卡、空格发音；测验 1-4 选项、Enter 下一题
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
     keyRef.current = (e: KeyboardEvent) => {
@@ -216,6 +218,7 @@ export function VocabGameSession() {
         if (e.key === ' ') { e.preventDefault(); speak(memoryWord.word); return; }
         if (e.key === '1') { e.preventDefault(); mark(memoryWord.wordId, 'fuzzy'); return; }
         if (e.key === '2') { e.preventDefault(); mark(memoryWord.wordId, 'known'); return; }
+        if (e.key === '3') { e.preventDefault(); mark(memoryWord.wordId, 'mastered'); return; }
       }
       if (session.phase === 'quiz' && question) {
         if (question.picked === null && /^[1-4]$/.test(e.key)) {
@@ -271,6 +274,7 @@ export function VocabGameSession() {
   const percent = totalSteps > 0 ? Math.min(100, Math.round((step / totalSteps) * 100)) : 0;
   const knownCount = Object.values(session.marks).filter((m) => m === 'known').length;
   const fuzzyCount = Object.values(session.marks).filter((m) => m === 'fuzzy').length;
+  const masteredCount = Object.values(session.marks).filter((m) => m === 'mastered').length;
   const mnemonicEntries = Object.values(session.mnemonics);
   const mnemonicReady = mnemonicEntries.filter((e) => e.status === 'ready').length;
 
@@ -349,11 +353,18 @@ export function VocabGameSession() {
               >
                 已经认识
               </button>
+              <button
+                className={`vg-mastered-btn${session.marks[memoryWord.wordId] === 'mastered' ? ' selected' : ''}`}
+                type="button"
+                onClick={() => mark(memoryWord.wordId, 'mastered')}
+              >
+                已掌握
+              </button>
             </div>
 
             <div className="vg-screen-foot">
-              <span>已认识 {knownCount} · 有点模糊 {fuzzyCount}</span>
-              <span className="vg-screen-shortcuts">← → 切换词卡 · 1/2 标记 · 空格发音</span>
+              <span>已认识 {knownCount} · 有点模糊 {fuzzyCount} · 已掌握 {masteredCount}</span>
+              <span className="vg-screen-shortcuts">← → 切换词卡 · 1/2/3 标记 · 空格发音</span>
               <button className="vg-text-btn" type="button" onClick={beginQuiz}>
                 提前测验 <ArrowRight size={15} />
               </button>
@@ -431,10 +442,19 @@ export function VocabGameSession() {
             </p>
             <div className="vg-result-score">{session.result.score}<small> 分</small></div>
             <div className="vg-result-stats">
-              <div><strong>{Math.round(session.result.accuracy * 100)}%</strong><span>正确率</span></div>
+              <div>
+                <strong>{session.result.total > 0 ? `${Math.round(session.result.accuracy * 100)}%` : '—'}</strong>
+                <span>正确率</span>
+              </div>
               <div><strong>{session.result.correct}</strong><span>答对</span></div>
               <div><strong>{session.result.wrongWordIds.length}</strong><span>错词</span></div>
+              <div><strong>{session.result.skipped}</strong><span>已掌握跳过</span></div>
             </div>
+            {session.result.skipped > 0 && (
+              <p className="vg-result-hint">
+                已掌握的 {session.result.skipped} 词不再进入测验与复习队列。
+              </p>
+            )}
             <div className="vg-result-actions">
               <button className="vg-secondary-btn" type="button" onClick={exit}>返回学习台</button>
               {session.isReview && !session.result.passed ? (

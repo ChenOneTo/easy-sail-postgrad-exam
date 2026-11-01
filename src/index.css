@@ -6920,7 +6920,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-example-zh { margin: 3px 0 0; font-size: 11px; line-height: 1.55; color: var(--text-tertiary); }
 
 .vg-nav-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
-.vg-mark-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.vg-mark-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 .vg-fuzzy-btn {
   min-height: 44px;
   font-size: 13px;
@@ -6944,6 +6944,20 @@ input, textarea, select { font: inherit; color: inherit; }
   border-radius: 9px;
 }
 .vg-known-btn:hover, .vg-known-btn.selected { background: var(--brand-hover); border-color: var(--brand-hover); }
+.vg-mastered-btn {
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tag-blue);
+  background: var(--tag-blue-bg);
+  border: 1px solid color-mix(in srgb, var(--tag-blue) 30%, transparent);
+  border-radius: 9px;
+}
+.vg-mastered-btn:hover, .vg-mastered-btn.selected {
+  color: #fff;
+  background: var(--tag-blue);
+  border-color: var(--tag-blue);
+}
 .vg-screen-foot {
   margin-top: 12px;
   display: flex;
@@ -7023,7 +7037,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-result-stats {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: 12px 0;
   border-top: 1px solid var(--border-default);
   border-bottom: 1px solid var(--border-default);

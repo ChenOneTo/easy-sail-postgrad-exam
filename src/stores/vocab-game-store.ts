@@ -18,7 +18,8 @@ import { useExamVocabStore } from './exam-vocab-store';
 const SETTINGS_KEY = 'easysail-exam-vocab-game';
 
 export type GamePhase = 'memory' | 'quiz' | 'result';
-export type WordMark = 'fuzzy' | 'known';
+/** 记忆阶段标记：模糊 / 认识 / 已掌握（已掌握跳过本关测验并直接毕业） */
+export type WordMark = 'fuzzy' | 'known' | 'mastered';
 export type WordStatus = 'new' | 'seen' | 'familiar' | 'mastered';
 
 export interface GameSettings {
@@ -71,6 +72,8 @@ export interface GameResult {
   passed: boolean;
   durationMs: number;
   wrongWordIds: number[];
+  /** 记忆阶段标记「已掌握」、跳过测验的词数 */
+  skipped: number;
 }
 
 export interface GameSession {
@@ -455,16 +458,20 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
     if (!s || s.phase !== 'memory') return;
     // 记忆阶段结束，剩余词的助记不再需要，停掉后台请求
     mnemonicAbort?.abort();
-    const quiz = buildQuiz(s.words);
+    // 标记「已掌握」的词不参加测验：结束时按 Easy 直接毕业，不再进入复习
+    const quizWords = s.words.filter((w) => s.marks[w.wordId] !== 'mastered');
+    const quiz = buildQuiz(quizWords);
     set({
       session: {
         ...s,
         phase: 'quiz',
         quiz,
         quizIndex: 0,
-        phaseEndsAt: Date.now() + phaseMinutes(get().settings.quizMin, s.words.length, get().settings.levelSize) * 60 * 1000,
+        phaseEndsAt: Date.now() + phaseMinutes(get().settings.quizMin, quizWords.length, get().settings.levelSize) * 60 * 1000,
       },
     });
+    // 全部单词都标记了已掌握：没有题目可测，直接结算
+    if (quiz.length === 0) void finishQuiz(set, get);
   },
 
   pickOption: (optionId) => {
@@ -497,25 +504,9 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
     const s = get().session;
     if (!s?.result) return;
     mnemonicAbort?.abort();
-    // 复习关未通过：到期词未写回调度，直接整关回到记忆阶段重来
+    // 复习关未通过：重新装载到期词；本轮标记掌握的词已写回，不会再次出现
     if (s.isReview && !s.result.passed) {
-      const now = Date.now();
-      set({
-        session: {
-          ...s,
-          phase: 'memory',
-          memoryIndex: 0,
-          marks: {},
-          quiz: [],
-          quizIndex: 0,
-          result: null,
-          busy: false,
-          lastError: '',
-          durationMs: 0,
-          startedAt: now,
-          phaseEndsAt: now + phaseMinutes(get().settings.memoryMin, s.words.length, get().settings.levelSize) * 60 * 1000,
-        },
-      });
+      void get().startReview();
       return;
     }
     if (s.result.wrongWordIds.length === 0) return;
@@ -572,20 +563,23 @@ async function finishQuiz(set: SetFn, get: () => VocabGameStore): Promise<void> 
   const s = get().session;
   if (!s || s.phase !== 'quiz') return;
   const { correct, total } = accuracyOf(s.quiz);
-  const accuracy = total > 0 ? correct / total : 0;
+  // 测验题已排除「已掌握」词；整关都标记已掌握时无题可测，按通过处理
+  const accuracy = total > 0 ? correct / total : 1;
   const durationMs = Date.now() - s.startedAt;
   const wrongWordIds = s.quiz
     .filter((q) => !q.options.find((o) => o.id === q.picked)?.correct)
     .map((q) => q.wordId);
+  const skippedWords = s.words.filter((w) => s.marks[w.wordId] === 'mastered');
   const result: GameResult = {
     level: s.level,
     total,
     correct,
     accuracy,
     score: Math.round(accuracy * 100),
-    passed: accuracy >= s.passAccuracy,
+    passed: total > 0 ? accuracy >= s.passAccuracy : true,
     durationMs,
     wrongWordIds,
+    skipped: skippedWords.length,
   };
   set({
     session: { ...s, phase: 'result', quizIndex: Math.max(0, s.quiz.length - 1), durationMs, result, busy: true },
@@ -594,6 +588,16 @@ async function finishQuiz(set: SetFn, get: () => VocabGameStore): Promise<void> 
   const vocab = useExamVocabStore.getState();
   const perMs = Math.max(1, Math.round(durationMs / Math.max(1, total)));
   let failed = '';
+
+  // 已掌握的词无论本关是否通过都写回：Easy 直接毕业，之后不再进入复习队列
+  for (const word of skippedWords) {
+    try {
+      await vocab.rateCard(word, Rating.Easy, perMs);
+    } catch {
+      failed = '部分单词的复习记录写入失败，可在背单词页重试。';
+    }
+  }
+
   /**
    * 复习关：测验通过才回写 FSRS 调度，未通过时到期时间不变、单词仍留在
    * 「今日待复习」里；只把答错的词记入难词本，避免白白重来。
@@ -622,7 +626,8 @@ async function finishQuiz(set: SetFn, get: () => VocabGameStore): Promise<void> 
       await insertGameRun({
         level: s.level,
         levelSize: s.size,
-        wordsTotal: total,
+        // 已掌握的词跳过测验但属于本关，按整关词数推进，避免下一关重复取到这些词
+        wordsTotal: s.words.length,
         correct,
         answered: total,
         accuracy,
