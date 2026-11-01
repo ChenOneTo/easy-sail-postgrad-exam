@@ -245,6 +245,15 @@ export function VocabGamePage() {
   const statusTotal = STATUS_ORDER.reduce((sum, key) => sum + game.statusCounts[key], 0);
   const statusPercent = (n: number) => (statusTotal > 0 ? Math.round((n / statusTotal) * 100) : 0);
   const examDays = daysUntil(profile.phase3End, todayStr);
+  /** 冲刺节奏：剩余词数切出的关卡数均摊到考前剩余天数（含今天，至少 1 天） */
+  const remainingWords = Math.max(0, wordCount - passedWords);
+  const remainingLevels = Math.ceil(remainingWords / size);
+  const daysLeft = Math.max(1, examDays);
+  const requiredPerDay = remainingLevels > 0 ? Math.ceil(remainingLevels / daysLeft) : 0;
+  /** 今日还需补的关数：建议值减去今日已通过数 */
+  const todayShortfall = Math.max(0, requiredPerDay - todayPassed);
+  /** 今日任务分母：以冲刺建议为准，词库学完时回退到设置里的每日目标 */
+  const dailyTarget = requiredPerDay > 0 ? requiredPerDay : game.settings.dailyGoal;
   const preview = game.previewWords;
   const rangeText = preview.length > 0
     ? `${preview[0].word} ~ ${preview[preview.length - 1].word}`
@@ -360,6 +369,20 @@ export function VocabGamePage() {
           <span>距离考研</span>
           <strong>还有 <b>{examDays >= 0 ? examDays : 0}</b> 天，保持你的节奏</strong>
         </div>
+        <div className="vg-pace">
+          {requiredPerDay > 0 ? (
+            <>
+              <span className="vg-pace-label">冲刺建议</span>
+              <strong className="vg-pace-value">每天 {requiredPerDay} 关</strong>
+              <span className="vg-pace-sub">
+                剩 {remainingLevels} 关 · {daysLeft} 天
+                {todayShortfall > 0 ? ` · 今日还差 ${todayShortfall} 关` : ' · 今日目标已达成'}
+              </span>
+            </>
+          ) : (
+            <span className="vg-pace-sub">{wordCount > 0 ? '词库关卡已全部通过' : '词库尚未加载'}</span>
+          )}
+        </div>
       </div>
 
       {(game.loadError || banner) && (
@@ -393,7 +416,7 @@ export function VocabGamePage() {
               <div className="vg-summary-item">
                 <div className="vg-summary-label">今日任务</div>
                 <div className="vg-summary-value">
-                  {todayPassed}<span className="vg-fraction"> / {game.settings.dailyGoal}</span><small>关</small>
+                  {todayPassed}<span className="vg-fraction"> / {dailyTarget}</span><small>关</small>
                 </div>
               </div>
               <div className="vg-summary-item">

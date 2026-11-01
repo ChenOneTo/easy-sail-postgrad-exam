@@ -6285,6 +6285,7 @@ input, textarea, select { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   padding: 10px 16px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-default);
@@ -6310,6 +6311,19 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .vg-exam-banner-copy strong { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 .vg-exam-banner-copy strong b { margin: 0 2px; font-size: 18px; color: var(--brand-primary); }
+/* 冲刺节奏：按剩余关卡与剩余天数推算每天需闯关数 */
+.vg-pace {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border-default);
+  white-space: nowrap;
+}
+.vg-pace-label { font-size: 11px; color: var(--text-tertiary); }
+.vg-pace-value { font-size: 14px; font-weight: 600; color: var(--brand-primary); }
+.vg-pace-sub { font-size: 11px; color: var(--text-secondary); }
 
 /* —— 通用按钮 —— */
 .vg-primary-btn {
@@ -7050,6 +7064,14 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 @media (max-width: 900px) {
   .vg-page { padding: 16px; }
+  .vg-pace {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
   .vg-summary { grid-template-columns: 1fr 1fr; }
   .vg-summary-item:nth-child(3)::before { display: none; }
   .vg-summary-item:nth-child(3), .vg-summary-item:nth-child(4) { border-top: 1px solid var(--border-default); }
