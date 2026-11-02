@@ -1,11 +1,16 @@
 /**
  * 阅读复盘视图：逐题显示答案、定位、解析、干扰项与错因。
  */
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { ArrowLeft, Check, ChevronDown, Loader2, Minus, RotateCw, Sparkles, X } from 'lucide-react'
 import { canUseAi } from '../lib/ai'
 import type { AiReadingWordDraft } from '../lib/ai-json'
 import { updateReadingWrongReason } from '../lib/exam-reading-db'
+import {
+  loadReadingHighlights,
+  splitHighlightSegments,
+  type ReadingHighlightMap,
+} from '../lib/reading-highlights'
 import type {
   ReadingAttempt,
   ReadingQuestionWithPassage,
@@ -141,6 +146,7 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
   const { translateReadingWord, loading: aiLoading, error: aiError, abort } = useAiTask()
   const [aiMenu, setAiMenu] = useState<AiMenuState | null>(null)
   const [aiWord, setAiWord] = useState<AiWordState | null>(null)
+  const [highlights] = useState<ReadingHighlightMap>(() => loadReadingHighlights())
   const lastSelectionRef = useRef<{ word: string; sentence: string; at: number } | null>(null)
 
   useEffect(() => {
@@ -317,9 +323,29 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
                 <div className="reading-review-passage-hint">
                   <Sparkles size={13} /> 选中单词后右键，可使用 AI 翻译
                 </div>
-                {group.paragraphs.map((p, i) => (
-                  <p key={i} data-para-index={i}><span className="reading-para-no">[{i + 1}]</span>{p}</p>
-                ))}
+                {group.paragraphs.map((p, i) => {
+                  const paraHighlights = (highlights[group.passageKey] || []).filter((h) => h.paraIndex === i)
+                  return (
+                    <p key={i} data-para-index={i}>
+                      <span className="reading-para-no">[{i + 1}]</span>
+                      <span className="reading-passage-text">
+                        {splitHighlightSegments(p, paraHighlights).map((segment, si) => (
+                          segment.highlight ? (
+                            <mark
+                              key={segment.highlight.id}
+                              className={`reading-hl reading-hl-${segment.highlight.color}`}
+                              data-hl-id={segment.highlight.id}
+                            >
+                              {segment.text}
+                            </mark>
+                          ) : (
+                            <Fragment key={`text-${si}`}>{segment.text}</Fragment>
+                          )
+                        ))}
+                      </span>
+                    </p>
+                  )
+                })}
               </article>
             )}
 

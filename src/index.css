@@ -8099,3 +8099,67 @@ input, textarea, select { font: inherit; color: inherit; }
 .mgmt-q-cell:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
 .mgmt-q-cell.done { color: var(--success); border-color: var(--success); }
 .mgmt-q-cell.wrong { color: var(--danger); border-color: var(--danger); background: var(--danger-light); }
+
+/* —— 阅读原文划线 —— */
+.reading-passage-meta-ops {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reading-hl-hint { font-size: 10px; color: var(--text-tertiary); white-space: nowrap; }
+.reading-hl-clear { padding: 3px 8px; font-size: 11px; }
+
+.reading-hl {
+  color: inherit;
+  background: transparent;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.reading-hl-yellow { text-decoration-color: #e5a400; background: rgba(245, 179, 1, 0.14); }
+.reading-hl-green { text-decoration-color: #2e9e4f; background: rgba(52, 168, 83, 0.14); }
+.reading-hl-pink { text-decoration-color: #d94a74; background: rgba(229, 83, 123, 0.13); }
+
+.reading-hl-toolbar {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  user-select: none;
+}
+.reading-hl-toolbar-label { font-size: 11px; color: var(--text-secondary); }
+.reading-hl-color {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 2px solid var(--bg-secondary);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border-default);
+  cursor: pointer;
+}
+.reading-hl-color:hover { transform: scale(1.12); }
+.reading-hl-color:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.reading-hl-color-yellow { background: #f5b301; }
+.reading-hl-color-green { background: #34a853; }
+.reading-hl-color-pink { background: #e5537b; }
+.reading-hl-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  font-size: 11px;
+  color: var(--danger);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.reading-hl-remove:hover { color: var(--danger); opacity: 0.8; }
