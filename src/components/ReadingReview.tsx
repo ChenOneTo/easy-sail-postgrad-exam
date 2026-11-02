@@ -2,7 +2,9 @@
  * 阅读复盘视图：逐题显示答案、定位、解析、干扰项与错因。
  */
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { ArrowLeft, Check, ChevronDown, Loader2, Minus, RotateCw, Sparkles, X } from 'lucide-react'
+import {
+  ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Minus, RotateCw, Sparkles, X,
+} from 'lucide-react'
 import { canUseAi } from '../lib/ai'
 import type { AiReadingWordDraft } from '../lib/ai-json'
 import { updateReadingWrongReason } from '../lib/exam-reading-db'
@@ -93,11 +95,9 @@ interface Group {
   year: number
   textNo: number
   paragraphs: string[]
-  questions: ReadingQuestionWithPassage[]
 }
 
 export function ReadingReview({ session, questions, attempts, wrongbook, onBack, onRedoWrong }: Props) {
-  const [openPassages, setOpenPassages] = useState<Record<string, boolean>>({})
   const [notes, setNotes] = useState<Record<number, string>>(() => {
     const map: Record<number, string> = {}
     for (const item of wrongbook) map[item.questionId] = item.note
@@ -112,24 +112,19 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
     [wrongbook],
   )
 
-  const groups = useMemo(() => {
+  const groupByPassage = useMemo(() => {
     const map = new Map<string, Group>()
     for (const q of questions) {
-      let group = map.get(q.passageKey)
-      if (!group) {
-        group = {
-          passageKey: q.passageKey,
-          title: `${q.year} Text ${q.textNo} · ${q.passageTitle}`,
-          year: q.year,
-          textNo: q.textNo,
-          paragraphs: q.paragraphs,
-          questions: [],
-        }
-        map.set(q.passageKey, group)
-      }
-      group.questions.push(q)
+      if (map.has(q.passageKey)) continue
+      map.set(q.passageKey, {
+        passageKey: q.passageKey,
+        title: `${q.year} Text ${q.textNo} · ${q.passageTitle}`,
+        year: q.year,
+        textNo: q.textNo,
+        paragraphs: q.paragraphs,
+      })
     }
-    return [...map.values()]
+    return map
   }, [questions])
 
   const wrongQuestions = questions.filter((q) => {
@@ -141,7 +136,39 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
   const { translateReadingWord, loading: aiLoading, error: aiError, abort } = useAiTask()
   const [aiMenu, setAiMenu] = useState<AiMenuState | null>(null)
   const [aiWord, setAiWord] = useState<AiWordState | null>(null)
-  const lastSelectionRef = useRef<{ word: string; sentence: string; at: number } | null>(null)
+  const lastSelectionRef = useRef<{ word: string; sentence: string; passageKey: string; at: number } | null>(null)
+  const [reviewFilter, setReviewFilter] = useState<'wrong' | 'all'>(() => (
+    wrongQuestions.length > 0 ? 'wrong' : 'all'
+  ))
+  const [selectedId, setSelectedId] = useState<number | null>(() => (
+    wrongQuestions[0]?.id ?? questions[0]?.id ?? null
+  ))
+
+  const visibleQuestions = reviewFilter === 'wrong' ? wrongQuestions : questions
+  const selected = visibleQuestions.find((q) => q.id === selectedId) ?? visibleQuestions[0]
+  const selectedIndex = selected ? visibleQuestions.findIndex((q) => q.id === selected.id) : -1
+  const selectedGroup = selected ? groupByPassage.get(selected.passageKey) : undefined
+  const selectedGroupWrong = selectedGroup
+    ? wrongQuestions.filter((q) => q.passageKey === selectedGroup.passageKey)
+    : []
+  const selectedAttempt = selected ? attemptByQuestion.get(selected.id) : undefined
+  const selectedWrong = !selectedAttempt || !selectedAttempt.isCorrect
+  const selectedItem = selected ? wrongByQuestion.get(selected.id) : undefined
+  const selectedCorrectLetters = selected
+    ? [selected.answer, selected.answerAlt].filter(Boolean).join(' / ')
+    : ''
+
+  const changeReviewFilter = (next: 'wrong' | 'all') => {
+    const list = next === 'wrong' ? wrongQuestions : questions
+    setReviewFilter(next)
+    setSelectedId(list[0]?.id ?? null)
+  }
+
+  const stepQuestion = (delta: number) => {
+    if (selectedIndex < 0) return
+    const next = visibleQuestions[selectedIndex + delta]
+    if (next) setSelectedId(next.id)
+  }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -177,14 +204,14 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
   /** 左键选词或右键按下时缓存，防止部分 WebView 在右键时清空 selection */
   const captureSelection = (group: Group) => {
     const ctx = getSelectionContext(group)
-    if (ctx) lastSelectionRef.current = { ...ctx, at: Date.now() }
+    if (ctx) lastSelectionRef.current = { ...ctx, passageKey: group.passageKey, at: Date.now() }
   }
 
   /** 右键原文：弹出 AI 翻译菜单 */
   const openAiMenu = (e: MouseEvent<HTMLElement>, group: Group) => {
     const current = getSelectionContext(group)
     const last = lastSelectionRef.current
-    const fallback = last && Date.now() - last.at < 5000
+    const fallback = last && last.passageKey === group.passageKey && Date.now() - last.at < 5000
       ? { word: last.word, sentence: last.sentence }
       : null
     const ctx = current || fallback
@@ -285,136 +312,211 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
         </div>
       </header>
 
-      {groups.map((group) => {
-        const groupWrong = group.questions.filter((q) => wrongQuestions.some((w) => w.id === q.id))
-        const open = !!openPassages[group.passageKey]
-        return (
-          <section className="reading-review-group" key={group.passageKey}>
-            <div className="reading-review-group-head">
+      <div className="reading-review-split">
+        {selectedGroup ? (
+          <section className="reading-review-passage-pane" key={selectedGroup.passageKey}>
+            <div className="reading-review-pane-head">
               <div>
-                <b>{group.title}</b>
-                <span>{group.questions.length} 题 · {group.paragraphs.length} 段</span>
+                <b>{selectedGroup.title}</b>
+                <span>{selectedGroup.paragraphs.length} 段</span>
               </div>
-              <div className="reading-review-group-ops">
-                <button className="exam-ghost-btn" onClick={() => setOpenPassages((prev) => ({ ...prev, [group.passageKey]: !open }))}>
-                  {open ? '收起原文' : '查看原文'} <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : undefined }} />
+              {selectedGroupWrong.length > 0 && (
+                <button
+                  className="exam-ghost-btn"
+                  onClick={() => onRedoWrong(selectedGroup.passageKey, selectedGroupWrong.map((q) => q.id))}
+                >
+                  <RotateCw size={13} /> 重做本篇错题
                 </button>
-                {groupWrong.length > 0 && (
-                  <button className="exam-ghost-btn" onClick={() => onRedoWrong(group.passageKey, groupWrong.map((q) => q.id))}>
-                    <RotateCw size={13} /> 重做本篇错题
-                  </button>
-                )}
-              </div>
+              )}
             </div>
 
-            {open && (
-              <article
-                className="reading-review-passage"
-                onMouseDown={(e) => { if (e.button === 2) captureSelection(group) }}
-                onMouseUp={() => captureSelection(group)}
-                onContextMenu={(e) => openAiMenu(e, group)}
+            <article
+              className="reading-review-passage"
+              onMouseDown={(e) => { if (e.button === 2) captureSelection(selectedGroup) }}
+              onMouseUp={() => captureSelection(selectedGroup)}
+              onContextMenu={(e) => openAiMenu(e, selectedGroup)}
+            >
+              <div className="reading-review-passage-hint">
+                <Sparkles size={13} /> 选中单词后右键，可使用 AI 翻译
+              </div>
+              {selectedGroup.paragraphs.map((p, i) => (
+                <p key={i} data-para-index={i}><span className="reading-para-no">[{i + 1}]</span>{p}</p>
+              ))}
+            </article>
+          </section>
+        ) : (
+          <section className="reading-review-passage-pane">
+            <div className="reading-empty">
+              <b>没有原文</b>
+              <p>本次会话没有可显示的阅读原文。</p>
+            </div>
+          </section>
+        )}
+
+        <section className="reading-review-question-pane" key={selected?.id ?? 'empty'}>
+          <div className="reading-review-pane-head">
+            <div>
+              <b>{reviewFilter === 'wrong' ? '错题' : '全部题目'}</b>
+              <span>{visibleQuestions.length} 题</span>
+            </div>
+            <div className="reading-review-stepper">
+              <button
+                className="exam-ghost-btn"
+                onClick={() => stepQuestion(-1)}
+                disabled={selectedIndex <= 0}
+                title="上一题"
               >
-                <div className="reading-review-passage-hint">
-                  <Sparkles size={13} /> 选中单词后右键，可使用 AI 翻译
-                </div>
-                {group.paragraphs.map((p, i) => (
-                  <p key={i} data-para-index={i}><span className="reading-para-no">[{i + 1}]</span>{p}</p>
-                ))}
-              </article>
-            )}
+                <ChevronLeft size={13} />
+              </button>
+              <span>{selectedIndex >= 0 ? selectedIndex + 1 : 0} / {visibleQuestions.length}</span>
+              <button
+                className="exam-ghost-btn"
+                onClick={() => stepQuestion(1)}
+                disabled={selectedIndex < 0 || selectedIndex >= visibleQuestions.length - 1}
+                title="下一题"
+              >
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
 
-            {group.questions.map((q) => {
+          <div className="reading-review-filter">
+            <button
+              className={reviewFilter === 'wrong' ? 'active' : ''}
+              onClick={() => changeReviewFilter('wrong')}
+              disabled={wrongQuestions.length === 0}
+            >
+              错题 <b>{wrongQuestions.length}</b>
+            </button>
+            <button
+              className={reviewFilter === 'all' ? 'active' : ''}
+              onClick={() => changeReviewFilter('all')}
+            >
+              题目 <b>{questions.length}</b>
+            </button>
+            <span className="reading-review-filter-hint">
+              {reviewFilter === 'wrong' ? '只显示答错/未答' : '显示全部题目'}
+            </span>
+          </div>
+
+          <div className="reading-review-qgrid">
+            {visibleQuestions.map((q) => {
               const attempt = attemptByQuestion.get(q.id)
-              const wrong = !attempt || !attempt.isCorrect
-              const item = wrongByQuestion.get(q.id)
-              const correctLetters = [q.answer, q.answerAlt].filter(Boolean).join(' / ')
+              const qWrong = !attempt || !attempt.isCorrect
               return (
-                <div className={`reading-review-item${wrong ? ' wrong' : ' correct'}`} key={q.id}>
-                  <div className="reading-review-item-head">
-                    <span className="reading-review-result">
-                      {!attempt || !attempt.userAnswer ? <Minus size={14} /> : wrong ? <X size={14} /> : <Check size={14} />}
-                      {globalNo(q)}.
-                    </span>
-                    <span className="reading-review-type">{QTYPE_LABEL[q.qtype] || q.qtype}</span>
-                    {q.disputed && <span className="reading-disputed-badge">答案存疑</span>}
-                    <span className="reading-review-answers">
-                      你的答案 <b>{attempt?.userAnswer || '未答'}</b>
-                      <span className="reading-review-sep">·</span>
-                      正确答案 <b>{correctLetters}</b>
-                      {attempt && <><span className="reading-review-sep">·</span>{fmtDuration(attempt.durationMs)}</>}
-                    </span>
-                  </div>
-
-                  <div className="reading-review-stem">{q.stem}</div>
-
-                  <div className="reading-review-options">
-                    {q.options.map((option, i) => {
-                      const letter = 'ABCD'[i]
-                      const isRight = letter === q.answer || (q.disputed && letter === q.answerAlt)
-                      const isPicked = attempt?.userAnswer === letter
-                      return (
-                        <div key={letter} className={`reading-review-option${isRight ? ' right' : ''}${isPicked && !isRight ? ' picked-wrong' : ''}`}>
-                          <span>{letter}</span>{option}
-                          {isRight && <em>正确</em>}
-                          {isPicked && !isRight && <em className="wrong-em">你的选择</em>}
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {q.locateHint && (
-                    <div className="reading-review-block">
-                      <b>定位</b>
-                      <p>{q.locateHint}</p>
-                    </div>
-                  )}
-                  {q.explanation && (
-                    <div className="reading-review-block">
-                      <b>解析</b>
-                      <p>{q.explanation}</p>
-                    </div>
-                  )}
-                  {q.distractors && (
-                    <div className="reading-review-block">
-                      <b>干扰项</b>
-                      <p>{q.distractors}</p>
-                    </div>
-                  )}
-                  {q.answerNote && (
-                    <div className="reading-review-note">
-                      <b>答案说明</b>
-                      <p>{q.answerNote}</p>
-                    </div>
-                  )}
-
-                  {wrong && (
-                    <div className="reading-review-wrong-ops">
-                      <label>
-                        错因
-                        <select
-                          value={item?.reason || ''}
-                          onChange={(e) => void setReason(q.id, e.target.value)}
-                        >
-                          {REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
-                      </label>
-                      <label className="reading-review-note-input">
-                        备注
-                        <input
-                          value={notes[q.id] || ''}
-                          onChange={(e) => setNotes((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                          onBlur={(e) => void setNote(q.id, e.target.value)}
-                          placeholder="记录关键句/易错点"
-                        />
-                      </label>
-                    </div>
-                  )}
-                </div>
+                <button
+                  key={q.id}
+                  className={`reading-review-qbtn${q.id === selected?.id ? ' active' : ''}${qWrong ? ' wrong' : ''}`}
+                  onClick={() => setSelectedId(q.id)}
+                  title={q.disputed ? '本题答案存在争议' : undefined}
+                >
+                  {globalNo(q)}
+                </button>
               )
             })}
-          </section>
-        )
-      })}
+          </div>
+
+          {selected ? (
+            <div className={`reading-review-item${selectedWrong ? ' wrong' : ' correct'}`}>
+              <div className="reading-review-item-head">
+                <span className="reading-review-result">
+                  {!selectedAttempt || !selectedAttempt.userAnswer ? <Minus size={14} /> : selectedWrong ? <X size={14} /> : <Check size={14} />}
+                  {globalNo(selected)}.
+                </span>
+                <span className="reading-review-type">{QTYPE_LABEL[selected.qtype] || selected.qtype}</span>
+                {selected.disputed && <span className="reading-disputed-badge">答案存疑</span>}
+                <span className="reading-review-answers">
+                  你的答案 <b>{selectedAttempt?.userAnswer || '未答'}</b>
+                  <span className="reading-review-sep">·</span>
+                  正确答案 <b>{selectedCorrectLetters}</b>
+                  {selectedAttempt && <><span className="reading-review-sep">·</span>{fmtDuration(selectedAttempt.durationMs)}</>}
+                </span>
+              </div>
+
+              {selectedWrong && (
+                <div className="reading-review-question-actions">
+                  <button
+                    className="exam-ghost-btn"
+                    onClick={() => onRedoWrong(selected.passageKey, [selected.id])}
+                  >
+                    <RotateCw size={12} /> 重做本题
+                  </button>
+                </div>
+              )}
+
+              <div className="reading-review-stem">{selected.stem}</div>
+
+              <div className="reading-review-options">
+                {selected.options.map((option, i) => {
+                  const letter = 'ABCD'[i]
+                  const isRight = letter === selected.answer || (selected.disputed && letter === selected.answerAlt)
+                  const isPicked = selectedAttempt?.userAnswer === letter
+                  return (
+                    <div key={letter} className={`reading-review-option${isRight ? ' right' : ''}${isPicked && !isRight ? ' picked-wrong' : ''}`}>
+                      <span>{letter}</span>{option}
+                      {isRight && <em>正确</em>}
+                      {isPicked && !isRight && <em className="wrong-em">你的选择</em>}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {selected.locateHint && (
+                <div className="reading-review-block">
+                  <b>定位</b>
+                  <p>{selected.locateHint}</p>
+                </div>
+              )}
+              {selected.explanation && (
+                <div className="reading-review-block">
+                  <b>解析</b>
+                  <p>{selected.explanation}</p>
+                </div>
+              )}
+              {selected.distractors && (
+                <div className="reading-review-block">
+                  <b>干扰项</b>
+                  <p>{selected.distractors}</p>
+                </div>
+              )}
+              {selected.answerNote && (
+                <div className="reading-review-note">
+                  <b>答案说明</b>
+                  <p>{selected.answerNote}</p>
+                </div>
+              )}
+
+              {selectedWrong && (
+                <div className="reading-review-wrong-ops">
+                  <label>
+                    错因
+                    <select
+                      value={selectedItem?.reason || ''}
+                      onChange={(e) => void setReason(selected.id, e.target.value)}
+                    >
+                      {REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="reading-review-note-input">
+                    备注
+                    <input
+                      value={notes[selected.id] || ''}
+                      onChange={(e) => setNotes((prev) => ({ ...prev, [selected.id]: e.target.value }))}
+                      onBlur={(e) => void setNote(selected.id, e.target.value)}
+                      placeholder="记录关键句/易错点"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="reading-empty">
+              <b>{reviewFilter === 'wrong' ? '本次没有错题' : '没有题目'}</b>
+              <p>{reviewFilter === 'wrong' ? '切换到「题目」查看全部作答。' : '本次会话没有可复盘的题目。'}</p>
+            </div>
+          )}
+        </section>
+      </div>
 
       {aiMenu && (
         <div className="reading-ai-layer" onMouseDown={() => setAiMenu(null)}>
