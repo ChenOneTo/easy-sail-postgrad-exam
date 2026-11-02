@@ -9,6 +9,7 @@ import { useExamVocabStore } from './exam-vocab-store';
 import { useExamReadingStore } from './exam-reading-store';
 import { useExamMgmtStore } from './exam-mgmt-store';
 import { isTauri } from '../lib/tauri';
+import { initAutoStart } from '../lib/autostart';
 
 export type AccentColor = 'green' | 'blue' | 'purple' | 'orange' | 'pink' | 'red';
 type KnownProjectId = 'project-work' | 'project-study' | 'project-life';
@@ -464,13 +465,9 @@ export const useTaskStore = create<TaskStore>()(
   registerExamReadingGetter(() => useExamReadingStore.getState().getCloudSnapshot());
   // 管综刷题快照：需查库故为异步；用户进入过刷题页后才参与自动同步
   registerExamMgmtGetter(() => useExamMgmtStore.getState().getCloudSnapshot());
-  // 默认开启开机自启动（仅 Tauri 环境）
+  // 开机自启动：仅首次启动默认开启，之后尊重用户在设置中的选择
   if (isTauri()) {
-    try {
-      const { isEnabled, enable } = await import('@tauri-apps/plugin-autostart');
-      const enabled = await isEnabled();
-      if (!enabled) await enable();
-    } catch { /* fallback */ }
+    try { await initAutoStart(); } catch { /* fallback */ }
     // 启动提醒通知引擎（仅 Tauri 环境）
     try {
       const { startReminderEngine } = await import('../lib/notification-engine');

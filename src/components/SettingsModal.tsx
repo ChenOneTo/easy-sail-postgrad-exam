@@ -21,6 +21,7 @@ import {
 } from '../lib/ai';
 import type { AiModelConfig, ModelInfo } from '../lib/ai';
 import { isTauri } from '../lib/tauri';
+import { isAutoStartEnabled, setAutoStartEnabled } from '../lib/autostart';
 import { TASK_TYPES, TAG_MAP } from '../lib/types';
 import { useAiTask } from '../hooks/useAiTask';
 import type { AiClassifyDraft } from '../lib/ai-json';
@@ -98,11 +99,15 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
 
   // 开机自启动状态
   const [autoStart, setAutoStart] = useState(false);
+  const [autoStartBusy, setAutoStartBusy] = useState(false);
+  const [autoStartMsg, setAutoStartMsg] = useState('');
   useEffect(() => {
-    if (!isTauri()) return;
-    import('@tauri-apps/plugin-autostart').then(({ isEnabled }) => {
-      isEnabled().then(setAutoStart).catch(() => {});
-    }).catch(() => {});
+    if (!open || !isTauri()) return;
+    let cancelled = false;
+    isAutoStartEnabled()
+      .then(enabled => { if (!cancelled) setAutoStart(enabled); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [open]);
 
   useEffect(() => {
@@ -127,6 +132,29 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   }, [open]);
 
   if (!open) return null;
+
+  // ===== 开机自启动 =====
+  const handleToggleAutoStart = async () => {
+    if (!isTauri() || autoStartBusy) return;
+    setAutoStartBusy(true);
+    setAutoStartMsg('');
+    const next = !autoStart;
+    try {
+      const actual = await setAutoStartEnabled(next);
+      setAutoStart(actual);
+      // 写入被系统拒绝时如实提示，而不是假装切换成功
+      if (actual !== next) {
+        setAutoStartMsg(next ? '开启失败，系统未接受自启动设置' : '关闭失败，系统仍保留自启动项');
+      }
+    } catch (err) {
+      console.warn('[AutoStart] 切换失败:', err);
+      setAutoStartMsg(`切换失败：${errText(err)}`);
+      // 回读真实状态，避免 UI 与实际不一致
+      setAutoStart(await isAutoStartEnabled().catch(() => autoStart));
+    } finally {
+      setAutoStartBusy(false);
+    }
+  };
 
   // ===== 数据导出/导入 =====
   const handleExport = async () => {
@@ -615,17 +643,11 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                   <div>
                     <div className="setting-label">开机自启动</div>
                     <div className="setting-desc">系统启动时自动运行轻舟AI考研</div>
+                    {autoStartMsg && <div style={{ ...msgStyle(autoStartMsg), marginTop: 6 }}>{autoStartMsg}</div>}
                   </div>
                   <div
-                    className={`toggle${autoStart ? ' active' : ''}${!isTauri() ? ' disabled' : ''}`}
-                    onClick={async () => {
-                      if (!isTauri()) return;
-                      try {
-                        const { enable, disable } = await import('@tauri-apps/plugin-autostart');
-                        if (autoStart) { await disable(); setAutoStart(false); }
-                        else { await enable(); setAutoStart(true); }
-                      } catch (err) { console.warn('[AutoStart] 切换失败:', err); }
-                    }}
+                    className={`toggle${autoStart ? ' active' : ''}${!isTauri() || autoStartBusy ? ' disabled' : ''}`}
+                    onClick={handleToggleAutoStart}
                   />
                 </div>
                 <div className="setting-row">
