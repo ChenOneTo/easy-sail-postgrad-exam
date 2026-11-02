@@ -40,7 +40,9 @@
       "nsis": {
         "languages": ["SimpChinese"],
         "displayLanguageSelector": false,
-        "installerHooks": "windows/hooks.nsh"
+        "installerHooks": "windows/hooks.nsh",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
       },
       "wix": {
         "language": "zh-CN"
