@@ -4,18 +4,21 @@
  * 计时用墙钟 deadline，不用 tick 累减；退出/切后台不暂停，回到前台按真实时间重算。
  * 每次选择立即写 attempt，应用崩溃后可从 ongoing session 恢复。
  */
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Eraser, Flag, Send } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Eraser, Flag,
+  PenLine, Send, Trash2, Undo2,
+} from 'lucide-react'
 import { submitReadingSession, upsertReadingAttempt } from '../lib/exam-reading-db'
 import {
-  loadReadingHighlights,
-  makeReadingHighlight,
-  rangeOffsetsWithin,
-  saveReadingHighlights,
-  splitHighlightSegments,
-  type ReadingHighlightColor,
-  type ReadingHighlightMap,
-} from '../lib/reading-highlights'
+  DRAWING_COLORS,
+  loadReadingDrawings,
+  saveReadingDrawings,
+  type DrawingColor,
+  type DrawingMap,
+  type DrawingStroke,
+} from '../lib/reading-drawings'
+import { ReadingDrawingCanvas } from './ReadingDrawingCanvas'
 import type {
   ReadingAttempt,
   ReadingQuestionWithPassage,
@@ -31,22 +34,6 @@ interface Props {
   onSubmitted: (session: ReadingSessionRow) => void
 }
 
-interface SelectionMenu {
-  x: number
-  y: number
-  passageKey: string
-  paraIndex: number
-  start: number
-  end: number
-  overlapping: boolean
-}
-
-const HIGHLIGHT_COLORS: { color: ReadingHighlightColor; label: string }[] = [
-  { color: 'yellow', label: '黄色划线' },
-  { color: 'green', label: '绿色划线' },
-  { color: 'pink', label: '粉色划线' },
-]
-
 function fmtClock(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000))
   const m = Math.floor(total / 60)
@@ -61,6 +48,8 @@ function globalNo(q: ReadingQuestionWithPassage): number {
 function isCorrectAnswer(q: ReadingQuestionWithPassage, letter: string): boolean {
   return letter === q.answer || (q.disputed && !!q.answerAlt && letter === q.answerAlt)
 }
+
+const NO_STROKES: DrawingStroke[] = []
 
 export function ReadingSession({ session, questions, initialAttempts, onExit, onSubmitted }: Props) {
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
@@ -85,14 +74,15 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
   const [elapsedMs, setElapsedMs] = useState(() => Math.max(0, Date.now() - new Date(session.startedAt).getTime()))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [highlightMap, setHighlightMap] = useState<ReadingHighlightMap>(() => loadReadingHighlights())
-  const [selectionMenu, setSelectionMenu] = useState<SelectionMenu | null>(null)
+  const [drawingMap, setDrawingMap] = useState<DrawingMap>(() => loadReadingDrawings())
+  const [drawingMode, setDrawingMode] = useState(false)
+  const [drawColor, setDrawColor] = useState<DrawingColor>('red')
+  const [eraser, setEraser] = useState(false)
 
   const submittedRef = useRef(false)
   const questionStartRef = useRef(0)
   const durationsRef = useRef<Record<number, number>>({})
   const onSubmittedRef = useRef(onSubmitted)
-  const highlightToolbarRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     onSubmittedRef.current = onSubmitted
@@ -103,23 +93,13 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
   }, [index])
 
   useEffect(() => {
-    saveReadingHighlights(highlightMap)
-  }, [highlightMap])
-
-  useEffect(() => {
-    if (!selectionMenu) return
-    const onDown = (event: globalThis.MouseEvent) => {
-      if (highlightToolbarRef.current?.contains(event.target as Node)) return
-      setSelectionMenu(null)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [selectionMenu])
+    saveReadingDrawings(drawingMap)
+  }, [drawingMap])
 
   const current = questions[Math.min(index, Math.max(0, questions.length - 1))]
   const answeredCount = questions.filter((q) => !!answers[q.id]).length
   const wrongbookCount = useExamReadingStore((s) => s.wrongbook.length)
-  const currentHighlights = current ? highlightMap[current.passageKey] || [] : []
+  const currentStrokes = current ? drawingMap[current.passageKey] || NO_STROKES : NO_STROKES
 
   const handleSubmit = useCallback(
     async (auto: boolean) => {
@@ -175,7 +155,8 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
       const clamped = Math.max(0, Math.min(questions.length - 1, next))
       if (clamped === index) return
       setIndex(clamped)
-      setSelectionMenu(null)
+      setDrawingMode(false)
+      setEraser(false)
       questionStartRef.current = Date.now()
     },
     [index, questions.length],
@@ -226,95 +207,31 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
     }
   }, [answers, current, flags, session.id])
 
-  /** 选中原文后弹出画线工具条 */
-  const handlePassageMouseUp = () => {
+  const handleStrokesChange = (nextStrokes: DrawingStroke[]) => {
     if (!current) return
-    const selection = window.getSelection()
-    if (!selection || selection.isCollapsed) {
-      setSelectionMenu(null)
-      return
-    }
-    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null
-    if (!range) return
-
-    const startEl = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement
-    const endEl = range.endContainer instanceof Element ? range.endContainer : range.endContainer.parentElement
-    const startP = startEl?.closest('p[data-para-index]') as HTMLElement | null
-    const endP = endEl?.closest('p[data-para-index]') as HTMLElement | null
-    if (!startP || startP !== endP) {
-      setSelectionMenu(null)
-      return
-    }
-
-    const paraIndex = Number(startP.dataset.paraIndex)
-    if (!Number.isInteger(paraIndex) || paraIndex < 0 || paraIndex >= current.paragraphs.length) return
-    const textEl = startP.querySelector('.reading-passage-text') as HTMLElement | null
-    if (!textEl) return
-
-    const offsets = rangeOffsetsWithin(textEl, range)
-    if (!offsets) return
-    const paragraph = current.paragraphs[paraIndex]
-    let { start, end } = offsets
-    while (start < end && /\s/.test(paragraph[start])) start++
-    while (end > start && /\s/.test(paragraph[end - 1])) end--
-    if (end - start < 2 || end - start > 500) {
-      setSelectionMenu(null)
-      return
-    }
-
-    const ranges = highlightMap[current.passageKey] || []
-    const overlapping = ranges.some((h) => h.paraIndex === paraIndex && h.start < end && h.end > start)
-    const rect = range.getBoundingClientRect()
-    setSelectionMenu({
-      x: Math.max(8, Math.min(rect.left, window.innerWidth - 290)),
-      y: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 54)),
-      passageKey: current.passageKey,
-      paraIndex,
-      start,
-      end,
-      overlapping,
-    })
-  }
-
-  const applyHighlight = (color: ReadingHighlightColor) => {
-    if (!selectionMenu) return
-    const { passageKey, paraIndex, start, end } = selectionMenu
-    const highlight = makeReadingHighlight(paraIndex, start, end, color)
-    setHighlightMap((prev) => {
-      const kept = (prev[passageKey] || []).filter(
-        (h) => !(h.paraIndex === paraIndex && h.start < end && h.end > start),
-      )
-      return {
-        ...prev,
-        [passageKey]: [...kept, highlight].sort((a, b) => a.paraIndex - b.paraIndex || a.start - b.start),
-      }
-    })
-    setSelectionMenu(null)
-    window.getSelection()?.removeAllRanges()
-  }
-
-  const removeHighlight = () => {
-    if (!selectionMenu) return
-    const { passageKey, paraIndex, start, end } = selectionMenu
-    setHighlightMap((prev) => ({
-      ...prev,
-      [passageKey]: (prev[passageKey] || []).filter(
-        (h) => !(h.paraIndex === paraIndex && h.start < end && h.end > start),
-      ),
-    }))
-    setSelectionMenu(null)
-    window.getSelection()?.removeAllRanges()
-  }
-
-  const clearHighlights = () => {
-    if (!current || currentHighlights.length === 0) return
-    if (!window.confirm('清除本篇所有划线？')) return
-    setHighlightMap((prev) => {
+    setDrawingMap((prev) => {
       const next = { ...prev }
-      delete next[current.passageKey]
+      if (nextStrokes.length > 0) next[current.passageKey] = nextStrokes
+      else delete next[current.passageKey]
       return next
     })
-    setSelectionMenu(null)
+  }
+
+  const toggleDrawing = () => {
+    setDrawingMode((prev) => !prev)
+    setEraser(false)
+    window.getSelection()?.removeAllRanges()
+  }
+
+  const undoStroke = () => {
+    if (!current || currentStrokes.length === 0) return
+    handleStrokesChange(currentStrokes.slice(0, -1))
+  }
+
+  const clearStrokes = () => {
+    if (!current || currentStrokes.length === 0) return
+    if (!window.confirm('清除本篇所有手绘线？')) return
+    handleStrokesChange([])
   }
 
   useEffect(() => {
@@ -403,44 +320,79 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
       )}
 
       <div className="reading-session-body">
-        <section className="reading-passage-pane" onScroll={() => setSelectionMenu(null)}>
+        <section className="reading-passage-pane">
           <div className="reading-passage-meta">
             <span>{current.year} Text {current.textNo}</span>
             <span>{current.passageTitle}</span>
             <span>{current.paragraphs.join(' ').split(/\s+/).filter(Boolean).length} words</span>
             <div className="reading-passage-meta-ops">
-              <span className="reading-hl-hint">选中文字可画线</span>
-              {currentHighlights.length > 0 && (
-                <button className="exam-ghost-btn reading-hl-clear" onClick={clearHighlights}>
-                  <Eraser size={12} /> 清除划线
-                </button>
+              <button
+                className={`exam-ghost-btn reading-draw-toggle${drawingMode ? ' active' : ''}`}
+                onClick={toggleDrawing}
+              >
+                <PenLine size={12} /> {drawingMode ? '完成' : '画线'}
+              </button>
+              {drawingMode && (
+                <>
+                  {DRAWING_COLORS.map(({ color, label, hex }) => (
+                    <button
+                      key={color}
+                      className={`reading-draw-color${drawColor === color && !eraser ? ' active' : ''}`}
+                      style={{ background: hex }}
+                      title={label}
+                      aria-label={label}
+                      onClick={() => {
+                        setDrawColor(color)
+                        setEraser(false)
+                      }}
+                    />
+                  ))}
+                  <button
+                    className={`exam-ghost-btn reading-draw-tool${eraser ? ' active' : ''}`}
+                    onClick={() => setEraser((prev) => !prev)}
+                    title="橡皮：拖动擦除整条线"
+                  >
+                    <Eraser size={12} />
+                  </button>
+                  <button
+                    className="exam-ghost-btn reading-draw-tool"
+                    onClick={undoStroke}
+                    disabled={currentStrokes.length === 0}
+                    title="撤销上一笔"
+                  >
+                    <Undo2 size={12} />
+                  </button>
+                  <button
+                    className="exam-ghost-btn reading-draw-tool"
+                    onClick={clearStrokes}
+                    disabled={currentStrokes.length === 0}
+                    title="清除本篇"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  <span className="reading-draw-hint">{eraser ? '拖动橡皮擦除整条线' : '按住鼠标在原文上自由画线'}</span>
+                </>
+              )}
+              {!drawingMode && currentStrokes.length > 0 && (
+                <span className="reading-draw-hint">已标注 {currentStrokes.length} 笔</span>
               )}
             </div>
           </div>
-          <article className="reading-passage" onMouseUp={handlePassageMouseUp}>
-            {current.paragraphs.map((paragraph, i) => {
-              const paraHighlights = currentHighlights.filter((h) => h.paraIndex === i)
-              return (
-                <p key={i} data-para-index={i}>
-                  <span className="reading-para-no">[{i + 1}]</span>
-                  <span className="reading-passage-text">
-                    {splitHighlightSegments(paragraph, paraHighlights).map((segment, si) => (
-                      segment.highlight ? (
-                        <mark
-                          key={segment.highlight.id}
-                          className={`reading-hl reading-hl-${segment.highlight.color}`}
-                          data-hl-id={segment.highlight.id}
-                        >
-                          {segment.text}
-                        </mark>
-                      ) : (
-                        <Fragment key={`text-${si}`}>{segment.text}</Fragment>
-                      )
-                    ))}
-                  </span>
-                </p>
-              )
-            })}
+          <article className={`reading-passage${drawingMode ? ' drawing' : ''}`}>
+            <ReadingDrawingCanvas
+              key={current.passageKey}
+              strokes={currentStrokes}
+              interactive={drawingMode}
+              color={drawColor}
+              eraser={eraser}
+              onChange={handleStrokesChange}
+            />
+            {current.paragraphs.map((paragraph, i) => (
+              <p key={i}>
+                <span className="reading-para-no">[{i + 1}]</span>
+                {paragraph}
+              </p>
+            ))}
           </article>
         </section>
 
@@ -517,31 +469,6 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
           </div>
         </section>
       </div>
-
-      {selectionMenu && (
-        <div
-          ref={highlightToolbarRef}
-          className="reading-hl-toolbar"
-          style={{ left: selectionMenu.x, top: selectionMenu.y }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          <span className="reading-hl-toolbar-label">{selectionMenu.overlapping ? '调整' : '画线'}</span>
-          {HIGHLIGHT_COLORS.map(({ color, label }) => (
-            <button
-              key={color}
-              className={`reading-hl-color reading-hl-color-${color}`}
-              title={label}
-              aria-label={label}
-              onClick={() => applyHighlight(color)}
-            />
-          ))}
-          {selectionMenu.overlapping && (
-            <button className="reading-hl-remove" onClick={removeHighlight} title="取消选中范围内的划线">
-              <Eraser size={12} /> 取消
-            </button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
