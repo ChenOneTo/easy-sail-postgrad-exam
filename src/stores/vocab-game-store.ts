@@ -228,11 +228,16 @@ function buildQuiz(words: GameWord[]): QuizQuestion[] {
   });
 }
 
-/** 卡片状态 → 四档掌握度（与状态栏口径一致） */
-export function wordStatusOf(w: { state: string; reps: number }): WordStatus {
+/**
+ * 卡片状态 → 四档掌握度（与状态栏口径一致）。
+ * easyCount > 0 表示评过 Easy（点过「已掌握」），直接算掌握：新卡评 Easy 会
+ * 直接毕业到 review 且 reps = 1，只看次数会把它误判成「见过」。
+ */
+export function wordStatusOf(w: { state: string; reps: number; easyCount?: number }): WordStatus {
   if (w.state === 'new') return 'new';
-  if (w.state !== 'review' || w.reps <= 1) return 'seen';
-  return w.reps <= 2 ? 'familiar' : 'mastered';
+  if (w.state !== 'review') return 'seen';
+  if (w.reps >= 3 || (w.easyCount ?? 0) > 0) return 'mastered';
+  return w.reps >= 2 ? 'familiar' : 'seen';
 }
 
 function accuracyOf(quiz: QuizQuestion[]): { correct: number; total: number } {

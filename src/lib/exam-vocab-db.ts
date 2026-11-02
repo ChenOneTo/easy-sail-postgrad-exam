@@ -49,6 +49,8 @@ export interface VocabQueueItem extends VocabCard {
   meaning: string;
   unit: string;
   coreZone: boolean;
+  /** 历史 Easy 评分次数：>0 表示用户点过「已掌握」，用于四档掌握度判定；仅部分查询带出 */
+  easyCount?: number;
 }
 
 export interface VocabReview {
@@ -183,6 +185,7 @@ function rowToQueueItem(row: Record<string, unknown>): VocabQueueItem {
     meaning: (row.meaning as string) || '',
     unit: (row.unit as string) || '',
     coreZone: !!((row.core_zone as number) ?? 0),
+    easyCount: (row.easy_hits as number) ?? 0,
   };
 }
 

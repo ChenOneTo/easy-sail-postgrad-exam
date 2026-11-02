@@ -89,17 +89,26 @@ function rowToQueueItem(row: Record<string, unknown>): VocabQueueItem {
     meaning: (row.meaning as string) || '',
     unit: (row.unit as string) || '',
     coreZone: !!((row.core_zone as number) ?? 0),
+    easyCount: (row.easy_hits as number) ?? 0,
   };
 }
 
 /** 词库顺序：核心区优先，再按单元/序号。关卡偏移与词书阅读顺序一致 */
 const WORD_ORDER = 'ORDER BY w.core_zone DESC, w.unit ASC, w.seq ASC';
 
+/**
+ * 历史 Easy 评分次数（rating = 4）。
+ * 「已掌握」按钮与背单词页的「简单」都记 Easy，是用户显式声明会了这个词，
+ * 掌握度统计据此直接归入「掌握」，不必等复习满三次。
+ */
+const EASY_HITS = `(SELECT COUNT(*) FROM exam_vocab_reviews r
+  WHERE r.card_id = c.id AND r.rating = 4) AS easy_hits`;
+
 /** 取某关的词（含 en2zh 卡的调度状态） */
 export async function fetchLevelWords(offset: number, limit: number): Promise<VocabQueueItem[]> {
   const db = await getExamVocabDb();
   const rows = await db.select<Record<string, unknown>[]>(`
-    SELECT c.*, w.word, w.meaning, w.unit, w.core_zone
+    SELECT c.*, w.word, w.meaning, w.unit, w.core_zone, ${EASY_HITS}
     FROM exam_vocab_words w
     JOIN exam_vocab_cards c ON c.word_id = w.id AND c.direction = $1
     WHERE w.archived = 0
@@ -114,7 +123,7 @@ export async function searchGameWords(keyword: string, limit = 100): Promise<Voc
   const db = await getExamVocabDb();
   const like = `%${keyword.trim()}%`;
   const rows = await db.select<Record<string, unknown>[]>(`
-    SELECT c.*, w.word, w.meaning, w.unit, w.core_zone
+    SELECT c.*, w.word, w.meaning, w.unit, w.core_zone, ${EASY_HITS}
     FROM exam_vocab_words w
     JOIN exam_vocab_cards c ON c.word_id = w.id AND c.direction = $1
     WHERE w.archived = 0 AND (w.word LIKE $2 OR w.meaning LIKE $2)
@@ -191,15 +200,28 @@ export async function fetchGameProgress(): Promise<GameProgress> {
  * 卡片状态只有 4 档（new/learning/review/relearning），这里按复习次数再细分，
  * 让「见过 / 熟悉 / 掌握」与设计稿的四档口径一致：
  * 新学 = 未学；见过 = 学习中或只复习过 1 次；熟悉 = 复习过 2 次；掌握 = 3 次以上。
+ *
+ * 例外：评过 Easy（点过「已掌握」）的卡直接算掌握。新卡评 Easy 会直接毕业到
+ * review 且 reps = 1，按次数口径会落进「见过」，与按钮语义完全相反。
  */
 export async function fetchWordStatusCounts(): Promise<WordStatusCounts> {
   const db = await getExamVocabDb();
   const rows = await db.select<Record<string, unknown>[]>(`
     SELECT
       SUM(CASE WHEN c.state = 'new' THEN 1 ELSE 0 END) AS newCount,
-      SUM(CASE WHEN c.state IN ('learning','relearning') OR (c.state = 'review' AND c.reps <= 1) THEN 1 ELSE 0 END) AS seenCount,
-      SUM(CASE WHEN c.state = 'review' AND c.reps = 2 THEN 1 ELSE 0 END) AS familiarCount,
-      SUM(CASE WHEN c.state = 'review' AND c.reps >= 3 THEN 1 ELSE 0 END) AS masteredCount
+      SUM(CASE WHEN c.state IN ('learning','relearning')
+            OR (c.state = 'review' AND c.reps <= 1
+                AND NOT EXISTS (SELECT 1 FROM exam_vocab_reviews r
+                  WHERE r.card_id = c.id AND r.rating = 4))
+          THEN 1 ELSE 0 END) AS seenCount,
+      SUM(CASE WHEN c.state = 'review' AND c.reps >= 2
+            AND NOT EXISTS (SELECT 1 FROM exam_vocab_reviews r
+              WHERE r.card_id = c.id AND r.rating = 4)
+          THEN 1 ELSE 0 END) AS familiarCount,
+      SUM(CASE WHEN c.state = 'review'
+            AND (c.reps >= 3 OR EXISTS (SELECT 1 FROM exam_vocab_reviews r
+              WHERE r.card_id = c.id AND r.rating = 4))
+          THEN 1 ELSE 0 END) AS masteredCount
     FROM exam_vocab_cards c
     JOIN exam_vocab_words w ON w.id = c.word_id
     WHERE c.direction = $1 AND w.archived = 0
