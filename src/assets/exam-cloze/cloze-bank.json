@@ -1,0 +1,1587 @@
+{
+  "version": 1,
+  "builtAt": "2026-11-02T15:19:25.832Z",
+  "paper": "english2-cloze",
+  "dataset": {
+    "sourceDir": "/Users/cgy/data/work-buddy/考研英语二真题",
+    "years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ]
+  },
+  "passages": [
+    {
+      "key": "2022-cloze",
+      "year": 2022,
+      "title": "写作时间与优先级",
+      "topic": "职业成长",
+      "difficulty": 2,
+      "wordCount": 331,
+      "paragraphs": [
+        "Harlan Coben believes that if you're a writer, you'll find the time; and that if you can't find the time, then writing isn't a priority and you're not a writer. For him writing is a {{1}} job—a job like any other. He has {{2}} it with plumbing. He points out that a plumber doesn't wake up and say that he can't work with pipes today. {{3}}, like most writers these days, you're holding down a job to pay the bills, it's not {{4}} to find the time to write. But it's not impossible. It requires determination and single-mindedness. {{5}} that best-selling authors began writing when they were doing other things to earn a living. And today, even writers who are fairly {{6}} often have to do other work to {{7}} their writing income. As Harlan Coben has suggested, it's a {{8}} of priorities and some things you really enjoy. To make writing a priority, you'll have to {{9}} some of your day-to-day activities and some things you really enjoy. Depending on your {{10}} and your lifestyle, that might mean spending less time watching television or listening to music, though some people can write {{11}} they listen to music. You might have to {{12}} the amount of exercise or sport you do. You'll have to make social media an {{13}} activity rather than a daily, time-consuming {{14}}. There'll probably have to be less socializing with your friends and less time with your family. It's a {{15}} learning curve, and it won't always make you popular. There's just one thing you should try to keep at least some time for {{16}} your writing—and that's reading. Any writer needs to read as much and as widely as they can; it's the one {{17}} supporter—something you can't do without. Time is finite. The older you get, the {{18}} it seems to go. We need to use it carefully and as {{19}} as we can. That means prioritizing our activities so that we spend most time on the things we really want to do. If you're a writer, that means — {{20}} — writing."
+      ],
+      "sourceRef": "2022-英语二-试题.pdf",
+      "questions": [
+        {
+          "key": "2022-cloze-q1",
+          "seq": 1,
+          "context": "For him writing is a {{1}} job—a job like any other.",
+          "options": [
+            "difficult",
+            "normal",
+            "steady",
+            "pleasant"
+          ],
+          "answer": "B",
+          "answerWord": "normal",
+          "qtype": "形容词词义辨析",
+          "explanation": "后句把写作与修管道类比（管道工不会一早醒来说今天修不了管子），说明写作在 Coben 眼中是一份平常的工作。干扰项 difficult/pleasant 与「-a job like any other」不符；steady 无据"
+        },
+        {
+          "key": "2022-cloze-q2",
+          "seq": 2,
+          "context": "He has {{2}} it with plumbing.",
+          "options": [
+            "combined",
+            "compared",
+            "confused",
+            "confronted"
+          ],
+          "answer": "B",
+          "answerWord": "compared",
+          "qtype": "动词词义 + 固定搭配",
+          "explanation": "compare A with B（把 A 与 B 相比）。confuse A with B / combine A with B / confront sb with sth 均不合语境"
+        },
+        {
+          "key": "2022-cloze-q3",
+          "seq": 3,
+          "context": "{{3}}, like most writers these days, you're holding down a job to pay the bills, it's not {{4}} to find the time to write.",
+          "options": [
+            "If",
+            "Though",
+            "Once",
+            "Unless"
+          ],
+          "answer": "A",
+          "answerWord": "If",
+          "qtype": "逻辑关系衔接",
+          "explanation": "从句「你像如今多数作家一样有份养家的工作」与主句「__不容易找到时间写作」构成条件关系。Though 让步、Once 时间、Unless 否定条件，均不成立"
+        },
+        {
+          "key": "2022-cloze-q4",
+          "seq": 4,
+          "context": "{{3}}, like most writers these days, you're holding down a job to pay the bills, it's not {{4}} to find the time to write.",
+          "options": [
+            "enough",
+            "strong",
+            "wrong",
+            "easy"
+          ],
+          "answer": "D",
+          "answerWord": "easy",
+          "qtype": "形容词词义辨析",
+          "explanation": "有全职工作，不容易挤出写作时间，it's not easy to find the time to write"
+        },
+        {
+          "key": "2022-cloze-q5",
+          "seq": 5,
+          "context": "{{5}} that best-selling authors began writing when they were doing other things to earn a living.",
+          "options": [
+            "Accept",
+            "Explain",
+            "Remember",
+            "Suppose"
+          ],
+          "answer": "C",
+          "answerWord": "Remember",
+          "qtype": "动词词义辨析",
+          "explanation": "承接「需要决心与专注」，作者提醒读者：多数畅销书作家起步时也在做别的工作谋生。Suppose/Accept/Explain 均无「提示唤起记忆」的衔接作用"
+        },
+        {
+          "key": "2022-cloze-q6",
+          "seq": 6,
+          "context": "And today, even writers who are fairly {{6}} often have to do other work to {{7}} their writing income.",
+          "options": [
+            "well-known",
+            "well-advised",
+            "well-informed",
+            "well-chosen"
+          ],
+          "answer": "A",
+          "answerWord": "well-known",
+          "qtype": "形容词词义辨析",
+          "explanation": "由 even（甚至） 表递进：即便相当知名的作家也常需做别的工作。well-advised（审慎的）/well-informed（见多识广的）/well-chosen（精选的）均不符"
+        },
+        {
+          "key": "2022-cloze-q7",
+          "seq": 7,
+          "context": "And today, even writers who are fairly {{6}} often have to do other work to {{7}} their writing income.",
+          "options": [
+            "donate",
+            "generate",
+            "supplement",
+            "calculate"
+          ],
+          "answer": "C",
+          "answerWord": "supplement",
+          "qtype": "动词词义辨析",
+          "explanation": "做别的工作以补贴/补充写作收入。donate 捐赠、generate 产生、calculate 计算，语义方向错误"
+        },
+        {
+          "key": "2022-cloze-q8",
+          "seq": 8,
+          "context": "As Harlan Coben has suggested, it's a {{8}} of priorities and some things you really enjoy.",
+          "options": [
+            "cause",
+            "purpose",
+            "question",
+            "condition"
+          ],
+          "answer": "C",
+          "answerWord": "question",
+          "qtype": "名词词义 + 固定表达",
+          "explanation": "it's a question of priorities（这是个优先级问题）。cause/purpose/condition 不与 of priorities 构成此搭配"
+        },
+        {
+          "key": "2022-cloze-q9",
+          "seq": 9,
+          "context": "To make writing a priority, you'll have to {{9}} some of your day-to-day activities and some things you really enjoy.",
+          "options": [
+            "highlight",
+            "sacrifice",
+            "continue",
+            "explore"
+          ],
+          "answer": "B",
+          "answerWord": "sacrifice",
+          "qtype": "动词词义辨析",
+          "explanation": "不定式目的状语 To make writing a priority 决定后文方向：必须牺牲一些日常活动和确实喜欢的事。highlight/continue/explore 语义相反或无关"
+        },
+        {
+          "key": "2022-cloze-q10",
+          "seq": 10,
+          "context": "Depending on your {{10}} and your lifestyle, that might mean spending less time watching television or listening to music, though some people can write {{11}} they listen to music.",
+          "options": [
+            "relations",
+            "interests",
+            "memories",
+            "skills"
+          ],
+          "answer": "B",
+          "answerWord": "interests",
+          "qtype": "名词词义辨析",
+          "explanation": "与 lifestyle 并列，且后文 watching television、listening to music 均属兴趣爱好"
+        },
+        {
+          "key": "2022-cloze-q11",
+          "seq": 11,
+          "context": "Depending on your {{10}} and your lifestyle, that might mean spending less time watching television or listening to music, though some people can write {{11}} they listen to music.",
+          "options": [
+            "until",
+            "because",
+            "while",
+            "before"
+          ],
+          "answer": "C",
+          "answerWord": "while",
+          "qtype": "逻辑关系衔接",
+          "explanation": "though 引导让步从句内再用 while 表「在……的同时」：有些人可以边听音乐边写作"
+        },
+        {
+          "key": "2022-cloze-q12",
+          "seq": 12,
+          "context": "You might have to {{12}} the amount of exercise or sport you do.",
+          "options": [
+            "put up with",
+            "make up for",
+            "hang on to",
+            "cut down on"
+          ],
+          "answer": "D",
+          "answerWord": "cut down on",
+          "qtype": "动词短语辨析",
+          "explanation": "与前文 spending less time 并列：你可能不得不减少锻炼/运动量。put up with 忍受、make up for 弥补、hang on to 保留"
+        },
+        {
+          "key": "2022-cloze-q13",
+          "seq": 13,
+          "context": "You'll have to make social media an {{13}} activity rather than a daily, time-consuming {{14}}.",
+          "options": [
+            "intelligent",
+            "occasional",
+            "intensive",
+            "emotional"
+          ],
+          "answer": "B",
+          "answerWord": "occasional",
+          "qtype": "形容词词义辨析",
+          "explanation": "由 rather than a daily, time-consuming __ 的对照关系推出，需填 daily 的反义词：occasional（偶尔的）"
+        },
+        {
+          "key": "2022-cloze-q14",
+          "seq": 14,
+          "context": "You'll have to make social media an {{13}} activity rather than a daily, time-consuming {{14}}.",
+          "options": [
+            "habit",
+            "best",
+            "decision",
+            "plan"
+          ],
+          "answer": "A",
+          "answerWord": "habit",
+          "qtype": "名词词义辨析",
+          "explanation": "「把社交媒体变成偶发活动，而不是每天耗时的习惯」。test/decision/plan 与前半句 activity 不形成对照"
+        },
+        {
+          "key": "2022-cloze-q15",
+          "seq": 15,
+          "context": "It's a {{15}} learning curve, and it won't always make you popular.",
+          "options": [
+            "tough",
+            "gentle",
+            "rapid",
+            "funny"
+          ],
+          "answer": "A",
+          "answerWord": "tough",
+          "qtype": "形容词词义辨析",
+          "explanation": "上文一连串「减少社交、减少陪家人」，这是艰难的学习曲线，且 it won't always make you popular 印证。gentle/rapid/funny 不符"
+        },
+        {
+          "key": "2022-cloze-q16",
+          "seq": 16,
+          "context": "There's just one thing you should try to keep at least some time for {{16}} your writing—and that's reading.",
+          "options": [
+            "in place of",
+            "in charge of",
+            "in response to",
+            "in addition to"
+          ],
+          "answer": "D",
+          "answerWord": "in addition to",
+          "qtype": "介词短语辨析",
+          "explanation": "破折号后 and that's reading（那就是阅读）：除写作之外还有一件应保留时间的事。in place of 取代、in charge of 负责、in response to 回应，均逻辑不通"
+        },
+        {
+          "key": "2022-cloze-q17",
+          "seq": 17,
+          "context": "Any writer needs to read as much and as widely as they can; it's the one {{17}} supporter—something you can't do without.",
+          "options": [
+            "indispensable",
+            "innovative",
+            "invisible",
+            "instant"
+          ],
+          "answer": "A",
+          "answerWord": "indispensable",
+          "qtype": "形容词词义辨析",
+          "explanation": "破折号后 something you can't do without 直译同义复现 → 不可或缺的。innovative 创新的、invisible 看不见的、instant 即时的，属音/形近干扰"
+        },
+        {
+          "key": "2022-cloze-q18",
+          "seq": 18,
+          "context": "The older you get, the {{18}} it seems to go.",
+          "options": [
+            "duller",
+            "harder",
+            "quieter",
+            "quicker"
+          ],
+          "answer": "D",
+          "answerWord": "quicker",
+          "qtype": "形容词比较级 + the more…, the more… 句型",
+          "explanation": "承接首句 Time is finite：年纪越大，时间似乎走得越快"
+        },
+        {
+          "key": "2022-cloze-q19",
+          "seq": 19,
+          "context": "We need to use it carefully and as {{19}} as we can.",
+          "options": [
+            "peacefully",
+            "generously",
+            "productively",
+            "gratefully"
+          ],
+          "answer": "C",
+          "answerWord": "productively",
+          "qtype": "副词词义辨析",
+          "explanation": "与 carefully 并列：尽可能审慎、高效地利用时间。peacefully/generously/gratefully 与「利用时间」不搭"
+        },
+        {
+          "key": "2022-cloze-q20",
+          "seq": 20,
+          "context": "If you're a writer, that means — {{20}} — writing.",
+          "options": [
+            "at most",
+            "in turn",
+            "on average",
+            "above all"
+          ],
+          "answer": "D",
+          "answerWord": "above all",
+          "qtype": "副词短语辨析",
+          "explanation": "全文收尾的用法延续：prioritising … spend most time on the things we really want to do → 如果你写作家，那意味着「最重要的是写作」。at most 至多、in turn 依次、on average 平均"
+        }
+      ]
+    },
+    {
+      "key": "2023-cloze",
+      "year": 2023,
+      "title": "小企业增长团队",
+      "topic": "商业管理",
+      "difficulty": 2,
+      "wordCount": 336,
+      "paragraphs": [
+        "Here's a common scenario that any number of entrepreneurs face today: you're the CEO of a small business, and though you're making a nice {{1}}, you need to find a way to take it to the next level. What you need to do is {{2}} growth by establishing a growth team. A growth team is made up of members from different departments within your company and it harnesses the power of collaboration to focus {{3}} on finding ways to grow. Let's look at a real-world {{4}}. Prior to forming a growth team, the software company BitTorrent had 50 employees working in the {{5}} departments of engineering, marketing and product development. This brought them good results until 2012, when their growth plateaued. The {{6}} was that too many customers were using the basic, free version of their product. And {{7}} improvements to the premium, paid version, few people were making the upgrade. Things changed, {{8}}, when an innovative project-marketing manager (PMM) came aboard, {{9}} a growth team and sparked the kind of {{10}} perspective they needed. By looking at engineering issues from a marketing point of view, it became clear that the {{11}} of upgrades wasn't due to a quality issue. Most customers were simply unaware of the premium version and what it offered. Armed with this {{12}}, the marketing and engineering teams joined forces to raise awareness by prominently {{13}} the premium version to users of the free version. {{14}}, upgrades skyrocketed, and revenue increased by 92 percent. But in order for your growth team to succeed, it needs to have a strong leader. It needs someone who can {{15}} the interdisciplinary team and keep them on course for improvement. This leader will {{16}} the target area, set clear goals and establish a time frame for the {{17}} of these goals. The growth leader is also {{18}} for keeping the team focused on moving forward and steering the team clear of distractions. {{19}} attractive new ideas can be distracting, the team leader must recognize when these ideas don't {{20}} the current goal and need to be put on the back burner."
+      ],
+      "sourceRef": "2023-英语二-试题.pdf",
+      "questions": [
+        {
+          "key": "2023-cloze-q1",
+          "seq": 1,
+          "context": "Here's a common scenario that any number of entrepreneurs face today: you're the CEO of a small business, and though you're making a nice {{1}}, you need to find a way to take it to the next level.",
+          "options": [
+            "purchase",
+            "profit",
+            "connection",
+            "bet"
+          ],
+          "answer": "B",
+          "answerWord": "profit",
+          "qtype": "名词辨析",
+          "explanation": "\"虽然你正赚着可观的利润，仍需找到办法让生意更上一层楼\"。make a nice profit 为固定表达。"
+        },
+        {
+          "key": "2023-cloze-q2",
+          "seq": 2,
+          "context": "What you need to do is {{2}} growth by establishing a growth team.",
+          "options": [
+            "define",
+            "predict",
+            "prioritize",
+            "appreciate"
+          ],
+          "answer": "C",
+          "answerWord": "prioritize",
+          "qtype": "动词辨析",
+          "explanation": "通过组建增长团队来\"优先处理\"增长问题，强调优先性。"
+        },
+        {
+          "key": "2023-cloze-q3",
+          "seq": 3,
+          "context": "A growth team is made up of members from different departments within your company and it harnesses the power of collaboration to focus {{3}} on finding ways to grow.",
+          "options": [
+            "exclusively",
+            "temporarily",
+            "potentially",
+            "initially"
+          ],
+          "answer": "A",
+          "answerWord": "exclusively",
+          "qtype": "副词辨析",
+          "explanation": "借助协作的力量，\"专门/排他地\"专注于寻找增长途径。"
+        },
+        {
+          "key": "2023-cloze-q4",
+          "seq": 4,
+          "context": "Let's look at a real-world {{4}}.",
+          "options": [
+            "experiment",
+            "proposal",
+            "debate",
+            "example"
+          ],
+          "answer": "D",
+          "answerWord": "example",
+          "qtype": "名词辨析",
+          "explanation": "\"让我们看一个现实中的例子\"，下文转入 BitTorrent 案例，属举例论证。"
+        },
+        {
+          "key": "2023-cloze-q5",
+          "seq": 5,
+          "context": "Prior to forming a growth team, the software company BitTorrent had 50 employees working in the {{5}} departments of engineering, marketing and product development.",
+          "options": [
+            "identical",
+            "marginal",
+            "provisional",
+            "traditional"
+          ],
+          "answer": "D",
+          "answerWord": "traditional",
+          "qtype": "形容词辨析",
+          "explanation": "工程、市场营销、产品研发等\"传统的\"部门。"
+        },
+        {
+          "key": "2023-cloze-q6",
+          "seq": 6,
+          "context": "The {{6}} was that too many customers were using the basic, free version of their product.",
+          "options": [
+            "rumor",
+            "secret",
+            "myth",
+            "problem"
+          ],
+          "answer": "D",
+          "answerWord": "problem",
+          "qtype": "名词辨析",
+          "explanation": "上文说 2012 年增长陷入停滞，此处顺接说明\"问题\"在于太多用户只用免费版。"
+        },
+        {
+          "key": "2023-cloze-q7",
+          "seq": 7,
+          "context": "And {{7}} improvements to the premium, paid version, few people were making the upgrade.",
+          "options": [
+            "despite",
+            "unlike",
+            "through",
+            "beside"
+          ],
+          "answer": "A",
+          "answerWord": "despite",
+          "qtype": "逻辑关系（让步）",
+          "explanation": "\"尽管付费版有所改进，却几乎无人升级\"，让步-转折。"
+        },
+        {
+          "key": "2023-cloze-q8",
+          "seq": 8,
+          "context": "Things changed, {{8}}, when an innovative project-marketing manager (PMM) came aboard, {{9}} a growth team and sparked the kind of {{10}} perspective they needed.",
+          "options": [
+            "moreover",
+            "however",
+            "therefore",
+            "again"
+          ],
+          "answer": "B",
+          "answerWord": "however",
+          "qtype": "逻辑关系（转折）",
+          "explanation": "上文讲改进无人买账，本句讲一位创新经理人加入后情况改变，前后转折。"
+        },
+        {
+          "key": "2023-cloze-q9",
+          "seq": 9,
+          "context": "Things changed, {{8}}, when an innovative project-marketing manager (PMM) came aboard, {{9}} a growth team and sparked the kind of {{10}} perspective they needed.",
+          "options": [
+            "inspected",
+            "created",
+            "expanded",
+            "reformed"
+          ],
+          "answer": "B",
+          "answerWord": "created",
+          "qtype": "动词辨析",
+          "explanation": "与首段 establish a growth team 语义复现，\"创建了\"增长团队。"
+        },
+        {
+          "key": "2023-cloze-q10",
+          "seq": 10,
+          "context": "Things changed, {{8}}, when an innovative project-marketing manager (PMM) came aboard, {{9}} a growth team and sparked the kind of {{10}} perspective they needed.",
+          "options": [
+            "cultural",
+            "objective",
+            "fresh",
+            "personal"
+          ],
+          "answer": "C",
+          "answerWord": "fresh",
+          "qtype": "形容词辨析",
+          "explanation": "与上文 innovative 语义复现，带来\"新鲜的\"视角。"
+        },
+        {
+          "key": "2023-cloze-q11",
+          "seq": 11,
+          "context": "By looking at engineering issues from a marketing point of view, it became clear that the {{11}} of upgrades wasn't due to a quality issue.",
+          "options": [
+            "end",
+            "burden",
+            "lack",
+            "decrease"
+          ],
+          "answer": "C",
+          "answerWord": "lack",
+          "qtype": "名词辨析",
+          "explanation": "升级\"缺失\"并非质量问题，而是用户不知道有付费版。"
+        },
+        {
+          "key": "2023-cloze-q12",
+          "seq": 12,
+          "context": "Armed with this {{12}}, the marketing and engineering teams joined forces to raise awareness by prominently {{13}} the premium version to users of the free version.",
+          "options": [
+            "policy",
+            "suggestion",
+            "purpose",
+            "insight"
+          ],
+          "answer": "D",
+          "answerWord": "insight",
+          "qtype": "名词辨析",
+          "explanation": "与上文 fresh perspective 语义复现，凭这份\"洞察力\"两部门联手。"
+        },
+        {
+          "key": "2023-cloze-q13",
+          "seq": 13,
+          "context": "Armed with this {{12}}, the marketing and engineering teams joined forces to raise awareness by prominently {{13}} the premium version to users of the free version.",
+          "options": [
+            "contributing",
+            "allocating",
+            "promoting",
+            "transferring"
+          ],
+          "answer": "C",
+          "answerWord": "promoting",
+          "qtype": "动词辨析",
+          "explanation": "向免费版用户大力\"推广\"付费版，与后文 upgrade 同向。"
+        },
+        {
+          "key": "2023-cloze-q14",
+          "seq": 14,
+          "context": "{{14}}, upgrades skyrocketed, and revenue increased by 92 percent.",
+          "options": [
+            "As a result",
+            "At any rate",
+            "By the way",
+            "In a sense"
+          ],
+          "answer": "A",
+          "answerWord": "As a result",
+          "qtype": "逻辑关系（因果）",
+          "explanation": "推广之后\"结果\"升级量激增、收入增长 92%。"
+        },
+        {
+          "key": "2023-cloze-q15",
+          "seq": 15,
+          "context": "It needs someone who can {{15}} the interdisciplinary team and keep them on course for improvement.",
+          "options": [
+            "unite",
+            "finance",
+            "follow",
+            "choose"
+          ],
+          "answer": "A",
+          "answerWord": "unite",
+          "qtype": "动词辨析",
+          "explanation": "领导者要能\"凝聚\"跨学科团队并让团队走在改进的轨道上。"
+        },
+        {
+          "key": "2023-cloze-q16",
+          "seq": 16,
+          "context": "This leader will {{16}} the target area, set clear goals and establish a time frame for the {{17}} of these goals.",
+          "options": [
+            "share",
+            "identify",
+            "divide",
+            "broaden"
+          ],
+          "answer": "B",
+          "answerWord": "identify",
+          "qtype": "动词辨析",
+          "explanation": "先\"确定\"目标领域，再设定清晰目标——动作有先后。"
+        },
+        {
+          "key": "2023-cloze-q17",
+          "seq": 17,
+          "context": "This leader will {{16}} the target area, set clear goals and establish a time frame for the {{17}} of these goals.",
+          "options": [
+            "announcement",
+            "assessment",
+            "adjustment",
+            "accomplishment"
+          ],
+          "answer": "D",
+          "answerWord": "accomplishment",
+          "qtype": "名词辨析",
+          "explanation": "设定目标后，为这些目标的\"完成\"建立时间框架。"
+        },
+        {
+          "key": "2023-cloze-q18",
+          "seq": 18,
+          "context": "The growth leader is also {{18}} for keeping the team focused on moving forward and steering the team clear of distractions.",
+          "options": [
+            "famous",
+            "responsible",
+            "available",
+            "respective"
+          ],
+          "answer": "B",
+          "answerWord": "responsible",
+          "qtype": "固定搭配",
+          "explanation": "be responsible for 对……负责，负责让团队专注向前、避开干扰。"
+        },
+        {
+          "key": "2023-cloze-q19",
+          "seq": 19,
+          "context": "{{19}} attractive new ideas can be distracting, the team leader must recognize when these ideas don't {{20}} the current goal and need to be put on the back burner.",
+          "options": [
+            "Before",
+            "Once",
+            "While",
+            "Unless"
+          ],
+          "answer": "C",
+          "answerWord": "While",
+          "qtype": "逻辑关系（让步）",
+          "explanation": "\"虽然新想法很吸引人，但它们可能让人分心\"，让步-转折。"
+        },
+        {
+          "key": "2023-cloze-q20",
+          "seq": 20,
+          "context": "{{19}} attractive new ideas can be distracting, the team leader must recognize when these ideas don't {{20}} the current goal and need to be put on the back burner.",
+          "options": [
+            "serve",
+            "limit",
+            "summarize",
+            "alter"
+          ],
+          "answer": "A",
+          "answerWord": "serve",
+          "qtype": "动词辨析",
+          "explanation": "当这些想法不能\"服务于\"当前目标时，须将其暂时搁置（put on the back burner）。"
+        }
+      ]
+    },
+    {
+      "key": "2024-cloze",
+      "year": 2024,
+      "title": "社交生活与社交健康",
+      "topic": "社会心理",
+      "difficulty": 2,
+      "wordCount": 332,
+      "paragraphs": [
+        "Your social life is defined as 'the activities you do with other people, for pleasure, when you are not working'. It's important to have a social life, but what's right for one person won't be right for another. Some of us feel energised by spending lots of time with others, {{1}} some of us may feel drained, even if it's doing something we enjoy. 'This is why finding a {{2}} in your social life is key. Spending too much time on your own, not {{3}} others, can make you feel lonely and {{4}}. Loneliness is known to impact on your mental health and {{5}} a low mood. Anyone can feel lonely at any time. This might be especially true if, {{6}}, you are working from home and you are {{7}} on the usual social conversations that happen in an office. Other life changes can {{8}} periods of loneliness too, such as retirement, changing jobs or becoming a parent. It's important to recognise these feelings of loneliness. There are ways to {{9}} a social life, but it can feel overwhelming {{10}}. It's a great idea to start by thinking about hobbies you enjoy. You can then find groups and activities related to those where you will be able to meet {{11}} people. There are groups aimed at new parents, at those who want to {{12}} a new sport for the first time, or networking events for those in the same profession to meet up and {{13}} ideas. On the other hand, it's {{14}} possible to have too much of a social life. If you feel like you're always doing something and there is never any {{15}} in your calendar for downtime, you could suffer social burnout or social {{16}}. We all have our own social limit and it's important to recognise when you're feeling like it's all too much. Low mood, low energy, irritability and trouble sleeping could all be {{17}} of poor social health. Make sure you {{18}} some time in your diary when you're {{19}} for socialising and use this time to relax, {{20}}, and recover."
+      ],
+      "sourceRef": "2024-英语二-试题.pdf",
+      "questions": [
+        {
+          "key": "2024-cloze-q1",
+          "seq": 1,
+          "context": "Some of us feel energised by spending lots of time with others, {{1}} some of us may feel drained, even if it's doing something we enjoy.",
+          "options": [
+            "because",
+            "unless",
+            "whereas",
+            "until"
+          ],
+          "answer": "C",
+          "answerWord": "whereas",
+          "qtype": "逻辑关系（对比）",
+          "explanation": "前句\"有人与人相处精力充沛\"，后句\"也有人会感到被掏空\"，前后为两类人的对比，选表对比的并列连词 whereas。"
+        },
+        {
+          "key": "2024-cloze-q2",
+          "seq": 2,
+          "context": "'This is why finding a {{2}} in your social life is key.",
+          "options": [
+            "contrast",
+            "balance",
+            "link",
+            "gap"
+          ],
+          "answer": "B",
+          "answerWord": "balance",
+          "qtype": "名词辨析",
+          "explanation": "承接上句\"适合一个人的未必适合另一个人\"，结论是要在社交生活中找到\"平衡\"。"
+        },
+        {
+          "key": "2024-cloze-q3",
+          "seq": 3,
+          "context": "Spending too much time on your own, not {{3}} others, can make you feel lonely and {{4}}.",
+          "options": [
+            "seeing",
+            "pleasing",
+            "judging",
+            "teaching"
+          ],
+          "answer": "A",
+          "answerWord": "seeing",
+          "qtype": "动词辨析",
+          "explanation": "与\"花太多时间独处\"并列，\"不与他人见面\"；not seeing others 与 spending too much time on your own 同向。"
+        },
+        {
+          "key": "2024-cloze-q4",
+          "seq": 4,
+          "context": "Spending too much time on your own, not {{3}} others, can make you feel lonely and {{4}}.",
+          "options": [
+            "misguided",
+            "surprised",
+            "spoiled",
+            "disconnected"
+          ],
+          "answer": "D",
+          "answerWord": "disconnected",
+          "qtype": "形容词辨析",
+          "explanation": "and 并列两个独处的后果，前为 lonely，后应同为负面状态，选\"与外界脱节的\"。"
+        },
+        {
+          "key": "2024-cloze-q5",
+          "seq": 5,
+          "context": "Loneliness is known to impact on your mental health and {{5}} a low mood.",
+          "options": [
+            "contribute to",
+            "rely on",
+            "interfere with",
+            "go against"
+          ],
+          "answer": "A",
+          "answerWord": "contribute to",
+          "qtype": "动词短语辨析",
+          "explanation": "与 impact on your mental health 并列，说明孤独会\"导致\"情绪低落。"
+        },
+        {
+          "key": "2024-cloze-q6",
+          "seq": 6,
+          "context": "This might be especially true if, {{6}}, you are working from home and you are {{7}} on the usual social conversations that happen in an office.",
+          "options": [
+            "in fact",
+            "of course",
+            "for example",
+            "on average"
+          ],
+          "answer": "C",
+          "answerWord": "for example",
+          "qtype": "逻辑关系（举例）",
+          "explanation": "上句总说\"任何人在任何时候都可能孤独\"，本句给出居家办公这一具体场合，属前总后分。"
+        },
+        {
+          "key": "2024-cloze-q7",
+          "seq": 7,
+          "context": "This might be especially true if, {{6}}, you are working from home and you are {{7}} on the usual social conversations that happen in an office.",
+          "options": [
+            "cutting back",
+            "missing out",
+            "breaking in",
+            "looking down"
+          ],
+          "answer": "B",
+          "answerWord": "missing out (on)",
+          "qtype": "动词短语辨析",
+          "explanation": "居家办公会\"错过\"办公室里日常的闲聊，选 missing out。"
+        },
+        {
+          "key": "2024-cloze-q8",
+          "seq": 8,
+          "context": "Other life changes can {{8}} periods of loneliness too, such as retirement, changing jobs or becoming a parent.",
+          "options": [
+            "shorten",
+            "trigger",
+            "follow",
+            "interrupt"
+          ],
+          "answer": "B",
+          "answerWord": "trigger",
+          "qtype": "动词辨析",
+          "explanation": "退休、换工作、为人父母等人生变动也会\"引发\"孤独期。"
+        },
+        {
+          "key": "2024-cloze-q9",
+          "seq": 9,
+          "context": "There are ways to {{9}} a social life, but it can feel overwhelming {{10}}.",
+          "options": [
+            "assess",
+            "interpret",
+            "provide",
+            "regain"
+          ],
+          "answer": "D",
+          "answerWord": "regain",
+          "qtype": "动词辨析",
+          "explanation": "认识到孤独感之后，有办法\"重新获得\"社交生活；regain a social life 为固定思路。"
+        },
+        {
+          "key": "2024-cloze-q10",
+          "seq": 10,
+          "context": "There are ways to {{9}} a social life, but it can feel overwhelming {{10}}.",
+          "options": [
+            "at first",
+            "in turn",
+            "on time",
+            "by chance"
+          ],
+          "answer": "A",
+          "answerWord": "at first",
+          "qtype": "介词短语辨析",
+          "explanation": "恢复社交生活\"起初\"可能让人吃不消，后文给出从爱好入手的分步建议。"
+        },
+        {
+          "key": "2024-cloze-q11",
+          "seq": 11,
+          "context": "You can then find groups and activities related to those where you will be able to meet {{11}} people.",
+          "options": [
+            "far-sighted",
+            "strong-willed",
+            "kind-hearted",
+            "like-minded"
+          ],
+          "answer": "D",
+          "answerWord": "like-minded",
+          "qtype": "形容词辨析",
+          "explanation": "参加与爱好相关的团体，就能遇到\"志趣相投的\"人。"
+        },
+        {
+          "key": "2024-cloze-q12",
+          "seq": 12,
+          "context": "There are groups aimed at new parents, at those who want to {{12}} a new sport for the first time, or networking events for those in the same profession to meet up and {{13}} ideas.",
+          "options": [
+            "try",
+            "promote",
+            "watch",
+            "describe"
+          ],
+          "answer": "A",
+          "answerWord": "try",
+          "qtype": "动词辨析",
+          "explanation": "面向想\"第一次尝试\"某项新运动的人群；try 与 for the first time 呼应。"
+        },
+        {
+          "key": "2024-cloze-q13",
+          "seq": 13,
+          "context": "There are groups aimed at new parents, at those who want to {{12}} a new sport for the first time, or networking events for those in the same profession to meet up and {{13}} ideas.",
+          "options": [
+            "test",
+            "share",
+            "accept",
+            "revise"
+          ],
+          "answer": "B",
+          "answerWord": "share",
+          "qtype": "动词辨析",
+          "explanation": "同行业交流会的目的是让同行见面并\"分享\"想法。"
+        },
+        {
+          "key": "2024-cloze-q14",
+          "seq": 14,
+          "context": "On the other hand, it's {{14}} possible to have too much of a social life.",
+          "options": [
+            "already",
+            "thus",
+            "also",
+            "only"
+          ],
+          "answer": "C",
+          "answerWord": "also",
+          "qtype": "逻辑关系（副词）",
+          "explanation": "上文讲社交过少的危害，本段转向\"也\"可能社交过多，表补充说明。"
+        },
+        {
+          "key": "2024-cloze-q15",
+          "seq": 15,
+          "context": "If you feel like you're always doing something and there is never any {{15}} in your calendar for downtime, you could suffer social burnout or social {{16}}.",
+          "options": [
+            "list",
+            "order",
+            "space",
+            "boundary"
+          ],
+          "answer": "C",
+          "answerWord": "space",
+          "qtype": "名词辨析",
+          "explanation": "日程表上从不为休息留\"余地/空档\"，与\"总在忙\"对应。"
+        },
+        {
+          "key": "2024-cloze-q16",
+          "seq": 16,
+          "context": "If you feel like you're always doing something and there is never any {{15}} in your calendar for downtime, you could suffer social burnout or social {{16}}.",
+          "options": [
+            "fatigue",
+            "criticism",
+            "injustice",
+            "dilemma"
+          ],
+          "answer": "A",
+          "answerWord": "fatigue",
+          "qtype": "名词辨析",
+          "explanation": "与 social burnout 并列，社交过度会导致\"社交疲劳\"。"
+        },
+        {
+          "key": "2024-cloze-q17",
+          "seq": 17,
+          "context": "Low mood, low energy, irritability and trouble sleeping could all be {{17}} of poor social health.",
+          "options": [
+            "sources",
+            "standards",
+            "signs",
+            "scores"
+          ],
+          "answer": "C",
+          "answerWord": "signs",
+          "qtype": "名词辨析",
+          "explanation": "情绪低落、精力不足、易怒、睡眠问题都是社交健康不佳的\"信号\"。"
+        },
+        {
+          "key": "2024-cloze-q18",
+          "seq": 18,
+          "context": "Make sure you {{18}} some time in your diary when you're {{19}} for socialising and use this time to relax, {{20}}, and recover.",
+          "options": [
+            "take over",
+            "wipe off",
+            "add up",
+            "mark out"
+          ],
+          "answer": "D",
+          "answerWord": "mark out",
+          "qtype": "动词短语辨析",
+          "explanation": "在日程本中\"划出/标出\"一段时间。"
+        },
+        {
+          "key": "2024-cloze-q19",
+          "seq": 19,
+          "context": "Make sure you {{18}} some time in your diary when you're {{19}} for socialising and use this time to relax, {{20}}, and recover.",
+          "options": [
+            "ungrateful",
+            "unavailable",
+            "responsible",
+            "regretful"
+          ],
+          "answer": "B",
+          "answerWord": "unavailable",
+          "qtype": "形容词辨析",
+          "explanation": "标出的时段是你\"不便参加社交活动\"的时间。"
+        },
+        {
+          "key": "2024-cloze-q20",
+          "seq": 20,
+          "context": "Make sure you {{18}} some time in your diary when you're {{19}} for socialising and use this time to relax, {{20}}, and recover.",
+          "options": [
+            "react",
+            "repeat",
+            "return",
+            "rest"
+          ],
+          "answer": "D",
+          "answerWord": "rest",
+          "qtype": "动词辨析",
+          "explanation": "与 relax、recover 并列，用这段时间放松、\"休息\"和恢复。"
+        }
+      ]
+    },
+    {
+      "key": "2025-cloze",
+      "year": 2025,
+      "title": "为什么难以开口求助",
+      "topic": "社会心理",
+      "difficulty": 3,
+      "wordCount": 335,
+      "paragraphs": [
+        "There are many understandable reasons why you might find it difficult to ask for help when you need it. Psychologists have been interested in this {{1}} for decades, not least because people’s widespread {{2}} to ask for help has led to some high-profile failures. Asking for help takes {{3}}. It involves communicating a need on your part—there's something you can't do. {{4}}, you're broadcasting your own weaknesses which can be {{5}}. You might worry about coming across as incompetent. You might have {{6}} about losing control of whatever it is you're asking for help with. {{7}} someone starts to help, perhaps they’ll take over, or get credit for your earlier efforts. Yet another {{8}} that might be worried about is being a nuisance or {{9}} the person you go to for help. If you struggle with low self-esteem, you might find it especially difficult to {{10}} for help because you have the added worry of the other person {{11}} your request. You might see such refusals as implying something {{12}} about the status of your relationship with them. To {{13}} these difficulties, try to remind yourself that everyone needs help sometimes. Nobody knows everything and can do everything all by themselves. And while you might {{14}} coming across as incompetent, there’s actually research that shows that advice-seekers are {{15}} as more competent, not less. Perhaps most encouraging of all is a paper from 2022 by researchers at Stanford University that involved a mix of contrived help-seeking interactions and asking people to {{16}} times they’d sought help in the past. The findings showed that help-seekers generally underestimate how {{17}} other people will be to help and how good it’ll make the help-giver feel (for most people, having the chance to help someone is highly {{18}}). So, bear all this in mind the next time you need to ask for help {{19}}, take care over who you ask and when you ask them. And if someone can't help right now, avoid taking it personally. They might just be too {{20}}, or they might not feel confident about their ability to help."
+      ],
+      "sourceRef": "2025-英语二-试题.pdf",
+      "questions": [
+        {
+          "key": "2025-cloze-q1",
+          "seq": 1,
+          "context": "Psychologists have been interested in this {{1}} for decades, not least because people’s widespread {{2}} to ask for help has led to some high-profile failures.",
+          "options": [
+            "illusion",
+            "discussion",
+            "tradition",
+            "question"
+          ],
+          "answer": "D",
+          "answerWord": "question",
+          "qtype": "名词词义辨析",
+          "explanation": "this question 回指首句「为什么需要帮助时难以开口求助」这一问题。干扰项：A illusion 幻觉 / B discussion 讨论 / C tradition 传统。"
+        },
+        {
+          "key": "2025-cloze-q2",
+          "seq": 2,
+          "context": "Psychologists have been interested in this {{1}} for decades, not least because people’s widespread {{2}} to ask for help has led to some high-profile failures.",
+          "options": [
+            "reluctance",
+            "ambition",
+            "tendency",
+            "enthusiasm"
+          ],
+          "answer": "A",
+          "answerWord": "reluctance",
+          "qtype": "名词词义辨析 + 上下文逻辑",
+          "explanation": "前句「难以开口求助」→ 人们普遍的「不情愿」reluctance 导致了一些广受关注的失败案例。reluctance to do 为固定搭配。干扰项：B ambition 抱负 / C tendency 倾向（中性，无「抗拒」义）/ D enthusiasm 热情（反向）。"
+        },
+        {
+          "key": "2025-cloze-q3",
+          "seq": 3,
+          "context": "Asking for help takes {{3}}.",
+          "options": [
+            "attention",
+            "talent",
+            "courage",
+            "patience"
+          ],
+          "answer": "C",
+          "answerWord": "courage",
+          "qtype": "名词词义辨析",
+          "explanation": "后文解释「求助要传达自己有做不到的事」，故求助需要勇气。干扰项：A attention / B talent / D patience。"
+        },
+        {
+          "key": "2025-cloze-q4",
+          "seq": 4,
+          "context": "{{4}}, you're broadcasting your own weaknesses which can be {{5}}.",
+          "options": [
+            "At any time",
+            "In other words",
+            "By all means",
+            "On the contrary"
+          ],
+          "answer": "B",
+          "answerWord": "In other words",
+          "qtype": "逻辑关系（短语辨析）",
+          "explanation": "空格后「你在广播自己的弱点」是对前句「传达需求、有做不到的事」的同义解释，用「换句话说」。干扰项：A At any time 随时 / C By all means 当然 / D On the contrary 相反（逻辑相反）。"
+        },
+        {
+          "key": "2025-cloze-q5",
+          "seq": 5,
+          "context": "{{4}}, you're broadcasting your own weaknesses which can be {{5}}.",
+          "options": [
+            "unrealistic",
+            "deceptive",
+            "tiresome",
+            "uncomfortable"
+          ],
+          "answer": "D",
+          "answerWord": "uncomfortable",
+          "qtype": "形容词词义辨析",
+          "explanation": "暴露弱点会让人不舒服，与 weakness 呼应。干扰项：A unrealistic 不现实 / B deceptive 欺骗性的 / C tiresome 令人厌烦。"
+        },
+        {
+          "key": "2025-cloze-q6",
+          "seq": 6,
+          "context": "You might have {{6}} about losing control of whatever it is you're asking for help with.",
+          "options": [
+            "doubts",
+            "concerns",
+            "suggestions",
+            "secrets"
+          ],
+          "answer": "B",
+          "answerWord": "concerns",
+          "qtype": "名词词义辨析",
+          "explanation": "后文「担心失去控制权」是人们的顾虑。have concerns about 搭配。干扰项：A doubts 怀疑 / C suggestions 建议 / D secrets 秘密。"
+        },
+        {
+          "key": "2025-cloze-q7",
+          "seq": 7,
+          "context": "{{7}} someone starts to help, perhaps they’ll take over, or get credit for your earlier efforts.",
+          "options": [
+            "Once",
+            "Unless",
+            "Although",
+            "Before"
+          ],
+          "answer": "A",
+          "answerWord": "Once",
+          "qtype": "连词 / 逻辑关系",
+          "explanation": "「一旦有人开始帮忙，他们可能会接管或抢走功劳」，引导条件状语从句。干扰项：B Unless 除非 / C Although 虽然 / D Before 在…之前。"
+        },
+        {
+          "key": "2025-cloze-q8",
+          "seq": 8,
+          "context": "Yet another {{8}} that might be worried about is being a nuisance or {{9}} the person you go to for help.",
+          "options": [
+            "theory",
+            "choice",
+            "factor",
+            "context"
+          ],
+          "answer": "C",
+          "answerWord": "factor",
+          "qtype": "名词词义辨析",
+          "explanation": "Yet another factor = 又一个（让人担心的）因素，与上文列举的多个原因并列。干扰项：A theory / B choice / D context。"
+        },
+        {
+          "key": "2025-cloze-q9",
+          "seq": 9,
+          "context": "Yet another {{8}} that might be worried about is being a nuisance or {{9}} the person you go to for help.",
+          "options": [
+            "overpraising",
+            "outperforming",
+            "reassessing",
+            "inconveniencing"
+          ],
+          "answer": "D",
+          "answerWord": "inconveniencing",
+          "qtype": "动词词义辨析 + 并列结构",
+          "explanation": "与 being a nuisance（成为累赘）并列，语义一致 → 给求助对象带来不便。干扰项：A overpraising 过度表扬 / B outperforming 胜过 / C reassessing 重新评估。"
+        },
+        {
+          "key": "2025-cloze-q10",
+          "seq": 10,
+          "context": "If you struggle with low self-esteem, you might find it especially difficult to {{10}} for help because you have the added worry of the other person {{11}} your request.",
+          "options": [
+            "reach out",
+            "settle down",
+            "turn over",
+            "look back"
+          ],
+          "answer": "A",
+          "answerWord": "reach out",
+          "qtype": "动词短语辨析 + 固定搭配",
+          "explanation": "reach out for help 为固定搭配「寻求帮助」。干扰项：B settle down 安顿 / C turn over 移交 / D look back 回顾。"
+        },
+        {
+          "key": "2025-cloze-q11",
+          "seq": 11,
+          "context": "If you struggle with low self-esteem, you might find it especially difficult to {{10}} for help because you have the added worry of the other person {{11}} your request.",
+          "options": [
+            "declining",
+            "considering",
+            "criticising",
+            "evaluating"
+          ],
+          "answer": "A",
+          "answerWord": "declining",
+          "qtype": "动词词义辨析 + 下文复现",
+          "explanation": "后句 you might see such refusals（把这种拒绝看作…）中 refusals 直接复现 → 拒绝你的请求。干扰项：B considering / C criticising / D evaluating。"
+        },
+        {
+          "key": "2025-cloze-q12",
+          "seq": 12,
+          "context": "You might see such refusals as implying something {{12}} about the status of your relationship with them.",
+          "options": [
+            "unnecessary",
+            "negative",
+            "strange",
+            "impractical"
+          ],
+          "answer": "B",
+          "answerWord": "negative",
+          "qtype": "形容词词义辨析",
+          "explanation": "「把拒绝视为暗示你们关系状态中负面的东西」，与 self-esteem 低者的心理一致。干扰项：A unnecessary / C strange / D impractical。"
+        },
+        {
+          "key": "2025-cloze-q13",
+          "seq": 13,
+          "context": "To {{13}} these difficulties, try to remind yourself that everyone needs help sometimes.",
+          "options": [
+            "explain",
+            "identify",
+            "predict",
+            "overcome"
+          ],
+          "answer": "D",
+          "answerWord": "overcome",
+          "qtype": "动词词义辨析",
+          "explanation": "后文「提醒自己人人都需要帮助」是克服上述困难的方法。overcome difficulties 搭配。干扰项：A explain / B identify / C predict。"
+        },
+        {
+          "key": "2025-cloze-q14",
+          "seq": 14,
+          "context": "And while you might {{14}} coming across as incompetent, there’s actually research that shows that advice-seekers are {{15}} as more competent, not less.",
+          "options": [
+            "deny",
+            "forget",
+            "miss",
+            "fear"
+          ],
+          "answer": "D",
+          "answerWord": "fear",
+          "qtype": "动词词义辨析",
+          "explanation": "与前句 exposing weakness 呼应：「你可能害怕显得无能」，fear doing 搭配。干扰项：A deny 否认 / B forget / C miss。"
+        },
+        {
+          "key": "2025-cloze-q15",
+          "seq": 15,
+          "context": "And while you might {{14}} coming across as incompetent, there’s actually research that shows that advice-seekers are {{15}} as more competent, not less.",
+          "options": [
+            "disguised",
+            "perceived",
+            "followed",
+            "introduced"
+          ],
+          "answer": "B",
+          "answerWord": "perceived",
+          "qtype": "动词词义辨析（被动语态）",
+          "explanation": "be perceived as = 被认为。「寻求建议者被认为更有能力，而非更差」。干扰项：A disguised 伪装 / C followed / D introduced。"
+        },
+        {
+          "key": "2025-cloze-q16",
+          "seq": 16,
+          "context": "Perhaps most encouraging of all is a paper from 2022 by researchers at Stanford University that involved a mix of contrived help-seeking interactions and asking people to {{16}} times they’d sought help in the past.",
+          "options": [
+            "recall",
+            "classify",
+            "analyse",
+            "compare"
+          ],
+          "answer": "A",
+          "answerWord": "recall",
+          "qtype": "动词词义辨析",
+          "explanation": "「让人们回忆过去求助过的时刻」。干扰项：B classify 分类 / C analyse 分析 / D compare 比较。"
+        },
+        {
+          "key": "2025-cloze-q17",
+          "seq": 17,
+          "context": "The findings showed that help-seekers generally underestimate how {{17}} other people will be to help and how good it’ll make the help-giver feel (for most people, having the chance to help someone is highly {{18}}).",
+          "options": [
+            "relaxing",
+            "disappointed",
+            "willing",
+            "hesitant"
+          ],
+          "answer": "C",
+          "answerWord": "willing",
+          "qtype": "形容词词义辨析",
+          "explanation": "「求助者低估了他人乐于帮忙的程度」，be willing to help。干扰项：A brave / B disapproving 不赞成的 / D hesitant 犹豫的。"
+        },
+        {
+          "key": "2025-cloze-q18",
+          "seq": 18,
+          "context": "The findings showed that help-seekers generally underestimate how {{17}} other people will be to help and how good it’ll make the help-giver feel (for most people, having the chance to help someone is highly {{18}}).",
+          "options": [
+            "brave",
+            "surprising",
+            "rewarding",
+            "demanding"
+          ],
+          "answer": "C",
+          "answerWord": "rewarding",
+          "qtype": "形容词词义辨析",
+          "explanation": "「对多数人而言，有机会帮助别人是很有回报感的」，与 how good it'll make the help-giver feel 呼应。干扰项：A relaxing / B surprising / D demanding 费力的。"
+        },
+        {
+          "key": "2025-cloze-q19",
+          "seq": 19,
+          "context": "So, bear all this in mind the next time you need to ask for help {{19}}, take care over who you ask and when you ask them.",
+          "options": [
+            "Thus",
+            "Also",
+            "Finally",
+            "Instead"
+          ],
+          "answer": "B",
+          "answerWord": "Also",
+          "qtype": "逻辑关系（副词）",
+          "explanation": "前句 bear all this in mind，后句 take care over… 为递进补充建议。干扰项：A Thus 因此（因果）/ C Finally 最后 / D Instead 相反。"
+        },
+        {
+          "key": "2025-cloze-q20",
+          "seq": 20,
+          "context": "They might just be too {{20}}, or they might not feel confident about their ability to help.",
+          "options": [
+            "polite",
+            "proud",
+            "busy",
+            "lazy"
+          ],
+          "answer": "C",
+          "answerWord": "busy",
+          "qtype": "形容词词义辨析 + 常识",
+          "explanation": "「他们可能只是太忙了」——解释为何不能帮忙的客观中性原因，与 don't take it personally 一致。干扰项：A polite / B proud / D lazy（贬义，与劝慰语气冲突）。"
+        }
+      ]
+    },
+    {
+      "key": "2026-cloze",
+      "year": 2026,
+      "title": "自尊与两种心理防御",
+      "topic": "心理科普",
+      "difficulty": 3,
+      "wordCount": 347,
+      "paragraphs": [
+        "Most of us strive for self-respect — to see ourselves in a positive light, to be {{1}} of who we are. Any comments or experiences that undermine those feelings of self-worth can be uncomfortable and it's only {{2}} to want to avoid them. But the thing is, {{3}} your self-worth really is being undermined is, to a large degree, subjective. Much of it comes down to your {{4}} of what someone said or did. When you take things personally, you're interpreting these situations as saying something significant and negative about you as a person. Say your boss picks holes in your sales report, and you come away feeling like this means she thinks you're a {{5}} member of staff. Or, two of your friends cancel your {{6}} get-together at the pub and you interpret this as meaning they're bored of you. Psychologists have a {{7}} for this way of thinking: personalisation. But the {{8}} is that your boss might view you very highly. It's just you made some {{9}} in the report and she wanted to point these out so that you do better next time. {{10}}, in the case of your friends cancelling, perhaps they both felt unwell that weekend or they just {{11}} their minds. In both {{12}} —and others that we all experience— there’s another {{13}} at work that psychologists call mind reading. This is when you assume to know what other people are thinking about you, when you can't really know without {{14}} them directly. One simple way to avoid {{15}} personalisation and mind reading is to challenge your negative assumptions of what's {{16}}. When you find yourself taking a situation personally, try to think of other interpretations that are less focused on you — especially in the sense of saying anything deep or {{17}} about you. When you do this, it might help to try to put yourself in other people’s shoes. The fact your boss took the time to give you {{18}} at all means they care enough to want to help you {{19}}. When it comes to your friends — maybe it's because your friendship is so {{20}} that they felt able to cancel at late notice."
+      ],
+      "sourceRef": "2026-英语二-试题.pdf",
+      "questions": [
+        {
+          "key": "2026-cloze-q1",
+          "seq": 1,
+          "context": "Most of us strive for self-respect — to see ourselves in a positive light, to be {{1}} of who we are.",
+          "options": [
+            "afraid",
+            "critical",
+            "proud",
+            "tolerant"
+          ],
+          "answer": "C",
+          "answerWord": "proud",
+          "qtype": "形容词词义辨析 + 同义解释",
+          "explanation": "破折号后两个并列不定式是对 strive for self-respect 的具体阐释：to see ourselves in a positive light（积极看待自己）与 to be __ of who we are 同向并列 → 需正向情感词。且 be proud of 为固定搭配。干扰项：A afraid（与 positive 矛盾）/ B critical / D tolerant。"
+        },
+        {
+          "key": "2026-cloze-q2",
+          "seq": 2,
+          "context": "Any comments or experiences that undermine those feelings of self-worth can be uncomfortable and it's only {{2}} to want to avoid them.",
+          "options": [
+            "risky",
+            "natural",
+            "admirable",
+            "foolish"
+          ],
+          "answer": "B",
+          "answerWord": "natural",
+          "qtype": "形容词词义辨析 + 顺承逻辑",
+          "explanation": "前句「任何削弱自我价值感的评论或经历都会令人不适」，and 顺承 → 「想要回避它们是很自然的」。it's only natural to do 为常用句式。干扰项：A risky / C admirable（程度过重）/ D foolish（方向相反）。"
+        },
+        {
+          "key": "2026-cloze-q3",
+          "seq": 3,
+          "context": "But the thing is, {{3}} your self-worth really is being undermined is, to a large degree, subjective.",
+          "options": [
+            "whether",
+            "where",
+            "why",
+            "how"
+          ],
+          "answer": "A",
+          "answerWord": "whether",
+          "qtype": "主语从句引导词",
+          "explanation": "__ your self-worth really is being undermined 是整个句子的主语，谓语是 is subjective。「自尊是否真的受损」这一\"待判断之事\"是主观的 → whether。干扰项：B where / C why / D how 均无法与 is subjective 合理衔接。"
+        },
+        {
+          "key": "2026-cloze-q4",
+          "seq": 4,
+          "context": "Much of it comes down to your {{4}} of what someone said or did.",
+          "options": [
+            "citation",
+            "imitation",
+            "perception",
+            "introduction"
+          ],
+          "answer": "C",
+          "answerWord": "perception",
+          "qtype": "名词词义辨析 + 复现呼应",
+          "explanation": "前句落脚于 subjective（主观），本句解释主观性体现在哪一环 → 「很大程度上取决于你对别人言行的感知/理解」。干扰项：A citation 引用 / B imitation 模仿 / D introduction 介绍，均与\"主观理解\"无关。"
+        },
+        {
+          "key": "2026-cloze-q5",
+          "seq": 5,
+          "context": "Say your boss picks holes in your sales report, and you come away feeling like this means she thinks you're a {{5}} member of staff.",
+          "options": [
+            "poor",
+            "loyal",
+            "creative",
+            "shy"
+          ],
+          "answer": "A",
+          "answerWord": "poor",
+          "qtype": "形容词词义辨析 + 例证逻辑",
+          "explanation": "举例说明\"个人化\"：老板挑你销售报告的毛病 → 你解读成「她认为你是个差劲的员工」。由\"对事\"错误推及\"对人\"。干扰项：B loyal / C creative（与\"挑毛病\"矛盾）/ D shy（与工作能力无关）。"
+        },
+        {
+          "key": "2026-cloze-q6",
+          "seq": 6,
+          "context": "Or, two of your friends cancel your {{6}} get-together at the pub and you interpret this as meaning they're bored of you.",
+          "options": [
+            "sponsored",
+            "crowded",
+            "disputed",
+            "planned"
+          ],
+          "answer": "D",
+          "answerWord": "planned",
+          "qtype": "形容词/过去分词作定语",
+          "explanation": "「两个朋友取消了你们在酒吧的计划好的聚会」，planned get-together 符合生活逻辑，且与 cancel 自然搭配。干扰项：A sponsored 赞助的 / B crowded 拥挤的 / C disputed 有争议的。"
+        },
+        {
+          "key": "2026-cloze-q7",
+          "seq": 7,
+          "context": "Psychologists have a {{7}} for this way of thinking: personalisation.",
+          "options": [
+            "method",
+            "term",
+            "design",
+            "goal"
+          ],
+          "answer": "B",
+          "answerWord": "term",
+          "qtype": "固定搭配 + 下文复现",
+          "explanation": "Psychologists have a term for this way of thinking: personalisation. — 冒号后即该术语。have a term for sth. = 对某事有专门称呼。干扰项：A method / C design / D goal。"
+        },
+        {
+          "key": "2026-cloze-q8",
+          "seq": 8,
+          "context": "But the {{8}} is that your boss might view you very highly.",
+          "options": [
+            "evidence",
+            "theory",
+            "condition",
+            "reality"
+          ],
+          "answer": "D",
+          "answerWord": "reality",
+          "qtype": "名词词义辨析 + 转折逻辑",
+          "explanation": "But 转折，由主观臆测转向客观事实：「但现实可能是老板其实很看重你」，the reality is that… 为固定表达。干扰项：A evidence / B theory / C condition。"
+        },
+        {
+          "key": "2026-cloze-q9",
+          "seq": 9,
+          "context": "It's just you made some {{9}} in the report and she wanted to point these out so that you do better next time.",
+          "options": [
+            "complaints",
+            "choices",
+            "mistakes",
+            "suggestions"
+          ],
+          "answer": "C",
+          "answerWord": "mistakes",
+          "qtype": "名词词义辨析 + 因果",
+          "explanation": "「你只是在报告里犯了些错误，她指出来是希望你下次做得更好」，made some mistakes 与 picks holes in your sales report 呼应。干扰项：A complaints / B choices / D suggestions。"
+        },
+        {
+          "key": "2026-cloze-q10",
+          "seq": 10,
+          "context": "{{10}}, in the case of your friends cancelling, perhaps they both felt unwell that weekend or they just {{11}} their minds.",
+          "options": [
+            "Similarly",
+            "Relatively",
+            "Accordingly",
+            "Contrarily"
+          ],
+          "answer": "A",
+          "answerWord": "Similarly",
+          "qtype": "逻辑关系（副词）",
+          "explanation": "本段并列分析两个例子（老板批评报告 / 朋友取消聚会），二者同向类比——主观解读都可能偏离事实 → 「同样地」。干扰项：B Relatively / C Accordingly（因果，不成立）/ D Contrarily（对立，与同向类比矛盾）。"
+        },
+        {
+          "key": "2026-cloze-q11",
+          "seq": 11,
+          "context": "{{10}}, in the case of your friends cancelling, perhaps they both felt unwell that weekend or they just {{11}} their minds.",
+          "options": [
+            "opened",
+            "changed",
+            "trained",
+            "cleared"
+          ],
+          "answer": "B",
+          "answerWord": "changed",
+          "qtype": "动词词义辨析 + 固定搭配",
+          "explanation": "they just changed their minds（他们只是改变了主意），与 or 前的 felt unwell 并列，同为爽约的中性解释。干扰项：A opened / C trained / D cleared，均不与 minds 构成合理搭配。"
+        },
+        {
+          "key": "2026-cloze-q12",
+          "seq": 12,
+          "context": "In both {{12}} —and others that we all experience— there’s another {{13}} at work that psychologists call mind reading.",
+          "options": [
+            "quotations",
+            "experiments",
+            "questions",
+            "examples"
+          ],
+          "answer": "D",
+          "answerWord": "examples",
+          "qtype": "名词词义辨析 + 指代上文",
+          "explanation": "「在这两个例子中——以及我们都经历过的其他例子中——」回指上文两则案例。干扰项：A quotations 引文 / B experiments 实验 / C questions 问题。"
+        },
+        {
+          "key": "2026-cloze-q13",
+          "seq": 13,
+          "context": "In both {{12}} —and others that we all experience— there’s another {{13}} at work that psychologists call mind reading.",
+          "options": [
+            "process",
+            "objective",
+            "outcome",
+            "background"
+          ],
+          "answer": "A",
+          "answerWord": "process",
+          "qtype": "名词词义辨析",
+          "explanation": "「还有另一种在起作用的心理过程，心理学家称之为 mindreading」，at work（在起作用）修饰 process。干扰项：B objective 目标 / C outcome 结果 / D background 背景。"
+        },
+        {
+          "key": "2026-cloze-q14",
+          "seq": 14,
+          "context": "This is when you assume to know what other people are thinking about you, when you can't really know without {{14}} them directly.",
+          "options": [
+            "blaming",
+            "warning",
+            "teaching",
+            "asking"
+          ],
+          "answer": "D",
+          "answerWord": "asking",
+          "qtype": "动词词义辨析 + 语义呼应",
+          "explanation": "「你自以为知道别人在想什么，可实际上除非直接问他们，你根本无从知晓」——这正是\"读心术\"的要害。干扰项：A blaming / B warning / C teaching。"
+        },
+        {
+          "key": "2026-cloze-q15",
+          "seq": 15,
+          "context": "One simple way to avoid {{15}} personalisation and mind reading is to challenge your negative assumptions of what's {{16}}.",
+          "options": [
+            "arguing about",
+            "accounting for",
+            "engaging in",
+            "interfering with"
+          ],
+          "answer": "C",
+          "answerWord": "engaging in",
+          "qtype": "动词短语辨析",
+          "explanation": "「避免陷入个人化与读心术的一个简单方法」，engage in（从事、陷入）与 personalisation / mindreading 搭配。干扰项：A arguing about 争论 / B accounting for 解释 / D interfering with 干扰。"
+        },
+        {
+          "key": "2026-cloze-q16",
+          "seq": 16,
+          "context": "One simple way to avoid {{15}} personalisation and mind reading is to challenge your negative assumptions of what's {{16}}.",
+          "options": [
+            "happened",
+            "continued",
+            "returned",
+            "disappeared"
+          ],
+          "answer": "A",
+          "answerWord": "happened",
+          "qtype": "动词词义辨析 + 逻辑",
+          "explanation": "「挑战你对已经发生之事的负面假设」——事实必然是已发生的。干扰项：B continued / C returned / D disappeared。"
+        },
+        {
+          "key": "2026-cloze-q17",
+          "seq": 17,
+          "context": "When you find yourself taking a situation personally, try to think of other interpretations that are less focused on you — especially in the sense of saying anything deep or {{17}} about you.",
+          "options": [
+            "casual",
+            "obvious",
+            "familiar",
+            "fundamental"
+          ],
+          "answer": "D",
+          "answerWord": "fundamental",
+          "qtype": "形容词词义辨析 + 并列结构",
+          "explanation": "deep or __ about you 由 or 连接，语义须与 deep（深层的）高度一致 → 根本性的。干扰项：A casual 随意的 / B obvious / C familiar。"
+        },
+        {
+          "key": "2026-cloze-q18",
+          "seq": 18,
+          "context": "The fact your boss took the time to give you {{18}} at all means they care enough to want to help you {{19}}.",
+          "options": [
+            "reward",
+            "feedback",
+            "trust",
+            "proof"
+          ],
+          "answer": "B",
+          "answerWord": "feedback",
+          "qtype": "名词词义辨析 + 上文呼应",
+          "explanation": "「老板愿意花时间给你反馈本身就说明她在乎你」，与第 9 题 point these out so that you do better next time 呼应。干扰项：A reward 奖励 / C trust 信任 / D proof 证明。"
+        },
+        {
+          "key": "2026-cloze-q19",
+          "seq": 19,
+          "context": "The fact your boss took the time to give you {{18}} at all means they care enough to want to help you {{19}}.",
+          "options": [
+            "innovate",
+            "concentrate",
+            "improve",
+            "relax"
+          ],
+          "answer": "C",
+          "answerWord": "improve",
+          "qtype": "动词词义辨析",
+          "explanation": "「……说明她在乎你、想帮你进步」，help you improve。干扰项：A innovate 创新 / B concentrate 专注 / D relax 放松。"
+        },
+        {
+          "key": "2026-cloze-q20",
+          "seq": 20,
+          "context": "When it comes to your friends — maybe it's because your friendship is so {{20}} that they felt able to cancel at late notice.",
+          "options": [
+            "strange",
+            "strong",
+            "vulnerable",
+            "valuable"
+          ],
+          "answer": "B",
+          "answerWord": "strong",
+          "qtype": "形容词词义辨析 + 反常识推理",
+          "explanation": "「也许正因为你们的友谊如此牢固，他们才敢临时爽约」——用反向推理消解\"他们厌倦你了\"的负面解读。干扰项：A strange / C vulnerable 脆弱的（逻辑相反）/ D valuable（多修饰事物）。"
+        }
+      ]
+    }
+  ]
+}

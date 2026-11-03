@@ -8284,3 +8284,136 @@ input, textarea, select { font: inherit; color: inherit; }
   .reading-review-question-pane { overflow: visible; }
   .reading-review-pane-head { position: static; }
 }
+
+/* ==================== 英语二完形填空 ==================== */
+.cloze-tabs { margin-bottom: 2px; }
+.cloze-bank-row .reading-bank-title { min-width: 220px; }
+.cloze-bank-row .reading-bank-ops .exam-primary-btn,
+.cloze-bank-row .reading-bank-ops .exam-ghost-btn { padding: 5px 11px; font-size: 12px; }
+
+.cloze-passage p { line-height: 2.05; }
+.cloze-blank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  margin: 0 3px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  border: 1px dashed var(--brand-primary);
+  border-radius: var(--radius-xs);
+  vertical-align: baseline;
+  cursor: pointer;
+}
+.cloze-blank:hover { background: var(--bg-hover); }
+.cloze-blank.answered {
+  color: #fff;
+  background: var(--brand-primary);
+  border-style: solid;
+  border-color: var(--brand-primary);
+}
+.cloze-blank.current {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+.cloze-current {
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.cloze-current-no {
+  display: inline-flex;
+  padding: 2px 8px;
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  border-radius: var(--radius-pill);
+}
+.cloze-current p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+.cloze-options { gap: 7px; }
+.cloze-options .reading-option { width: 100%; }
+.cloze-submit { width: 100%; justify-content: center; margin-top: 2px; }
+
+.cloze-review-passage p { line-height: 2; }
+.cloze-review-fill {
+  display: inline;
+  margin: 0 1px;
+  padding: 1px 2px;
+  font-weight: 600;
+  border-radius: 2px;
+}
+.cloze-review-fill.correct {
+  color: var(--success);
+  background: var(--success-light);
+  border-bottom: 2px solid var(--success);
+}
+.cloze-review-fill.wrong {
+  color: var(--danger);
+  background: var(--danger-light);
+  border-bottom: 2px solid var(--danger);
+}
+.cloze-review-fill small {
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--danger);
+  background: var(--bg-primary);
+  border-radius: var(--radius-pill);
+  vertical-align: middle;
+}
+.cloze-review-context {
+  padding: 9px 11px;
+  margin: 7px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+.cloze-review-answer-word {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  margin: 6px 0;
+  font-size: 13px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+.cloze-review-answer-word b { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+.cloze-review-answer-word span { color: var(--success); font-weight: 600; }
+
+.cloze-bank-row {
+  margin-bottom: 7px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.cloze-blank.inactive {
+  opacity: 0.5;
+  cursor: default;
+  border-style: dotted;
+}
+
+.cloze-review-fill.neutral {
+  color: var(--text-primary);
+  background: transparent;
+  border-bottom: 1px dotted var(--border-default);
+}

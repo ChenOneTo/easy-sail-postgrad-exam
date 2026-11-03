@@ -10,6 +10,7 @@
     "build:examples": "node scripts/build-examples.mjs",
     "build:corpus": "python3 scripts/extract-exam-corpus.py",
     "build:mgmt": "node scripts/build-mgmt-bank.mjs",
+    "build:cloze": "node scripts/build-cloze-bank.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri": "tauri"

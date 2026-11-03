@@ -14,6 +14,7 @@ import { ExamPlanPage } from './components/ExamPlanPage';
 import { ExamVocabPage } from './components/ExamVocabPage';
 import { VocabGamePage } from './components/VocabGamePage';
 import { ExamReadingPage } from './components/ExamReadingPage';
+import { ExamClozePage } from './components/ExamClozePage';
 import { MgmtPracticePage } from './components/MgmtPracticePage';
 import { ExamPrefsPage } from './components/ExamPrefsPage';
 import { useTaskStore } from './stores/task-store';
@@ -23,6 +24,7 @@ export default function App() {
   const { currentView, currentSection, detailTaskId, theme, closeDetail } = useTaskStore();
   const isSpecialSection = currentSection === 'exam' || currentSection === 'exam-vocab'
     || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading'
+    || currentSection === 'exam-cloze'
     || currentSection === 'exam-prefs'
     || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic';
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -73,6 +75,7 @@ export default function App() {
               {currentSection === 'exam-vocab' && <ExamVocabPage />}
               {currentSection === 'exam-vocab-game' && <VocabGamePage />}
               {currentSection === 'exam-reading' && <ExamReadingPage />}
+              {currentSection === 'exam-cloze' && <ExamClozePage />}
               {currentSection === 'exam-prefs' && <ExamPrefsPage />}
               {currentSection === 'exam-mgmt-math' && <MgmtPracticePage subject="math" />}
               {currentSection === 'exam-mgmt-logic' && <MgmtPracticePage subject="logic" />}

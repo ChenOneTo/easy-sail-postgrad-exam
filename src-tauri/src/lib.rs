@@ -548,6 +548,130 @@ pub fn run() {
                                 INSERT OR IGNORE INTO exam_mgmt_profile (id) VALUES (1);
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 5,
+                            description: "add english cloze practice tables",
+                            sql: r#"
+                                -- ===== 完形文章 =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_passages (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    passage_key  TEXT UNIQUE NOT NULL,
+                                    year         INTEGER NOT NULL UNIQUE,
+                                    title        TEXT DEFAULT '',
+                                    topic        TEXT DEFAULT '',
+                                    difficulty   INTEGER DEFAULT 2,
+                                    word_count   INTEGER DEFAULT 0,
+                                    content      TEXT NOT NULL,
+                                    source_ref   TEXT DEFAULT '',
+                                    archived     INTEGER DEFAULT 0,
+                                    created_at   TEXT DEFAULT (datetime('now')),
+                                    updated_at   TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_cloze_passage_year
+                                    ON exam_cloze_passages(year, archived);
+
+                                -- ===== 完形题目（每空一题） =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_questions (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    question_key TEXT UNIQUE NOT NULL,
+                                    passage_id   INTEGER NOT NULL,
+                                    seq          INTEGER NOT NULL,
+                                    context      TEXT NOT NULL,
+                                    options      TEXT NOT NULL DEFAULT '[]',
+                                    answer       TEXT NOT NULL CHECK (answer IN ('A','B','C','D')),
+                                    answer_word  TEXT DEFAULT '',
+                                    qtype        TEXT DEFAULT '词义辨析',
+                                    explanation  TEXT DEFAULT '',
+                                    source_ref   TEXT DEFAULT '',
+                                    archived     INTEGER DEFAULT 0,
+                                    UNIQUE(passage_id, seq)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_cloze_q_passage
+                                    ON exam_cloze_questions(passage_id, seq, archived);
+
+                                -- ===== 练习会话 =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_sessions (
+                                    id             TEXT PRIMARY KEY,
+                                    mode           TEXT NOT NULL CHECK (mode IN ('close','timed','wrong')),
+                                    scope          TEXT NOT NULL,
+                                    limit_seconds  INTEGER DEFAULT 0,
+                                    started_at     TEXT NOT NULL,
+                                    deadline_at    TEXT,
+                                    submitted_at   TEXT,
+                                    elapsed_ms     INTEGER DEFAULT 0,
+                                    question_count INTEGER DEFAULT 0,
+                                    answered_count INTEGER DEFAULT 0,
+                                    correct_count  INTEGER DEFAULT 0,
+                                    score          REAL DEFAULT 0,
+                                    overtime       INTEGER DEFAULT 0,
+                                    in_exam_slot   INTEGER DEFAULT 0,
+                                    status         TEXT DEFAULT 'ongoing'
+                                                   CHECK (status IN ('ongoing','submitted','abandoned')),
+                                    created_at     TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_cloze_session_status
+                                    ON exam_cloze_sessions(status, started_at);
+                                CREATE INDEX IF NOT EXISTS idx_cloze_session_scope
+                                    ON exam_cloze_sessions(scope, mode);
+
+                                -- ===== 会话题目 =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_session_questions (
+                                    session_id  TEXT NOT NULL,
+                                    question_id INTEGER NOT NULL,
+                                    sort_order  INTEGER DEFAULT 0,
+                                    PRIMARY KEY (session_id, question_id)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_cloze_sq_session
+                                    ON exam_cloze_session_questions(session_id, sort_order);
+
+                                -- ===== 作答明细 =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_attempts (
+                                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    session_id  TEXT NOT NULL,
+                                    question_id INTEGER NOT NULL,
+                                    user_answer TEXT DEFAULT '',
+                                    is_correct  INTEGER DEFAULT 0,
+                                    duration_ms INTEGER DEFAULT 0,
+                                    flagged     INTEGER DEFAULT 0,
+                                    answered_at TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(session_id, question_id)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_cloze_attempt_session
+                                    ON exam_cloze_attempts(session_id);
+                                CREATE INDEX IF NOT EXISTS idx_cloze_attempt_question
+                                    ON exam_cloze_attempts(question_id, answered_at);
+
+                                -- ===== 错题本 =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_wrongbook (
+                                    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    question_id       INTEGER NOT NULL UNIQUE,
+                                    wrong_count       INTEGER DEFAULT 1,
+                                    last_wrong_answer TEXT DEFAULT '',
+                                    reason            TEXT DEFAULT '',
+                                    note              TEXT DEFAULT '',
+                                    status            TEXT DEFAULT 'new' CHECK (status IN ('new','grasped')),
+                                    correct_streak    INTEGER DEFAULT 0,
+                                    last_reviewed_at  TEXT,
+                                    added_at          TEXT DEFAULT (datetime('now')),
+                                    updated_at        TEXT DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_cloze_wrong_status
+                                    ON exam_cloze_wrongbook(status, added_at);
+
+                                -- ===== 配置 =====
+                                CREATE TABLE IF NOT EXISTS exam_cloze_profile (
+                                    id              INTEGER PRIMARY KEY CHECK (id = 1),
+                                    timed_seconds   INTEGER DEFAULT 900,
+                                    exam_slot_start TEXT DEFAULT '14:00',
+                                    exam_slot_end   TEXT DEFAULT '17:00',
+                                    slot_hint       INTEGER DEFAULT 1,
+                                    bank_version    INTEGER DEFAULT 0,
+                                    updated_at      TEXT DEFAULT (datetime('now'))
+                                );
+                                INSERT OR IGNORE INTO exam_cloze_profile (id) VALUES (1);
+                            "#,
+                        },
                     ],
                 )
                 .build(),
