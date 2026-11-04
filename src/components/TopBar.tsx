@@ -12,6 +12,7 @@ const TITLES: Record<SectionId, string> = {
   exam: '考研计划', 'exam-vocab': '背单词', 'exam-vocab-game': '单词闯关',
   'exam-reading': '阅读刷题', 'exam-cloze': '完形填空', 'exam-prefs': '偏好设置',
   'exam-mgmt-math': '数学刷题', 'exam-mgmt-logic': '逻辑刷题',
+  'typing-vocab': '打字背单词',
 };
 
 const VIEW_MAP: Record<ViewMode, { label: string; icon: React.ReactNode }> = {
@@ -77,7 +78,8 @@ export function TopBar({ onOpenNotifications }: { onOpenNotifications?: () => vo
     || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading'
     || currentSection === 'exam-cloze'
     || currentSection === 'exam-prefs'
-    || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic';
+    || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic'
+    || currentSection === 'typing-vocab';
 
   return (
     <header className="topbar">

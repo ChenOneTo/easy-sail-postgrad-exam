@@ -29,6 +29,7 @@
 | `npm run build:corpus` | 从英语二试题 PDF 提取真题语料到 `scripts/.exam-corpus/corpus.json`（需 pypdf；源目录 `NETEM_PDF_DIR`，默认 `~/data/work-buddy/考研英语二真题/原件存档`） |
 | `npm run build:examples` | 重新生成考研真题语境 `exam-examples.json`（合并语料 + NETEMVocabulary CC BY-NC-SA 4.0） |
 | `npm run build:mgmt` | 重新生成 199 管综真题题库 `mgmt-bank.json`（源目录 `MGMT_SOURCE_DIR`，默认 `~/data/work-buddy/考研管综真题`） |
+| `npm run build:typing-vocab` | 生成打字背单词内置词库 `src/assets/typing-vocab/kaoyan.json`（合并主词表 + 音标 + 真题例句） |
 
 无测试套件。提交前必须跑通 `npm run build` 与 `npm run lint`。
 
@@ -38,10 +39,14 @@
 ## 架构约定
 
 - **状态**：每个业务模块一个 Zustand store，位于 `src/stores/`
-  （task / inspiration / exam / exam-vocab / vocab-game / reminder-history）。
+  （task / inspiration / exam / exam-vocab / vocab-game / typing-vocab / reminder-history）。
 - **数据访问**：每个模块一个 `src/lib/*-db.ts`，**共用**同一个 SQLite 文件
   `sqlite:easy-sail-postgrad-exam.db`，各模块表以前缀区分
-  （`tasks`、`inspirations`、`exam_*`、`exam_vocab_*`）。
+  （`tasks`、`inspirations`、`exam_*`、`exam_vocab_*`、`typing_vocab_*`）。
+- **打字背单词**（`typing-vocab`）是刻意独立的模块：自己的词库
+  `src/assets/typing-vocab/kaoyan.json`（`npm run build:typing-vocab` 生成）、
+  自己的记忆曲线（`src/lib/typing-vocab-srs.ts`，不复用 FSRS）、自己的发音与
+  键盘音效配置，不读写任何 `exam_vocab_*` 表；备份走模块内导出/导入，不接云同步。
 - **云同步**：`src/lib/cloud.ts`。各 store 通过 `registerXxxGetter()` 注册快照函数
   后才参与自动备份。
 - **原生逻辑**：窗口、托盘、数据库迁移集中在 `src-tauri/src/lib.rs`。
@@ -91,8 +96,8 @@
 
 迁移定义在 `src-tauri/src/lib.rs` 的 `add_migrations("sqlite:easy-sail-postgrad-exam.db", ...)`。
 
-- 本项目为全新项目，**只有 1 条初始迁移**（`version: 1, "create initial schema"`），
-  已包含全部表结构与种子数据；新增迁移从 **2** 开始。
+- 当前已有 6 条迁移（1 初始 schema、2 删除 inspirations、3 阅读、4 管综、
+  5 完形、6 打字背单词）；新增迁移从 **7** 开始。
 - **禁止修改或删除任何已发布的迁移版本号及其 SQL。** 迁移由 sqlx 执行，
   它会校验「已应用过的版本是否存在于当前迁移集合」，回退版本号会抛
   `VersionMissing` 错误，导致 `Database.load()` 失败、整个数据层不可用，

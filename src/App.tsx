@@ -17,6 +17,7 @@ import { ExamReadingPage } from './components/ExamReadingPage';
 import { ExamClozePage } from './components/ExamClozePage';
 import { MgmtPracticePage } from './components/MgmtPracticePage';
 import { ExamPrefsPage } from './components/ExamPrefsPage';
+import { TypingVocabPage } from './components/TypingVocabPage';
 import { useTaskStore } from './stores/task-store';
 import { shouldShowSplashOnLaunch } from './lib/splash';
 
@@ -26,7 +27,8 @@ export default function App() {
     || currentSection === 'exam-vocab-game' || currentSection === 'exam-reading'
     || currentSection === 'exam-cloze'
     || currentSection === 'exam-prefs'
-    || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic';
+    || currentSection === 'exam-mgmt-math' || currentSection === 'exam-mgmt-logic'
+    || currentSection === 'typing-vocab';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(
@@ -79,6 +81,7 @@ export default function App() {
               {currentSection === 'exam-prefs' && <ExamPrefsPage />}
               {currentSection === 'exam-mgmt-math' && <MgmtPracticePage subject="math" />}
               {currentSection === 'exam-mgmt-logic' && <MgmtPracticePage subject="logic" />}
+              {currentSection === 'typing-vocab' && <TypingVocabPage />}
               {!isSpecialSection && currentView === 'calendar' && <CalendarView />}
               {!isSpecialSection && currentView === 'kanban' && <KanbanBoard />}
             </div>

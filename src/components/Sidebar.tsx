@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain, SlidersHorizontal, PenLine } from 'lucide-react';
+import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain, SlidersHorizontal, PenLine, Keyboard } from 'lucide-react';
 import { useTaskStore } from '../stores/task-store';
 import { TASK_TYPES } from '../lib/types';
 import type { SectionId } from '../lib/types';
@@ -33,6 +33,12 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'exam-reading', label: '阅读刷题', icon: <Newspaper size={16} /> },
       { id: 'exam-cloze', label: '完形填空', icon: <PenLine size={16} /> },
       { id: 'exam-prefs', label: '偏好设置', icon: <SlidersHorizontal size={16} /> },
+    ],
+  },
+  {
+    title: '独立训练',
+    items: [
+      { id: 'typing-vocab', label: '打字背单词', icon: <Keyboard size={16} /> },
     ],
   },
   {

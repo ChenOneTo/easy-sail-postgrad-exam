@@ -18,6 +18,7 @@ export type SectionId =
   | 'exam-prefs'
   | 'exam-mgmt-math'
   | 'exam-mgmt-logic'
+  | 'typing-vocab'
   | 'ai';
 
 /** 重复提醒类型 */

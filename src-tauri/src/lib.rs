@@ -672,6 +672,103 @@ pub fn run() {
                                 INSERT OR IGNORE INTO exam_cloze_profile (id) VALUES (1);
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 6,
+                            description: "add typing vocab practice tables",
+                            sql: r#"
+                                -- ===== 打字背单词：词库 =====
+                                -- 完全独立于 exam_vocab_*：本模块自己的词表、进度与会话记录。
+                                CREATE TABLE IF NOT EXISTS typing_vocab_books (
+                                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    book_key    TEXT    UNIQUE NOT NULL,
+                                    name        TEXT    NOT NULL,
+                                    description TEXT    DEFAULT '',
+                                    builtin     INTEGER DEFAULT 0,
+                                    created_at  TEXT    DEFAULT (datetime('now'))
+                                );
+
+                                CREATE TABLE IF NOT EXISTS typing_vocab_words (
+                                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    book_id     INTEGER NOT NULL,
+                                    word        TEXT    NOT NULL,
+                                    meaning     TEXT    DEFAULT '',
+                                    phonetic_uk TEXT    DEFAULT '',
+                                    phonetic_us TEXT    DEFAULT '',
+                                    example_en  TEXT    DEFAULT '',
+                                    example_zh  TEXT    DEFAULT '',
+                                    unit        TEXT    DEFAULT '',
+                                    seq         INTEGER DEFAULT 0,
+                                    UNIQUE(book_id, word)
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_typing_word_book
+                                    ON typing_vocab_words(book_id, unit, seq);
+
+                                -- ===== 打字背单词：每词记忆状态（错词/收藏/掌握都在这） =====
+                                CREATE TABLE IF NOT EXISTS typing_vocab_progress (
+                                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    word_id       INTEGER NOT NULL UNIQUE,
+                                    stage         INTEGER DEFAULT 0,
+                                    due_at        TEXT,
+                                    mastered      INTEGER DEFAULT 0,
+                                    favorited     INTEGER DEFAULT 0,
+                                    correct_count INTEGER DEFAULT 0,
+                                    wrong_count   INTEGER DEFAULT 0,
+                                    perfect_count INTEGER DEFAULT 0,
+                                    last_result   TEXT    DEFAULT '',
+                                    last_mode     TEXT    DEFAULT '',
+                                    first_seen_at TEXT,
+                                    last_seen_at  TEXT,
+                                    updated_at    TEXT    DEFAULT (datetime('now'))
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_typing_progress_due
+                                    ON typing_vocab_progress(mastered, due_at);
+
+                                -- ===== 打字背单词：练习会话 =====
+                                CREATE TABLE IF NOT EXISTS typing_vocab_sessions (
+                                    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    book_id            INTEGER NOT NULL,
+                                    mode               TEXT    NOT NULL,
+                                    plan               TEXT    NOT NULL,
+                                    total              INTEGER DEFAULT 0,
+                                    correct            INTEGER DEFAULT 0,
+                                    wrong              INTEGER DEFAULT 0,
+                                    new_count          INTEGER DEFAULT 0,
+                                    review_count       INTEGER DEFAULT 0,
+                                    keystrokes         INTEGER DEFAULT 0,
+                                    correct_keystrokes INTEGER DEFAULT 0,
+                                    duration_ms        INTEGER DEFAULT 0,
+                                    wpm                REAL    DEFAULT 0,
+                                    accuracy           REAL    DEFAULT 0,
+                                    started_at         TEXT    NOT NULL,
+                                    finished_at        TEXT
+                                );
+                                CREATE INDEX IF NOT EXISTS idx_typing_session_time
+                                    ON typing_vocab_sessions(started_at);
+
+                                -- ===== 打字背单词：配置（单例） =====
+                                CREATE TABLE IF NOT EXISTS typing_vocab_profile (
+                                    id             INTEGER PRIMARY KEY CHECK (id = 1),
+                                    active_book_id INTEGER DEFAULT 0,
+                                    mode           TEXT    DEFAULT 'follow',
+                                    plan           TEXT    DEFAULT 'smart',
+                                    daily_new      INTEGER DEFAULT 20,
+                                    daily_review   INTEGER DEFAULT 60,
+                                    session_size   INTEGER DEFAULT 20,
+                                    accent         TEXT    DEFAULT 'us',
+                                    tts_on         INTEGER DEFAULT 1,
+                                    tts_rate       REAL    DEFAULT 0.9,
+                                    sound_on       INTEGER DEFAULT 1,
+                                    sound_volume   REAL    DEFAULT 0.5,
+                                    auto_next      INTEGER DEFAULT 1,
+                                    show_phonetic  INTEGER DEFAULT 1,
+                                    show_meaning   INTEGER DEFAULT 1,
+                                    ignore_case    INTEGER DEFAULT 1,
+                                    updated_at     TEXT    DEFAULT (datetime('now'))
+                                );
+                                INSERT OR IGNORE INTO typing_vocab_profile (id) VALUES (1);
+                            "#,
+                        },
                     ],
                 )
                 .build(),
