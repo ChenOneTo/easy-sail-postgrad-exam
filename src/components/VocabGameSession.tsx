@@ -32,13 +32,16 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
       </button>
     );
   }
-  const { roots, mnemonic, method, scene, sentence, sentenceZh } = entry.data;
+  const { roots, mnemonic, method, scene, sentence, sentenceZh, examMeaning } = entry.data;
   return (
     <div className="vg-mnemonic">
       <div className="vg-mnemonic-title">
         <Sparkles size={13} /> AI 助记
         {method && <span className="vg-mnemonic-method">{method}</span>}
       </div>
+      {examMeaning && (
+        <p className="vg-mnemonic-exam"><span className="vg-mnemonic-tag">常考</span>{examMeaning}</p>
+      )}
       {roots && <p><span className="vg-mnemonic-tag">词根</span>{roots}</p>}
       <p><span className="vg-mnemonic-tag">口诀</span>{mnemonic}</p>
       {scene && <p className="vg-mnemonic-scene"><span className="vg-mnemonic-tag">画面</span>{scene}</p>}

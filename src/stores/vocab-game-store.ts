@@ -666,6 +666,7 @@ function mnemonicDraftFromRecord(rec: VocabMnemonicRecord): AiMnemonicDraft {
     scene: rec.scene,
     sentence: rec.sentence,
     sentenceZh: rec.sentenceZh,
+    examMeaning: rec.examMeaning,
   };
 }
 
@@ -709,9 +710,11 @@ async function preloadMnemonics(
   const ready: Record<number, GameMnemonic> = {};
   for (const w of words) {
     const rec = cached.get(w.wordId);
-    // scene/method 为空代表旧版助记（只有词根+口诀），按未缓存处理，补生成生动画面
-    if (rec?.mnemonic && (rec.scene || rec.method)) {
-      ready[w.wordId] = { status: 'ready', data: mnemonicDraftFromRecord(rec) };
+    // 只有词根+口诀的老记录直接当未缓存；缺 examMeaning 的较新记录则在允许生成时重算补齐。
+    // 复习关传 generateLimit=0 只复用缓存，此时仍照旧展示，避免整块助记凭空消失。
+    const usable = rec?.mnemonic && (rec.scene || rec.method) ? rec : null;
+    if (usable && (usable.examMeaning || generateLimit === 0)) {
+      ready[w.wordId] = { status: 'ready', data: mnemonicDraftFromRecord(usable) };
     } else {
       missing.push(w);
     }

@@ -5885,6 +5885,8 @@ input, textarea, select { font: inherit; color: inherit; }
   border-top: 1px solid var(--border-default);
 }
 .vocab-mnemonic-row { display: flex; gap: 9px; font-size: 13px; line-height: 1.6; color: var(--text-primary); }
+/* 考研常考含义：整条助记里最该先看的结论，加粗一点 */
+.vocab-mnemonic-exam { font-weight: 600; }
 .vocab-mnemonic-label {
   flex-shrink: 0;
   padding: 1px 7px;
@@ -6877,7 +6879,9 @@ input, textarea, select { font: inherit; color: inherit; }
   background: var(--bg-secondary);
   border-radius: 4px;
 }
-.vg-mnemonic-scene { color: var(--text-primary) !important; }
+.vg-mnemonic-scene,
+.vg-mnemonic-exam { color: var(--text-primary) !important; }
+.vg-mnemonic-exam { font-weight: 600; }
 .vg-mnemonic-tag {
   display: inline-block;
   margin-right: 6px;

@@ -91,6 +91,8 @@ export interface VocabMnemonicRecord {
   scene: string;
   sentence: string;
   sentenceZh: string;
+  /** 考研常考含义：真题最常考义项 / 熟词僻义（旧记录为空串） */
+  examMeaning: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -229,6 +231,7 @@ function rowToMnemonic(row: Record<string, unknown>): VocabMnemonicRecord {
     scene: (row.scene as string) || '',
     sentence: (row.sentence as string) || '',
     sentenceZh: (row.sentence_zh as string) || '',
+    examMeaning: (row.exam_meaning as string) || '',
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
   };
@@ -716,18 +719,26 @@ export async function fetchVocabMnemonics(wordIds: number[]): Promise<VocabMnemo
 /** 保存/覆盖词的 AI 助记（按 word_id 幂等 upsert） */
 export async function saveVocabMnemonic(
   wordId: number,
-  draft: { roots: string; mnemonic: string; method?: string; scene?: string; sentence: string; sentenceZh: string },
+  draft: {
+    roots: string;
+    mnemonic: string;
+    method?: string;
+    scene?: string;
+    sentence: string;
+    sentenceZh: string;
+    examMeaning?: string;
+  },
 ): Promise<void> {
   const db = await getExamVocabDb();
   await db.execute(
-    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT(word_id) DO UPDATE SET
        roots = $2, mnemonic = $3, method = $4, scene = $5,
-       sentence = $6, sentence_zh = $7, updated_at = datetime('now')`,
+       sentence = $6, sentence_zh = $7, exam_meaning = $8, updated_at = datetime('now')`,
     [
       wordId, draft.roots, draft.mnemonic, draft.method || '', draft.scene || '',
-      draft.sentence, draft.sentenceZh,
+      draft.sentence, draft.sentenceZh, draft.examMeaning || '',
     ]
   );
 }
@@ -868,11 +879,12 @@ async function writeExamVocabSnapshot(db: Database, snapshot: ExamVocabCloudSnap
 
   await insertRows(
     db,
-    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, created_at, updated_at) VALUES`,
-    9,
+    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning, created_at, updated_at) VALUES`,
+    10,
     (snapshot.mnemonics ?? []).map((m) => [
       m.wordId, m.roots || '', m.mnemonic || '', m.method || '', m.scene || '',
-      m.sentence || '', m.sentenceZh || '', m.createdAt || now, m.updatedAt || now,
+      m.sentence || '', m.sentenceZh || '', m.examMeaning || '',
+      m.createdAt || now, m.updatedAt || now,
     ]),
   );
 

@@ -96,8 +96,9 @@
 
 迁移定义在 `src-tauri/src/lib.rs` 的 `add_migrations("sqlite:easy-sail-postgrad-exam.db", ...)`。
 
-- 当前已有 6 条迁移（1 初始 schema、2 删除 inspirations、3 阅读、4 管综、
-  5 完形、6 打字背单词）；新增迁移从 **7** 开始。
+- 当前已有 8 条迁移（1 初始 schema、2 删除 inspirations、3 阅读、4 管综、
+  5 完形、6 打字背单词、7 打字会话新学/复习计数、8 助记考研常考含义）；
+  新增迁移从 **9** 开始。
 - **禁止修改或删除任何已发布的迁移版本号及其 SQL。** 迁移由 sqlx 执行，
   它会校验「已应用过的版本是否存在于当前迁移集合」，回退版本号会抛
   `VersionMissing` 错误，导致 `Database.load()` 失败、整个数据层不可用，

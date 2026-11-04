@@ -51,7 +51,8 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
     }
   }, [generateMnemonic, word, meaning, save]);
 
-  // 首次展开：已有助记直接读库展示；没有才生成并落库。
+  // 首次展开：读库命中且字段齐全直接展示；缺「考研常考含义」等新字段的老记录
+  // 先留底旧内容再补生成覆盖；完全没缓存才现场生成。
   // ref 兜住 StrictMode 双挂载与重渲染，避免重复请求/重复落库。
   useEffect(() => {
     if (startedRef.current) return;
@@ -61,8 +62,8 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
         if (isTauri()) {
           try {
             const saved = await fetchVocabMnemonic(wordId);
-            // 旧版助记没有 method/scene，按未缓存处理，重新生成生动画面
-            if (saved && (saved.scene || saved.method)) {
+            if (saved && saved.mnemonic) {
+              // 先留底：补生成失败（未配 AI / 断网）时仍展示旧内容，不至于整块消失
               setDraft({
                 mnemonic: saved.mnemonic,
                 roots: saved.roots,
@@ -70,8 +71,10 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
                 scene: saved.scene,
                 sentence: saved.sentence,
                 sentenceZh: saved.sentenceZh,
+                examMeaning: saved.examMeaning,
               });
-              return;
+              // 缺「考研常考含义」等新字段的老记录：继续走生成，成功后覆盖缓存
+              if (saved.examMeaning && (saved.scene || saved.method)) return;
             }
           } catch { /* 表尚未迁移等，降级为现场生成 */ }
         }
@@ -109,11 +112,18 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
         {error && !busy && (
           <div className="vocab-mnemonic-error">生成失败：{error} <button className="exam-ghost-btn" onClick={() => void doGenerate()}>重试</button></div>
         )}
-        {draft && !busy && !error && (
+        {/* 补生成失败时仍展示读库得到的旧助记，避免内容整块消失 */}
+        {draft && !busy && (
           <>
             <div className="vocab-mnemonic-body">
               {draft.method && (
                 <div className="vocab-mnemonic-row"><span className="vocab-mnemonic-label">方法</span><span>{draft.method}</span></div>
+              )}
+              {draft.examMeaning && (
+                <div className="vocab-mnemonic-row">
+                  <span className="vocab-mnemonic-label">常考</span>
+                  <span className="vocab-mnemonic-exam">{draft.examMeaning}</span>
+                </div>
               )}
               {draft.roots && (
                 <div className="vocab-mnemonic-row"><span className="vocab-mnemonic-label">词根</span><span>{draft.roots}</span></div>

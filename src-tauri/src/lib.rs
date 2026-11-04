@@ -777,6 +777,15 @@ pub fn run() {
                                 ALTER TABLE typing_vocab_sessions ADD COLUMN review_count INTEGER DEFAULT 0;
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 8,
+                            description: "add vocab mnemonic exam meaning",
+                            sql: r#"
+                                -- AI 助记补充「考研常考含义」（真题最常考义项 / 熟词僻义）
+                                ALTER TABLE exam_vocab_mnemonics ADD COLUMN exam_meaning TEXT DEFAULT '';
+                            "#,
+                        },
                     ],
                 )
                 .build(),

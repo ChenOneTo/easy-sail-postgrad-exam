@@ -163,7 +163,7 @@ export function buildVocabMnemonicPrompt(word: string, meaning: string): string 
   return [
     '你是考研英语助记专家，擅长把单词变成夸张、具体、有画面的联想，让考生过目不忘。',
     '只返回 JSON，不要输出 Markdown code block，不要解释 JSON 之外的内容。',
-    'JSON schema: {"method":"string(记忆法类型:谐音/词根/拆分/画面/故事,10字内)","mnemonic":"string(词根拆解或谐音口诀,80字内)","scene":"string(一个生动、夸张、具体的画面或小故事,必须出现该单词或其读音,120字内)","roots":"string(核心词根/词缀及其含义,40字内)","sentence":"string(一句考研语境例句,含该词,120字内)","sentenceZh":"string(sentence的中文翻译,60字内)"}',
+    'JSON schema: {"method":"string(记忆法类型:谐音/词根/拆分/画面/故事,10字内)","mnemonic":"string(词根拆解或谐音口诀,80字内)","scene":"string(一个生动、夸张、具体的画面或小故事,必须出现该单词或其读音,120字内)","roots":"string(核心词根/词缀及其含义,40字内)","sentence":"string(一句考研语境例句,含该词,120字内)","sentenceZh":"string(sentence的中文翻译,60字内)","examMeaning":"string(考研英语二真题最常考的义项或熟词僻义,40字内)"}',
     `单词：${word}`,
     `释义：${meaning.trim().slice(0, 120)}`,
     '要求：',
@@ -172,7 +172,8 @@ export function buildVocabMnemonicPrompt(word: string, meaning: string): string 
     '3. scene 是关键：写成一个有动作、有场景、有情绪甚至荒诞感的脑内小剧场，像一幅能记住的漫画，不要写成抽象解释；',
     '4. scene 必须出现该单词或其读音/拼写片段，帮助音形义绑定；',
     '5. roots 列出可复用的词根词缀；sentence 用考研阅读常见语境造一句自然例句；sentenceZh 是准确中文翻译；',
-    '6. 内容积极健康，不要低俗、暴力、歧视或政治敏感内容。',
+    '6. examMeaning 是「考研常考含义」：只写英语（二）真题里最常考的那一个义项或用法，优先点出熟词僻义（如 address 常考「处理、解决」而不是「地址」），不要罗列词典全部义项；',
+    '7. 内容积极健康，不要低俗、暴力、歧视或政治敏感内容。',
   ].join('\n');
 }
 

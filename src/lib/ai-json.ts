@@ -284,6 +284,8 @@ export interface AiMnemonicDraft {
   sentence: string;
   /** sentence 的中文翻译（旧记录/脏数据可为空串） */
   sentenceZh: string;
+  /** 考研常考含义：真题里最常考的义项或熟词僻义（旧记录为空串） */
+  examMeaning: string;
 }
 
 /** 校验 AI 助记草稿字段存在性，脏数据降级丢弃不抛错（返回 null） */
@@ -298,6 +300,7 @@ export function normalizeMnemonicDraft(raw: unknown): AiMnemonicDraft | null {
     scene: limitText(obj.scene, 200),
     sentence: limitText(obj.sentence, 200),
     sentenceZh: limitText(obj.sentenceZh, 200),
+    examMeaning: limitText(obj.examMeaning, 80),
   };
 }
 
