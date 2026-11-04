@@ -9363,6 +9363,30 @@ input, textarea, select { font: inherit; color: inherit; }
   75% { transform: translateX(5px); }
 }
 
+/* —— 发音播放动效 ——
+   播放中的发音按钮：外圈脉冲 + 喇叭图标呼吸，播放期间按钮本身被禁用。
+   禁用态不能变灰，否则看不出「正在播放」。 */
+@keyframes speak-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-primary) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand-primary) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-primary) 0%, transparent); }
+}
+@keyframes speak-beat {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+.is-speaking {
+  position: relative;
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  animation: speak-ring 1.3s ease-out infinite;
+}
+.is-speaking svg { animation: speak-beat 0.62s ease-in-out infinite; }
+.is-speaking:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
 /* —— 窄屏 —— */
 @media (max-width: 980px) {
   .typing-mode-grid { grid-template-columns: repeat(2, 1fr); }

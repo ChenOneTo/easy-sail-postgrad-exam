@@ -10,9 +10,12 @@
  * - 在线播放失败（限流/断网/超时）按音源顺序换源，全部失败再回退系统 TTS，不抛错。
  *
  * 发音运行时合成，不落库；设置项按设备存于 localStorage（发音源/语速/翻面自动播）。
+ * 播放态通过 subscribeSpeakPlayback 暴露：按钮据此显示播放动效，播放期间禁止重复点击。
  */
 
 import { isTauri } from './tauri';
+import { createSpeechPlayback, watchSpeechSynthesisEnd } from './speech-playback';
+import type { SpeechPlayback } from './speech-playback';
 
 export type TtsSource = 'system' | 'online' | 'off';
 
@@ -62,6 +65,31 @@ export function saveTtsConfig(updates: Partial<VocabTtsConfig>): VocabTtsConfig 
   return { ...next };
 }
 
+// —— 播放态 ——
+
+/** 播放态：按钮据此显示播放动效，播放期间禁止重复点击 */
+const _playback = createSpeechPlayback();
+/** 系统 TTS 收尾兜底的清理函数 */
+let _sysWatch: (() => void) | null = null;
+
+export function getSpeakPlayback(): SpeechPlayback {
+  return _playback.get();
+}
+
+export function subscribeSpeakPlayback(listener: (state: SpeechPlayback) => void): () => void {
+  return _playback.subscribe(listener);
+}
+
+/** 结束一次播放：代次已过期（有更新的播放）时什么都不做 */
+function finishSpeak(seq: number): void {
+  if (seq !== _playback.seq()) return;
+  if (_sysWatch) {
+    _sysWatch();
+    _sysWatch = null;
+  }
+  _playback.finish(seq);
+}
+
 // —— 系统 TTS ——
 
 export type SpeakAccent = 'uk' | 'us';
@@ -78,8 +106,9 @@ function pickEnglishVoice(lang: string): SpeechSynthesisVoice | undefined {
     ?? voices.find(v => /^en/i.test(v.lang));
 }
 
-function speakSystem(word: string, rate: number, lang = 'en-US'): void {
-  if (typeof speechSynthesis === 'undefined') return;
+function speakSystem(word: string, rate: number, lang: string, seq: number): void {
+  if (typeof speechSynthesis === 'undefined') { finishSpeak(seq); return; }
+  let started = false;
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word);
@@ -87,8 +116,17 @@ function speakSystem(word: string, rate: number, lang = 'en-US'): void {
     u.rate = Math.min(1.2, Math.max(0.7, rate));
     const v = pickEnglishVoice(lang);
     if (v) u.voice = v;
+    u.onstart = () => { started = true; };
+    u.onend = () => finishSpeak(seq);
+    u.onerror = () => finishSpeak(seq);
     speechSynthesis.speak(u);
-  } catch { /* 静默：合成不可用时直接放弃 */ }
+    // onend 不派发的 WebView 由轮询兜底收尾
+    if (_sysWatch) _sysWatch();
+    _sysWatch = watchSpeechSynthesisEnd(_playback, seq, () => started);
+  } catch {
+    /* 静默：合成不可用时直接放弃 */
+    finishSpeak(seq);
+  }
 }
 
 // —— 在线发音 ——
@@ -97,8 +135,6 @@ let _audio: HTMLAudioElement | null = null;
 /** 自建的 blob URL，切换/结束时回收 */
 let _audioUrl: string | null = null;
 let _audioTimer = 0;
-/** 播放代次：切卡或重复点击以最新一次为准，避免慢请求晚到后突然出声 */
-let _speakSeq = 0;
 
 /** 单次在线音频的超时：取不回、或 8 秒没出声就换下一个音源 */
 const AUDIO_TIMEOUT_MS = 8000;
@@ -188,7 +224,7 @@ async function fetchAudio(url: string): Promise<{ buf: ArrayBuffer; mime: string
  * 播放一条音频链接，resolve(true) 表示已经出声。
  * owned 为 true 时 url 是本模块创建的 blob URL，结束时回收。
  */
-function playSource(url: string, owned: boolean): Promise<boolean> {
+function playSource(url: string, owned: boolean, seq: number): Promise<boolean> {
   return new Promise((resolve) => {
     let audio: HTMLAudioElement;
     try {
@@ -219,6 +255,7 @@ function playSource(url: string, owned: boolean): Promise<boolean> {
     audio.addEventListener('ended', () => {
       if (_audioTimer) { window.clearTimeout(_audioTimer); _audioTimer = 0; }
       if (_audio === audio) { _audio = null; clearAudio(); }
+      finishSpeak(seq);
     }, { once: true });
     void audio.play().catch(() => settle(false));
   });
@@ -231,10 +268,10 @@ function playSource(url: string, owned: boolean): Promise<boolean> {
 async function playAudioChain(urls: string[], seq: number): Promise<boolean> {
   for (const url of urls) {
     const got = await fetchAudio(url);
-    if (seq !== _speakSeq) return true;
+    if (seq !== _playback.seq()) return true;
     if (!got) {
       // 浏览器 dev（无 Rust 侧）：退回让 <audio> 自己拉
-      if (!isTauri() && await playSource(url, false)) return true;
+      if (!isTauri() && await playSource(url, false, seq)) return true;
       continue;
     }
     let objectUrl: string;
@@ -243,8 +280,8 @@ async function playAudioChain(urls: string[], seq: number): Promise<boolean> {
     } catch {
       continue;
     }
-    if (await playSource(objectUrl, true)) return true;
-    if (seq !== _speakSeq) return true;
+    if (await playSource(objectUrl, true, seq)) return true;
+    if (seq !== _playback.seq()) return true;
   }
   return false;
 }
@@ -262,8 +299,8 @@ async function speakOnline(
     ? [sentenceAudioUrl(text, rate)]
     : [wordAudioUrl(text, accent), sentenceAudioUrl(text, rate)];
   if (await playAudioChain(urls, seq)) return;
-  if (seq !== _speakSeq) return;
-  speakSystem(text, rate, fallbackLang);
+  if (seq !== _playback.seq()) return;
+  speakSystem(text, rate, fallbackLang, seq);
 }
 
 // —— 对外入口 ——
@@ -272,11 +309,12 @@ async function speakOnline(
 export function speak(word: string): void {
   const cfg = readConfig();
   if (cfg.source === 'off' || !word) return;
-  const lang = cfg.accent === 1 ? ACCENT_LANG.uk : ACCENT_LANG.us;
+  const accent: SpeakAccent = cfg.accent === 1 ? 'uk' : 'us';
+  const seq = _playback.begin(word, accent);
   if (cfg.source === 'online') {
-    void speakOnline(word, cfg.accent, cfg.rate, lang, ++_speakSeq);
+    void speakOnline(word, cfg.accent, cfg.rate, ACCENT_LANG[accent], seq);
   } else {
-    speakSystem(word, cfg.rate, lang);
+    speakSystem(word, cfg.rate, ACCENT_LANG[accent], seq);
   }
 }
 
@@ -284,16 +322,18 @@ export function speak(word: string): void {
 export function speakAccent(word: string, accent: SpeakAccent): void {
   const cfg = readConfig();
   if (cfg.source === 'off' || !word) return;
+  const seq = _playback.begin(word, accent);
   if (cfg.source === 'online') {
-    void speakOnline(word, accent === 'uk' ? 1 : 2, cfg.rate, ACCENT_LANG[accent], ++_speakSeq);
+    void speakOnline(word, accent === 'uk' ? 1 : 2, cfg.rate, ACCENT_LANG[accent], seq);
   } else {
-    speakSystem(word, cfg.rate, ACCENT_LANG[accent]);
+    speakSystem(word, cfg.rate, ACCENT_LANG[accent], seq);
   }
 }
 
 /** 停止当前发音（切卡/卸载时调用） */
 export function stopSpeak(): void {
-  _speakSeq += 1;
+  if (_sysWatch) { _sysWatch(); _sysWatch = null; }
+  _playback.reset();
   try {
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   } catch { /* ignore */ }

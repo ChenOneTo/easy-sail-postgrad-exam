@@ -6,6 +6,7 @@ import { fetchVocabMnemonic, saveVocabMnemonic } from '../lib/exam-vocab-db';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { isTauri } from '../lib/tauri';
 import { speak, stopSpeak } from '../lib/vocab-tts';
+import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import type { AiMnemonicDraft } from '../lib/ai-json';
 
 /**
@@ -27,6 +28,7 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
   const [checking, setChecking] = useState(true);
   const startedRef = useRef(false);
   const phonetics = getPhonetics(word);
+  const playback = useVocabPlayback();
 
   /** 落库保存（失败不影响展示；非 Tauri 无库可存则跳过） */
   const save = useCallback(async (d: AiMnemonicDraft) => {
@@ -127,9 +129,11 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
                     <div className="vocab-mnemonic-sentence-en">
                       <span>{draft.sentence}</span>
                       <button
-                        className="vocab-mnemonic-speak"
+                        className={`vocab-mnemonic-speak${isSpeaking(playback, draft.sentence) ? ' is-speaking' : ''}`}
+                        disabled={playback.playing}
+                        aria-busy={isSpeaking(playback, draft.sentence)}
                         onClick={() => speak(draft.sentence)}
-                        title="播放例句"
+                        title={playback.playing ? '正在播放…' : '播放例句'}
                       ><Volume2 size={13} /></button>
                     </div>
                     {draft.sentenceZh && <div className="vocab-mnemonic-sentence-zh">{draft.sentenceZh}</div>}

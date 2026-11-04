@@ -8,12 +8,15 @@ import { useState } from 'react';
 import { SlidersHorizontal, Volume2, ChevronDown } from 'lucide-react';
 import { getTtsConfig, saveTtsConfig, speak, stopSpeak } from '../lib/vocab-tts';
 import type { TtsSource } from '../lib/vocab-tts';
+import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 
 /** 试听用的示例词（词库内常见词，有道/百度音源均有音频） */
 const SAMPLE_WORD = 'syllabus';
 
 export function ExamPrefsPage() {
   const [tts, setTts] = useState(getTtsConfig());
+  const playback = useVocabPlayback();
+  const speaking = isSpeaking(playback, SAMPLE_WORD);
 
   const updateTts = (patch: Partial<typeof tts>) => {
     setTts(saveTtsConfig(patch));
@@ -34,9 +37,9 @@ export function ExamPrefsPage() {
         <div className="exam-prefs-card-head">
           <span className="exam-prefs-card-title"><Volume2 size={14} /> 发音</span>
           <button
-            className="exam-ghost-btn"
-            disabled={tts.source === 'off'}
-            title={tts.source === 'off' ? '发音源已关闭' : '按当前设置试听'}
+            className={`exam-ghost-btn${speaking ? ' is-speaking' : ''}`}
+            disabled={tts.source === 'off' || playback.playing}
+            title={tts.source === 'off' ? '发音源已关闭' : playback.playing ? '正在播放…' : '按当前设置试听'}
             onClick={() => { stopSpeak(); speak(SAMPLE_WORD); }}
           >
             试听

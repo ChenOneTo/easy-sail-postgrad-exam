@@ -19,6 +19,7 @@ import type {
 } from '../lib/typing-vocab-db';
 import { playTypingSound } from '../lib/typing-vocab-sound';
 import { speakTypingWord, stopTypingSpeech } from '../lib/typing-vocab-speech';
+import { isSpeaking, useTypingPlayback } from '../hooks/use-speak-playback';
 
 export interface TypingSessionResult {
   total: number;
@@ -102,6 +103,8 @@ export function TypingVocabSession({
   const [confirmExit, setConfirmExit] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [wrongFlash, setWrongFlash] = useState(false);
+  /** 发音播放态：播放期间朗读/重播按钮显示动效并禁用 */
+  const playback = useTypingPlayback();
   /** 渲染用的已完成记录（ref 版本供事件回调同步读取，两者始终同步） */
   const [records, setRecords] = useState<WordRecord[]>([]);
   /** 渲染用的击键统计 */
@@ -250,10 +253,10 @@ export function TypingVocabSession({
   }, [addStat, completeWord, input.length, isLiveMode, item, phase, word.length]);
 
   const replay = useCallback(() => {
-    if (replays >= MAX_REPLAY) return;
+    if (replays >= MAX_REPLAY || playback.playing) return;
     setReplays((n) => n + 1);
     speakTypingWord(word);
-  }, [replays, word]);
+  }, [playback.playing, replays, word]);
 
   // 计时器：每 500ms 刷新一次已用时/实时 WPM
   useEffect(() => {
@@ -336,6 +339,7 @@ export function TypingVocabSession({
   const phonetic = profile.accent === 'uk' ? item.phoneticUk : item.phoneticUs;
   const progressPercent = total > 0 ? ((index + (phase === 'done' ? 1 : 0)) / total) * 100 : 0;
   const revealed = phase === 'done';
+  const speaking = isSpeaking(playback, word);
 
   return (
     <div className="typing-session">
@@ -362,16 +366,23 @@ export function TypingVocabSession({
         <div className="typing-stage-top">
           <span className="typing-stage-hint">{MODE_HINT[mode]}</span>
           <button
-            className="typing-icon-btn"
+            className={`typing-icon-btn${speaking ? ' is-speaking' : ''}`}
             onClick={() => speakTypingWord(item.word)}
-            title="朗读单词"
+            title={playback.playing ? '正在播放…' : '朗读单词'}
+            aria-busy={speaking}
+            disabled={playback.playing}
           >
             <Volume2 size={16} />
           </button>
         </div>
 
         {mode === 'dictation' && phase === 'typing' && (
-          <button className="typing-replay" onClick={replay} disabled={replays >= MAX_REPLAY}>
+          <button
+            className={`typing-replay${speaking ? ' is-speaking' : ''}`}
+            onClick={replay}
+            disabled={replays >= MAX_REPLAY || playback.playing}
+            aria-busy={speaking}
+          >
             <RotateCcw size={14} /> 重播发音（{MAX_REPLAY - replays}）
           </button>
         )}

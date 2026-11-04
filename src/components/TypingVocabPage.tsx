@@ -17,6 +17,7 @@ import type {
   TypingMode, TypingPlan, TypingProfile, TypingQueueItem, TypingWordSeed,
 } from '../lib/typing-vocab-db';
 import { speakTypingWord, warmupTypingSpeech } from '../lib/typing-vocab-speech';
+import { isSpeaking, useTypingPlayback } from '../hooks/use-speak-playback';
 import { TypingVocabSession, type TypingSessionResult } from './TypingVocabSession';
 import { TypingVocabWordList } from './TypingVocabWordList';
 import { TypingVocabStatsPanel } from './TypingVocabStatsPanel';
@@ -39,6 +40,9 @@ const MODE_CARDS: { id: TypingMode; label: string; desc: string; icon: React.Rea
   { id: 'selftest', label: '自测', desc: '看中文释义想英文，回车提交', icon: <Eye size={18} /> },
   { id: 'recall', label: '默写', desc: '只给释义与音标，盲写整词', icon: <PenLine size={18} /> },
 ];
+
+/** 试听用的示例词（与设置页「发音」面板的试听一致） */
+const SAMPLE_WORD = 'example';
 
 interface ActiveSession {
   key: number;
@@ -257,7 +261,7 @@ export function TypingVocabPage() {
             busy={busy}
             onSaveProfile={saveProfile}
             onStart={(kind, unit) => void startSession(kind, unit)}
-            onSpeak={() => speakTypingWord('example')}
+            onSpeak={() => speakTypingWord(SAMPLE_WORD)}
           />
         )
       )}
@@ -347,6 +351,8 @@ function PracticeReady({
   const total = overview?.totalWords ?? 0;
   const mastered = overview?.masteredWords ?? 0;
   const percent = total > 0 ? Math.round((mastered / total) * 100) : 0;
+  const playback = useTypingPlayback();
+  const speaking = isSpeaking(playback, SAMPLE_WORD);
 
   return (
     <section className="typing-ready">
@@ -399,7 +405,13 @@ function PracticeReady({
           <Play size={16} /> {busy ? '装载中…' : '开始练习'}
           <span>{profile.sessionSize} 词/组</span>
         </button>
-        <button className="typing-ghost-btn typing-speak-btn" onClick={onSpeak} title="试听发音">
+        <button
+          className={`typing-ghost-btn typing-speak-btn${speaking ? ' is-speaking' : ''}`}
+          onClick={onSpeak}
+          title={playback.playing ? '正在播放…' : '试听发音'}
+          aria-busy={speaking}
+          disabled={playback.playing}
+        >
           <Volume2 size={14} />
         </button>
       </div>
@@ -452,6 +464,7 @@ function ResultPanel({
   onWrong: () => void;
   onBack: () => void;
 }) {
+  const playback = useTypingPlayback();
   return (
     <section className="typing-result-panel">
       <div className="typing-result-hero">
@@ -476,7 +489,12 @@ function ResultPanel({
               <li key={w.id}>
                 <b>{w.word}</b>
                 <span>{w.meaning}</span>
-                <button className="typing-icon-btn" onClick={() => speakTypingWord(w.word)}>
+                <button
+                  className={`typing-icon-btn${isSpeaking(playback, w.word) ? ' is-speaking' : ''}`}
+                  onClick={() => speakTypingWord(w.word)}
+                  aria-busy={isSpeaking(playback, w.word)}
+                  disabled={playback.playing}
+                >
                   <Volume2 size={14} />
                 </button>
               </li>

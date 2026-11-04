@@ -6,6 +6,7 @@ import { useExamVocabStore } from '../stores/exam-vocab-store';
 import type { VocabQueueItem } from '../lib/exam-vocab-db';
 import { speak, stopSpeak } from '../lib/vocab-tts';
 import { getTtsConfig } from '../lib/vocab-tts';
+import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { getPhonetics } from '../lib/vocab-phonetics';
 import { VocabMnemonicSheet } from './VocabMnemonicSheet';
 
@@ -47,6 +48,8 @@ export function VocabCardFlow({ queue, index, onIndexChange, onDone }: {
   const [previewMap, setPreviewMap] = useState<Record<Grade, number> | null>(null);
   /** 本卡开始时刻，用于统计单卡耗时；挂载与切卡时在事件/effect 中写入 */
   const cardStartRef = useRef<number>(0);
+  /** 发音播放态：播放期间按钮显示动效并禁用，防止重复触发 */
+  const playback = useVocabPlayback();
 
   // 挂载即开始计时（父级换队列时通过 key 重挂载，故此处无需依赖 queue）
   useEffect(() => {
@@ -106,12 +109,16 @@ export function VocabCardFlow({ queue, index, onIndexChange, onDone }: {
     keyDispatchRef.current = (e: KeyboardEvent) => {
       if (!card || mnemonicOpen) return;
       if (e.key === ' ') { e.preventDefault(); if (!flipped) handleFlip(); return; }
-      if (e.key.toLowerCase() === 's') { e.preventDefault(); speak(card.word); return; }
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!playback.playing) speak(card.word);
+        return;
+      }
       if (e.key.toLowerCase() === 'n') { e.preventDefault(); advance(); return; }
       const g = RATING_BUTTONS.find(b => b.key === e.key);
       if (g && flipped) { e.preventDefault(); void doRate(g.grade); }
     };
-  }, [card, flipped, mnemonicOpen, handleFlip, advance, doRate]);
+  }, [card, flipped, mnemonicOpen, playback.playing, handleFlip, advance, doRate]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => keyDispatchRef.current(e);
     window.addEventListener('keydown', onKey);
@@ -136,6 +143,7 @@ export function VocabCardFlow({ queue, index, onIndexChange, onDone }: {
     phonetics.uk ? `英 ${phonetics.uk}` : '',
     phonetics.us ? `美 ${phonetics.us}` : '',
   ].filter(Boolean).join(' · ');
+  const speaking = isSpeaking(playback, card.word);
 
   return (
     <div className="vocab-cardflow">
@@ -157,7 +165,13 @@ export function VocabCardFlow({ queue, index, onIndexChange, onDone }: {
           <div className="vocab-card-word">{card.word}</div>
           {phoneticText && <div className="vocab-card-phonetic">{phoneticText}</div>}
           <div className="vocab-card-hint">空格 / 点按翻面</div>
-          <button className="vocab-speak-btn" onClick={(e) => { e.stopPropagation(); speak(card.word); }} title="播放 (S)"><Volume2 size={18} /></button>
+          <button
+            className={`vocab-speak-btn${speaking ? ' is-speaking' : ''}`}
+            disabled={playback.playing}
+            aria-busy={speaking}
+            onClick={(e) => { e.stopPropagation(); speak(card.word); }}
+            title={playback.playing ? '正在播放…' : '播放 (S)'}
+          ><Volume2 size={18} /></button>
         </div>
         {flipped && (
           <>

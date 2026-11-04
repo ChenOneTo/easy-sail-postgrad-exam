@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { TypingQueueItem } from '../lib/typing-vocab-db';
 import { speakTypingWord } from '../lib/typing-vocab-speech';
+import { isSpeaking, useTypingPlayback } from '../hooks/use-speak-playback';
 
 type ListKind = 'wrong' | 'favorite' | 'mastered';
 
@@ -27,6 +28,8 @@ export function TypingVocabWordList({
   onToggleFavorite, onSetMastered, onReset,
 }: Props) {
   const [keyword, setKeyword] = useState('');
+  /** 发音播放态：播放期间该行朗读按钮显示动效并禁用 */
+  const playback = useTypingPlayback();
 
   const visible = useMemo(() => {
     const key = keyword.trim().toLowerCase();
@@ -83,7 +86,13 @@ export function TypingVocabWordList({
                 </div>
               </div>
               <div className="typing-word-actions">
-                <button className="typing-icon-btn" title="朗读" onClick={() => speakTypingWord(item.word)}>
+                <button
+                  className={`typing-icon-btn${isSpeaking(playback, item.word) ? ' is-speaking' : ''}`}
+                  title={playback.playing ? '正在播放…' : '朗读'}
+                  aria-busy={isSpeaking(playback, item.word)}
+                  disabled={playback.playing}
+                  onClick={() => speakTypingWord(item.word)}
+                >
                   <Volume2 size={15} />
                 </button>
                 {kind !== 'favorite' && (

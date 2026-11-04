@@ -8,6 +8,7 @@ import type { GameWord, WordStatus } from '../stores/vocab-game-store';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { getPhonetics } from '../lib/vocab-phonetics';
 import { speak, speakAccent } from '../lib/vocab-tts';
+import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { localDateStr } from '../lib/utils';
 import type { VocabHardWord } from '../lib/exam-vocab-db';
 import type { DailyMinutes } from '../lib/vocab-game-db';
@@ -97,18 +98,33 @@ function fmtPhonetics(uk: string | null, us: string | null): string {
 
 /** 词卡/详情里的双音标按钮，分别播放英音与美音 */
 function PronChips({ word, uk, us }: { word: string; uk: string | null; us: string | null }) {
+  const playback = useVocabPlayback();
   if (!uk && !us) return <div className="vg-phonetic">—</div>;
   return (
     <div className="vg-pron-row">
       {uk && (
-        <button className="vg-pron" type="button" aria-label="播放英式发音" onClick={() => speakAccent(word, 'uk')}>
+        <button
+          className={`vg-pron${isSpeaking(playback, word, 'uk') ? ' is-speaking' : ''}`}
+          type="button"
+          aria-label="播放英式发音"
+          aria-busy={isSpeaking(playback, word, 'uk')}
+          disabled={playback.playing}
+          onClick={() => speakAccent(word, 'uk')}
+        >
           <span className="vg-pron-label">英</span>
           <span className="vg-pron-ipa">{uk}</span>
           <Volume2 size={13} />
         </button>
       )}
       {us && (
-        <button className="vg-pron" type="button" aria-label="播放美式发音" onClick={() => speakAccent(word, 'us')}>
+        <button
+          className={`vg-pron${isSpeaking(playback, word, 'us') ? ' is-speaking' : ''}`}
+          type="button"
+          aria-label="播放美式发音"
+          aria-busy={isSpeaking(playback, word, 'us')}
+          disabled={playback.playing}
+          onClick={() => speakAccent(word, 'us')}
+        >
           <span className="vg-pron-label">美</span>
           <span className="vg-pron-ipa">{us}</span>
           <Volume2 size={13} />
@@ -158,6 +174,8 @@ export function VocabGamePage() {
   const hardwords = useExamVocabStore((s) => s.hardwords);
   const addHardword = useExamVocabStore((s) => s.addHardword);
   const markHardwordGrasped = useExamVocabStore((s) => s.markHardwordGrasped);
+  /** 发音播放态：播放期间所有发音按钮显示动效并禁用 */
+  const playback = useVocabPlayback();
 
   const [tab, setTab] = useState<Tab>('quest');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -787,8 +805,10 @@ export function VocabGamePage() {
                     </div>
                     <span className="vg-mistake-meaning">{m.meaning}</span>
                     <button
-                      className="vg-text-btn"
+                      className={`vg-text-btn${isSpeaking(playback, m.word ?? '') ? ' is-speaking' : ''}`}
                       type="button"
+                      aria-busy={isSpeaking(playback, m.word ?? '')}
+                      disabled={playback.playing}
                       onClick={() => speak(m.word ?? '')}
                     >
                       <Volume2 size={15} /> 发音
@@ -1103,7 +1123,13 @@ export function VocabGamePage() {
               <StatusTag status={wordStatusOf(detail)} />
             </div>
             <div className="vg-detail-actions">
-              <button className="vg-secondary-btn" type="button" onClick={() => speak(detail.word)}>
+              <button
+                className={`vg-secondary-btn${isSpeaking(playback, detail.word) ? ' is-speaking' : ''}`}
+                type="button"
+                aria-busy={isSpeaking(playback, detail.word)}
+                disabled={playback.playing}
+                onClick={() => speak(detail.word)}
+              >
                 <Volume2 size={16} /> 播放发音
               </button>
               <button className="vg-primary-btn" type="button" onClick={() => void addDetailToHardword()}>

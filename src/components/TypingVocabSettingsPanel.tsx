@@ -13,6 +13,7 @@ import { errText } from '../lib/error-text';
 import { parseTypingWordFile } from '../lib/typing-vocab-import';
 import { playTypingSound } from '../lib/typing-vocab-sound';
 import { speakTypingWord } from '../lib/typing-vocab-speech';
+import { isSpeaking, useTypingPlayback } from '../hooks/use-speak-playback';
 import type {
   TypingAccent, TypingBackup, TypingBook, TypingMode, TypingPlan, TypingProfile, TypingWordSeed,
 } from '../lib/typing-vocab-db';
@@ -26,6 +27,9 @@ interface Props {
   onExport: () => Promise<TypingBackup>;
   onRestore: (data: TypingBackup) => Promise<void>;
 }
+
+/** 试听用的示例词（与练习页试听按钮保持一致） */
+const SAMPLE_WORD = 'example';
 
 const MODES: { id: TypingMode; label: string; desc: string }[] = [
   { id: 'follow', label: '跟打', desc: '显示单词逐字母跟打' },
@@ -41,6 +45,9 @@ export function TypingVocabSettingsPanel({
   const backupRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  /** 发音播放态：播放期间试听按钮显示动效并禁用 */
+  const playback = useTypingPlayback();
+  const speaking = isSpeaking(playback, SAMPLE_WORD);
 
   const handleWordFile = async (file: File | undefined) => {
     if (!file) return;
@@ -255,7 +262,13 @@ export function TypingVocabSettingsPanel({
               onChange={(e) => void saveProfile({ ttsRate: Number(e.target.value) })}
             />
           </label>
-          <button className="typing-ghost-btn" onClick={() => speakTypingWord('example')}>
+          <button
+            className={`typing-ghost-btn${speaking ? ' is-speaking' : ''}`}
+            onClick={() => speakTypingWord(SAMPLE_WORD)}
+            aria-busy={speaking}
+            disabled={playback.playing}
+            title={playback.playing ? '正在播放…' : '按当前设置试听'}
+          >
             <Volume2 size={14} /> 试听
           </button>
         </div>

@@ -5,6 +5,7 @@ import {
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import type { GameMnemonic, GameWord } from '../stores/vocab-game-store';
 import { speak, speakAccent, stopSpeak } from '../lib/vocab-tts';
+import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { getExamExample } from '../lib/vocab-examples';
 
 function fmtClock(seconds: number): string {
@@ -14,6 +15,7 @@ function fmtClock(seconds: number): string {
 
 /** 记忆卡上的 AI 助记块：加载中 / 失败重试 / 词根 + 口诀 + 例句 */
 function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () => void }) {
+  const playback = useVocabPlayback();
   if (!entry) return null;
   if (entry.status === 'loading') {
     return (
@@ -43,9 +45,11 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
         <p className="vg-mnemonic-example">
           <span className="vg-mnemonic-tag">例句</span>{sentence}
           <button
-            className="vg-example-speak"
+            className={`vg-example-speak${isSpeaking(playback, sentence) ? ' is-speaking' : ''}`}
             type="button"
             aria-label="播放 AI 例句"
+            aria-busy={isSpeaking(playback, sentence)}
+            disabled={playback.playing}
             onClick={() => speak(sentence)}
           >
             <Volume2 size={13} />
@@ -69,6 +73,7 @@ function MemoryCard({ word }: { word: GameWord }) {
   const mnemonic = useVocabGameStore((s) => s.session?.mnemonics[word.wordId]);
   const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
   const examExample = getExamExample(word.word);
+  const playback = useVocabPlayback();
 
   // 切到新词时自动连续播放单词读音三遍，间隔 2 秒（不含例句读音）
   useEffect(() => {
@@ -87,20 +92,24 @@ function MemoryCard({ word }: { word: GameWord }) {
       <h2 className="vg-memory-word">{word.word}</h2>
       <div className="vg-pron-row">
         <button
-          className="vg-pron"
+          className={`vg-pron${isSpeaking(playback, word.word, 'uk') ? ' is-speaking' : ''}`}
           type="button"
           onClick={() => speakAccent(word.word, 'uk')}
           aria-label="播放英式发音"
+          aria-busy={isSpeaking(playback, word.word, 'uk')}
+          disabled={playback.playing}
         >
           <span className="vg-pron-label">英</span>
           <span className="vg-pron-ipa">{word.phoneticUk ?? '—'}</span>
           <Volume2 size={13} />
         </button>
         <button
-          className="vg-pron"
+          className={`vg-pron${isSpeaking(playback, word.word, 'us') ? ' is-speaking' : ''}`}
           type="button"
           onClick={() => speakAccent(word.word, 'us')}
           aria-label="播放美式发音"
+          aria-busy={isSpeaking(playback, word.word, 'us')}
+          disabled={playback.playing}
         >
           <span className="vg-pron-label">美</span>
           <span className="vg-pron-ipa">{word.phoneticUs ?? '—'}</span>
@@ -125,9 +134,11 @@ function MemoryCard({ word }: { word: GameWord }) {
                   {examExample.source}{examExample.count >= 2 ? ` · 出现 ${examExample.count} 次` : ''}
                 </span>
                 <button
-                  className="vg-example-speak"
+                  className={`vg-example-speak${isSpeaking(playback, examExample.en) ? ' is-speaking' : ''}`}
                   type="button"
                   aria-label="播放真题语境"
+                  aria-busy={isSpeaking(playback, examExample.en)}
+                  disabled={playback.playing}
                   onClick={() => speak(examExample.en)}
                 >
                   <Volume2 size={13} />
@@ -178,6 +189,8 @@ export function VocabGameSession() {
   const expirePhase = useVocabGameStore((s) => s.expirePhase);
   const retryWrong = useVocabGameStore((s) => s.retryWrong);
   const exit = useVocabGameStore((s) => s.exit);
+  /** 发音播放态：播放期间空格不再重复触发读音 */
+  const playback = useVocabPlayback();
   const [now, setNow] = useState(() => Date.now());
   const [confirmExit, setConfirmExit] = useState(false);
 
@@ -215,7 +228,11 @@ export function VocabGameSession() {
       if (session.phase === 'memory' && memoryWord) {
         if (e.key === 'ArrowLeft') { e.preventDefault(); gotoMemory(session.memoryIndex - 1); return; }
         if (e.key === 'ArrowRight') { e.preventDefault(); gotoMemory(session.memoryIndex + 1); return; }
-        if (e.key === ' ') { e.preventDefault(); speak(memoryWord.word); return; }
+        if (e.key === ' ') {
+          e.preventDefault();
+          if (!playback.playing) speak(memoryWord.word);
+          return;
+        }
         if (e.key === '1') { e.preventDefault(); mark(memoryWord.wordId, 'fuzzy'); return; }
         if (e.key === '2') { e.preventDefault(); mark(memoryWord.wordId, 'known'); return; }
         if (e.key === '3') { e.preventDefault(); mark(memoryWord.wordId, 'mastered'); return; }
@@ -229,7 +246,7 @@ export function VocabGameSession() {
         if (e.key === 'Enter' && question.picked !== null) { e.preventDefault(); nextQuestion(); }
       }
     };
-  }, [session, memoryWord, question, gotoMemory, mark, pickOption, nextQuestion]);
+  }, [session, memoryWord, question, playback.playing, gotoMemory, mark, pickOption, nextQuestion]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => keyRef.current(e);
