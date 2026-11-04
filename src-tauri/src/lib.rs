@@ -733,8 +733,6 @@ pub fn run() {
                                     total              INTEGER DEFAULT 0,
                                     correct            INTEGER DEFAULT 0,
                                     wrong              INTEGER DEFAULT 0,
-                                    new_count          INTEGER DEFAULT 0,
-                                    review_count       INTEGER DEFAULT 0,
                                     keystrokes         INTEGER DEFAULT 0,
                                     correct_keystrokes INTEGER DEFAULT 0,
                                     duration_ms        INTEGER DEFAULT 0,
@@ -767,6 +765,16 @@ pub fn run() {
                                     updated_at     TEXT    DEFAULT (datetime('now'))
                                 );
                                 INSERT OR IGNORE INTO typing_vocab_profile (id) VALUES (1);
+                            "#,
+                        },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 7,
+                            description: "add typing vocab session new/review counts",
+                            sql: r#"
+                                -- 会话记录补充「新学 / 复习」词数（v6 首次发布时遗漏）
+                                ALTER TABLE typing_vocab_sessions ADD COLUMN new_count INTEGER DEFAULT 0;
+                                ALTER TABLE typing_vocab_sessions ADD COLUMN review_count INTEGER DEFAULT 0;
                             "#,
                         },
                     ],
