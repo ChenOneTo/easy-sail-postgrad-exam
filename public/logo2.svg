@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect width="1024" height="1024" fill="#6cc788"/>
+  <rect width="1024" height="1024" rx="200" ry="200" fill="#6cc788"/>
   <g fill="#ffffff">
     <!-- 船体：月牙形 -->
     <path d="M 142 562
