@@ -7,6 +7,7 @@ import type { GameMnemonic, GameWord } from '../stores/vocab-game-store';
 import { speak, speakAccent, stopSpeak } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { getExamExample } from '../lib/vocab-examples';
+import { splitSyllables } from '../lib/word-syllables';
 
 function fmtClock(seconds: number): string {
   const s = Math.max(0, seconds);
@@ -86,10 +87,22 @@ function MemoryCard({ word }: { word: GameWord }) {
   }, [word.word]);
 
   const mark = marks?.[word.wordId];
+  /** 音节切分：一元一辅、从词尾往前切，点号连接，帮助分块记忆长单词 */
+  const syllables = splitSyllables(word.word);
 
   return (
     <article className="vg-word-card">
       <h2 className="vg-memory-word">{word.word}</h2>
+      {syllables.length > 1 && (
+        <p className="vg-word-syllables" title="按「一元一辅」从词尾往前切分，点号分隔音节">
+          {syllables.map((part, i) => (
+            <span className="vg-syllable" key={`${part}-${i}`}>
+              {part}
+              {i < syllables.length - 1 && <i className="vg-syllable-dot" aria-hidden="true">·</i>}
+            </span>
+          ))}
+        </p>
+      )}
       <div className="vg-pron-row">
         <button
           className={`vg-pron${isSpeaking(playback, word.word, 'uk') ? ' is-speaking' : ''}`}
