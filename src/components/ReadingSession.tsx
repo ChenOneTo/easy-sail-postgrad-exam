@@ -6,12 +6,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Eraser, Flag,
-  PenLine, Send, Trash2, Undo2,
+  ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Flag, Send,
 } from 'lucide-react'
 import { submitReadingSession, upsertReadingAttempt } from '../lib/exam-reading-db'
 import {
-  DRAWING_COLORS,
   loadReadingDrawings,
   saveReadingDrawings,
   type DrawingColor,
@@ -19,6 +17,7 @@ import {
   type DrawingStroke,
 } from '../lib/reading-drawings'
 import { ReadingDrawingCanvas } from './ReadingDrawingCanvas'
+import { ReadingDrawingTools } from './ReadingDrawingTools'
 import type {
   ReadingAttempt,
   ReadingQuestionWithPassage,
@@ -326,56 +325,20 @@ export function ReadingSession({ session, questions, initialAttempts, onExit, on
             <span>{current.passageTitle}</span>
             <span>{current.paragraphs.join(' ').split(/\s+/).filter(Boolean).length} words</span>
             <div className="reading-passage-meta-ops">
-              <button
-                className={`exam-ghost-btn reading-draw-toggle${drawingMode ? ' active' : ''}`}
-                onClick={toggleDrawing}
-              >
-                <PenLine size={12} /> {drawingMode ? '完成' : '画线'}
-              </button>
-              {drawingMode && (
-                <>
-                  {DRAWING_COLORS.map(({ color, label, hex }) => (
-                    <button
-                      key={color}
-                      className={`reading-draw-color${drawColor === color && !eraser ? ' active' : ''}`}
-                      style={{ background: hex }}
-                      title={label}
-                      aria-label={label}
-                      onClick={() => {
-                        setDrawColor(color)
-                        setEraser(false)
-                      }}
-                    />
-                  ))}
-                  <button
-                    className={`exam-ghost-btn reading-draw-tool${eraser ? ' active' : ''}`}
-                    onClick={() => setEraser((prev) => !prev)}
-                    title="橡皮：拖动擦除整条线"
-                  >
-                    <Eraser size={12} />
-                  </button>
-                  <button
-                    className="exam-ghost-btn reading-draw-tool"
-                    onClick={undoStroke}
-                    disabled={currentStrokes.length === 0}
-                    title="撤销上一笔"
-                  >
-                    <Undo2 size={12} />
-                  </button>
-                  <button
-                    className="exam-ghost-btn reading-draw-tool"
-                    onClick={clearStrokes}
-                    disabled={currentStrokes.length === 0}
-                    title="清除本篇"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                  <span className="reading-draw-hint">{eraser ? '拖动橡皮擦除整条线' : '按住鼠标在原文上自由画线'}</span>
-                </>
-              )}
-              {!drawingMode && currentStrokes.length > 0 && (
-                <span className="reading-draw-hint">已标注 {currentStrokes.length} 笔</span>
-              )}
+              <ReadingDrawingTools
+                drawingMode={drawingMode}
+                activeColor={drawColor}
+                eraser={eraser}
+                strokeCount={currentStrokes.length}
+                onToggle={toggleDrawing}
+                onColorChange={(next) => {
+                  setDrawColor(next)
+                  setEraser(false)
+                }}
+                onEraserToggle={() => setEraser((prev) => !prev)}
+                onUndo={undoStroke}
+                onClear={clearStrokes}
+              />
             </div>
           </div>
           <article className={`reading-passage${drawingMode ? ' drawing' : ''}`}>

@@ -7698,6 +7698,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .reading-review-group-ops { display: flex; gap: 6px; }
 .reading-review-group-ops .exam-ghost-btn { padding: 4px 10px; font-size: 12px; }
 .reading-review-passage {
+  position: relative;
   padding: 12px 14px;
   background: var(--bg-primary);
   border: 1px dashed var(--border-default);
@@ -7706,6 +7707,7 @@ input, textarea, select { font: inherit; color: inherit; }
   line-height: 1.75;
   color: var(--text-secondary);
 }
+.reading-review-passage.drawing { user-select: none; -webkit-user-select: none; cursor: crosshair; }
 .reading-review-passage p { margin: 0 0 8px; }
 .reading-review-item {
   padding: 12px 14px;
@@ -8249,6 +8251,15 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .reading-draw-color:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
 .reading-draw-hint { font-size: 10px; color: var(--text-tertiary); white-space: nowrap; }
+
+/* 复盘页画线工具条（与「重做本篇错题」同排，覆盖 pane-head > div 的 baseline 对齐） */
+.reading-review-pane-head > .reading-review-passage-ops {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
 
 /* —— 复盘左右分栏 —— */
 .reading-review-split {

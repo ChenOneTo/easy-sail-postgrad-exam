@@ -2,10 +2,14 @@
  * 阅读原文自由画线：按 passageKey 持久化到 localStorage。
  *
  * 坐标统一归一化到 0..1，画布缩放/窗口变化时按比例重绘。
- * 自由笔画与当时的字号、换行绑定，因此只在作答原文显示，不在复盘复现。
+ * 笔画与当时的字号、换行绑定，因此作答页与复盘页各存一份（scope 区分），
+ * 互不覆盖：两边原文宽度/字号不同，混用会整体错位。
  */
 
 export type DrawingColor = 'red' | 'blue' | 'green'
+
+/** 画线所属视图：作答页 / 复盘页 */
+export type DrawingScope = 'session' | 'review'
 
 export interface DrawingPoint {
   x: number
@@ -28,7 +32,10 @@ export const DRAWING_COLORS: { color: DrawingColor; label: string; hex: string }
   { color: 'green', label: '绿色', hex: '#2e9e4f' },
 ]
 
-const STORAGE_KEY = 'easysail-exam-reading-drawings'
+const STORAGE_KEYS: Record<DrawingScope, string> = {
+  session: 'easysail-exam-reading-drawings',
+  review: 'easysail-exam-reading-review-drawings',
+}
 const COLOR_SET = new Set<DrawingColor>(DRAWING_COLORS.map((item) => item.color))
 
 function isPoint(value: unknown): value is DrawingPoint {
@@ -59,9 +66,9 @@ function isStroke(value: unknown): value is DrawingStroke {
 }
 
 /** 读取全部手绘线；脏数据逐条丢弃，不阻塞阅读 */
-export function loadReadingDrawings(): DrawingMap {
+export function loadReadingDrawings(scope: DrawingScope = 'session'): DrawingMap {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS[scope])
     if (!raw) return {}
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
@@ -78,9 +85,9 @@ export function loadReadingDrawings(): DrawingMap {
 }
 
 /** 保存全部手绘线；失败静默降级，不影响作答 */
-export function saveReadingDrawings(map: DrawingMap): void {
+export function saveReadingDrawings(map: DrawingMap, scope: DrawingScope = 'session'): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
+    localStorage.setItem(STORAGE_KEYS[scope], JSON.stringify(map))
   } catch {
     // 标注是辅助功能
   }

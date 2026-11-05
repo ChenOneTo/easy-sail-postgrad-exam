@@ -3,7 +3,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
-  ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Minus, RotateCw, Sparkles, X,
+  ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Minus, PenLine, RotateCw, Sparkles, X,
 } from 'lucide-react'
 import { canUseAi } from '../lib/ai'
 import type { AiReadingExplainDraft, AiReadingWordDraft } from '../lib/ai-json'
@@ -14,8 +14,17 @@ import type {
   ReadingSession as ReadingSessionRow,
   ReadingWrongItem,
 } from '../lib/exam-reading-db'
+import {
+  loadReadingDrawings,
+  saveReadingDrawings,
+  type DrawingColor,
+  type DrawingMap,
+  type DrawingStroke,
+} from '../lib/reading-drawings'
 import { useAiTask } from '../hooks/useAiTask'
 import { useExamReadingStore } from '../stores/exam-reading-store'
+import { ReadingDrawingCanvas } from './ReadingDrawingCanvas'
+import { ReadingDrawingTools } from './ReadingDrawingTools'
 
 interface Props {
   session: ReadingSessionRow
@@ -97,6 +106,8 @@ interface Group {
   paragraphs: string[]
 }
 
+const NO_STROKES: DrawingStroke[] = []
+
 export function ReadingReview({ session, questions, attempts, wrongbook, onBack, onRedoWrong }: Props) {
   const [notes, setNotes] = useState<Record<number, string>>(() => {
     const map: Record<number, string> = {}
@@ -169,16 +180,43 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
     && explainPendingId === selected.id && explainAi.loading
   const explainError = explainOpen && !explainDraft && !explainLoading ? explainAi.error : ''
 
+  // 复盘原文画线：与作答页分开存储，两边原文宽度/字号不同，混用会整体错位
+  const [drawingMap, setDrawingMap] = useState<DrawingMap>(() => loadReadingDrawings('review'))
+  const [drawingMode, setDrawingMode] = useState(false)
+  const [drawColor, setDrawColor] = useState<DrawingColor>('red')
+  const [eraser, setEraser] = useState(false)
+  const passageKey = selectedGroup?.passageKey
+  const groupStrokes = passageKey ? drawingMap[passageKey] || NO_STROKES : NO_STROKES
+
+  useEffect(() => {
+    saveReadingDrawings(drawingMap, 'review')
+  }, [drawingMap])
+
+  const passageKeyByQuestion = useMemo(
+    () => new Map(questions.map((q) => [q.id, q.passageKey])),
+    [questions],
+  )
+
+  /** 切题入口：换篇时退出画线模式，避免对着新文章沿用上一套坐标 */
+  const selectQuestion = (id: number | null) => {
+    const nextKey = id === null ? '' : passageKeyByQuestion.get(id) || ''
+    if (nextKey !== (passageKey || '')) {
+      setDrawingMode(false)
+      setEraser(false)
+    }
+    setSelectedId(id)
+  }
+
   const changeReviewFilter = (next: 'wrong' | 'all') => {
     const list = next === 'wrong' ? wrongQuestions : questions
     setReviewFilter(next)
-    setSelectedId(list[0]?.id ?? null)
+    selectQuestion(list[0]?.id ?? null)
   }
 
   const stepQuestion = (delta: number) => {
     if (selectedIndex < 0) return
     const next = visibleQuestions[selectedIndex + delta]
-    if (next) setSelectedId(next.id)
+    if (next) selectQuestion(next.id)
   }
 
   useEffect(() => {
@@ -187,6 +225,8 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
       setAiMenu(null)
       setAiWord(null)
       setExplainOpenId(null)
+      setDrawingMode(false)
+      setEraser(false)
       abort()
     }
     window.addEventListener('keydown', onKey)
@@ -215,12 +255,17 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
 
   /** 左键选词或右键按下时缓存，防止部分 WebView 在右键时清空 selection */
   const captureSelection = (group: Group) => {
+    if (drawingMode) return
     const ctx = getSelectionContext(group)
     if (ctx) lastSelectionRef.current = { ...ctx, passageKey: group.passageKey, at: Date.now() }
   }
 
-  /** 右键原文：弹出 AI 翻译菜单 */
+  /** 右键原文：弹出 AI 翻译菜单；画线时不响应 */
   const openAiMenu = (e: MouseEvent<HTMLElement>, group: Group) => {
+    if (drawingMode) {
+      e.preventDefault()
+      return
+    }
     const current = getSelectionContext(group)
     const last = lastSelectionRef.current
     const fallback = last && last.passageKey === group.passageKey && Date.now() - last.at < 5000
@@ -307,6 +352,37 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
     void runExplain(selected)
   }
 
+  const handleStrokesChange = (nextStrokes: DrawingStroke[]) => {
+    if (!passageKey) return
+    setDrawingMap((prev) => {
+      const next = { ...prev }
+      if (nextStrokes.length > 0) next[passageKey] = nextStrokes
+      else delete next[passageKey]
+      return next
+    })
+  }
+
+  const toggleDrawing = () => {
+    setDrawingMode((prev) => !prev)
+    setEraser(false)
+    // 画线时收起翻译浮层，避免遮挡原文
+    setAiMenu(null)
+    setAiWord(null)
+    abort()
+    window.getSelection()?.removeAllRanges()
+  }
+
+  const undoStroke = () => {
+    if (groupStrokes.length === 0) return
+    handleStrokesChange(groupStrokes.slice(0, -1))
+  }
+
+  const clearStrokes = () => {
+    if (groupStrokes.length === 0) return
+    if (!window.confirm('清除本篇画线？')) return
+    handleStrokesChange([])
+  }
+
   const setReason = async (questionId: number, reason: string) => {
     try {
       await updateReadingWrongReason(questionId, reason, notes[questionId] || '')
@@ -364,24 +440,50 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
                 <b>{selectedGroup.title}</b>
                 <span>{selectedGroup.paragraphs.length} 段</span>
               </div>
-              {selectedGroupWrong.length > 0 && (
-                <button
-                  className="exam-ghost-btn"
-                  onClick={() => onRedoWrong(selectedGroup.passageKey, selectedGroupWrong.map((q) => q.id))}
-                >
-                  <RotateCw size={13} /> 重做本篇错题
-                </button>
-              )}
+              <div className="reading-review-passage-ops">
+                <ReadingDrawingTools
+                  drawingMode={drawingMode}
+                  activeColor={drawColor}
+                  eraser={eraser}
+                  strokeCount={groupStrokes.length}
+                  onToggle={toggleDrawing}
+                  onColorChange={(next) => {
+                    setDrawColor(next)
+                    setEraser(false)
+                  }}
+                  onEraserToggle={() => setEraser((prev) => !prev)}
+                  onUndo={undoStroke}
+                  onClear={clearStrokes}
+                />
+                {selectedGroupWrong.length > 0 && (
+                  <button
+                    className="exam-ghost-btn"
+                    onClick={() => onRedoWrong(selectedGroup.passageKey, selectedGroupWrong.map((q) => q.id))}
+                  >
+                    <RotateCw size={13} /> 重做本篇错题
+                  </button>
+                )}
+              </div>
             </div>
 
             <article
-              className="reading-review-passage"
+              className={`reading-review-passage${drawingMode ? ' drawing' : ''}`}
               onMouseDown={(e) => { if (e.button === 2) captureSelection(selectedGroup) }}
               onMouseUp={() => captureSelection(selectedGroup)}
               onContextMenu={(e) => openAiMenu(e, selectedGroup)}
             >
+              <ReadingDrawingCanvas
+                strokes={groupStrokes}
+                interactive={drawingMode}
+                color={drawColor}
+                eraser={eraser}
+                onChange={handleStrokesChange}
+              />
               <div className="reading-review-passage-hint">
-                <Sparkles size={13} /> 选中单词后右键，可使用 AI 翻译
+                {drawingMode ? <PenLine size={13} /> : <Sparkles size={13} />}
+                {drawingMode
+                  ? '按住鼠标拖动即可在原文上画线，画完点「完成」'
+                  : '选中单词后右键，可使用 AI 翻译'}
               </div>
               {selectedGroup.paragraphs.map((p, i) => (
                 <p key={i} data-para-index={i}><span className="reading-para-no">[{i + 1}]</span>{p}</p>
@@ -451,7 +553,7 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
                 <button
                   key={q.id}
                   className={`reading-review-qbtn${q.id === selected?.id ? ' active' : ''}${qWrong ? ' wrong' : ''}`}
-                  onClick={() => setSelectedId(q.id)}
+                  onClick={() => selectQuestion(q.id)}
                   title={q.disputed ? '本题答案存在争议' : undefined}
                 >
                   {globalNo(q)}
