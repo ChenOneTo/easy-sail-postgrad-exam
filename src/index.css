@@ -6781,7 +6781,7 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .vg-exit-btn:hover { background: var(--bg-hover); }
 
-.vg-screen-main { width: min(100% - 40px, 640px); margin: auto; padding: 26px 0 34px; }
+.vg-screen-main { width: min(100% - 40px, 720px); margin: auto; padding: 20px 0 24px; }
 .vg-screen-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 11px; color: var(--text-tertiary); }
 .vg-screen-progress-head strong { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .vg-screen-progress { height: 5px; overflow: hidden; background: var(--bg-tertiary); border-radius: 5px; }
@@ -6789,8 +6789,8 @@ input, textarea, select { font: inherit; color: inherit; }
 
 .vg-word-card {
   min-height: 330px;
-  margin-top: 18px;
-  padding: 30px 34px 26px;
+  margin-top: 14px;
+  padding: 24px 34px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6852,7 +6852,6 @@ input, textarea, select { font: inherit; color: inherit; }
 
 .vg-mnemonic {
   width: 100%;
-  max-width: 470px;
   margin: 14px auto 0;
   padding: 11px 13px;
   text-align: left;
@@ -6910,7 +6909,6 @@ input, textarea, select { font: inherit; color: inherit; }
 
 .vg-example {
   width: 100%;
-  max-width: 470px;
   margin: 14px auto 0;
   padding: 9px 12px 10px;
   text-align: left;
@@ -7141,7 +7139,7 @@ input, textarea, select { font: inherit; color: inherit; }
   .vg-word-row { grid-template-columns: minmax(100px, 1fr) minmax(130px, 1.4fr) 62px 24px; gap: 9px; padding: 8px 12px; }
   .vg-screen-top { padding: 0 16px; grid-template-columns: 1fr auto; }
   .vg-screen-phase { display: none; }
-  .vg-screen-main { width: min(100% - 28px, 640px); }
+  .vg-screen-main { width: min(100% - 28px, 720px); }
   .vg-time-settings { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
