@@ -9,6 +9,7 @@ import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { getPhonetics } from '../lib/vocab-phonetics';
 import { speak, speakAccent } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
+import { useToday } from '../hooks/use-today';
 import { localDateStr } from '../lib/utils';
 import type { VocabHardWord } from '../lib/exam-vocab-db';
 import type { DailyMinutes } from '../lib/vocab-game-db';
@@ -205,10 +206,22 @@ export function VocabGamePage() {
   const [globalResults, setGlobalResults] = useState<GameWord[]>([]);
   const levelMapRef = useRef<HTMLDivElement>(null);
 
+  /** 跨天自动更新：冲刺建议与「今日还差」都依赖当天日期 */
+  const todayStr = useToday();
   const load = game.load;
+  const refresh = game.refresh;
   const search = game.search;
 
   useEffect(() => { void load(); }, [load]);
+
+  // 今日已通过关数、今日时长都按 date('now','localtime') 统计，
+  // 常驻不退出跨过零点后必须重新读库，否则一直沿用昨天的数字
+  const dayRef = useRef(todayStr);
+  useEffect(() => {
+    if (dayRef.current === todayStr) return;
+    dayRef.current = todayStr;
+    void refresh();
+  }, [todayStr, refresh]);
 
   // 单词本搜索：输入停顿后再查，避免逐字打库；空查询直接展示当前关卡词，无需清空结果
   useEffect(() => {
@@ -246,7 +259,6 @@ export function VocabGamePage() {
     return () => cancelAnimationFrame(raf);
   }, [levelsOpen]);
 
-  const todayStr = localDateStr();
   const size = game.settings.levelSize;
   const passedWords = game.progress?.passedWords ?? 0;
   const level = Math.floor(passedWords / size) + 1;
