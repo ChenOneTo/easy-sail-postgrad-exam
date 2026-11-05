@@ -347,23 +347,34 @@ export function isCoreUnit(unit: string): boolean {
 export interface UnitProgress {
   unit: string;
   total: number;
-  mastered: number;   // 已毕业(review)且 due 在未来 = 当下掌握
+  mastered: number;   // 稳定掌握：review 且（reps ≥ 3 或曾评 Easy）
   coreZone: boolean;
 }
 
+/**
+ * 单元掌握进度。
+ *
+ * 「掌握」不能只看 state=review 且 due 在未来：新词首评 Good 后，若学习步长
+ * 跨天（learning_steps 第二档 ≥ 1 天），ts-fsrs 会直接把它转入 Review，
+ * 这样刚学一次的词就会被算成掌握。故与闯关页 fetchWordStatusCounts 同口径：
+ * 以「复习次数 ≥ 3」或「出现过 Easy 评分」作为稳定掌握的判据。
+ */
 export async function fetchUnitProgress(direction: CardDirection): Promise<UnitProgress[]> {
   const db = await getExamVocabDb();
   const rows = await db.select<Record<string, unknown>[]>(`
     SELECT w.unit,
            COUNT(*) AS total,
-           SUM(CASE WHEN c.state = 'review' AND c.due > $1 THEN 1 ELSE 0 END) AS mastered,
+           SUM(CASE WHEN c.state = 'review'
+                     AND (c.reps >= 3 OR EXISTS (SELECT 1 FROM exam_vocab_reviews r
+                           WHERE r.card_id = c.id AND r.rating = 4))
+               THEN 1 ELSE 0 END) AS mastered,
            MAX(w.core_zone) AS core_zone
     FROM exam_vocab_words w
-    LEFT JOIN exam_vocab_cards c ON c.word_id = w.id AND c.direction = $2
+    LEFT JOIN exam_vocab_cards c ON c.word_id = w.id AND c.direction = $1
     WHERE w.archived = 0
     GROUP BY w.unit
     ORDER BY w.unit ASC
-  `, [new Date().toISOString(), direction]);
+  `, [direction]);
   return rows.map(r => ({
     unit: (r.unit as string) || '',
     total: (r.total as number) ?? 0,
@@ -751,9 +762,10 @@ export interface OverallStats {
   learning: number;
   review: number;
   relearning: number;
-  mastered: number;   // review 且 due 在未来
+  mastered: number;   // 稳定掌握：review 且（reps ≥ 3 或曾评 Easy）
 }
 
+/** 总体统计。掌握口径见 fetchUnitProgress 的说明，二者与闯关页保持一致。 */
 export async function fetchOverallStats(direction: CardDirection): Promise<OverallStats> {
   const db = await getExamVocabDb();
   const rows = await db.select<Record<string, unknown>[]>(`
@@ -763,9 +775,12 @@ export async function fetchOverallStats(direction: CardDirection): Promise<Overa
       SUM(CASE WHEN state = 'learning' THEN 1 ELSE 0 END) AS learning,
       SUM(CASE WHEN state = 'review' THEN 1 ELSE 0 END) AS review,
       SUM(CASE WHEN state = 'relearning' THEN 1 ELSE 0 END) AS relearning,
-      SUM(CASE WHEN state = 'review' AND due > $1 THEN 1 ELSE 0 END) AS mastered
-    FROM exam_vocab_cards WHERE direction = $2
-  `, [new Date().toISOString(), direction]);
+      SUM(CASE WHEN state = 'review'
+                AND (reps >= 3 OR EXISTS (SELECT 1 FROM exam_vocab_reviews r
+                      WHERE r.card_id = exam_vocab_cards.id AND r.rating = 4))
+          THEN 1 ELSE 0 END) AS mastered
+    FROM exam_vocab_cards WHERE direction = $1
+  `, [direction]);
   const r = rows[0] ?? {};
   return {
     total: (r.total as number) ?? 0,

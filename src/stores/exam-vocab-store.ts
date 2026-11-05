@@ -31,6 +31,12 @@ function getFsrs(profile: VocabProfile): FSRS {
     _fsrs = fsrs(generatorParameters({
       request_retention: profile.targetRetention,
       maximum_interval: 36500,
+      // 考研场景以「天」为节奏：新词首次评分（Good）直接排到次日。
+      // ts-fsrs 默认 ['1m','10m'] 会让刚闯关学完的词几分钟后再次到期，
+      // 表现为「今天刚学的词」立刻出现在今日待复习里。
+      learning_steps: ['10m', '1d'],
+      // 同一天学的词到期时间加轻微抖动，避免复习量集中在同一时刻爆发
+      enable_fuzz: true,
     }));
     _fsrsRetention = profile.targetRetention;
   }
