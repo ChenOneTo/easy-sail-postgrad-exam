@@ -46,6 +46,7 @@ export const AI_PRESETS: AiPreset[] = [
   { name: 'Moonshot',    baseUrl: 'https://api.moonshot.cn/v1',        model: 'moonshot-v1-8k',  desc: '月之暗面 Kimi', supportsModels: true },
   { name: '阿里通义',    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', desc: '阿里云百炼', supportsModels: true },
   { name: '小米 MiMo',   baseUrl: 'https://api.xiaomimimo.com/v1',    model: 'mimo-v2-flash',   desc: '小米大模型', supportsModels: true },
+  { name: 'LongCat',     baseUrl: 'https://api.longcat.chat/openai/v1', model: 'LongCat-2.5',   desc: '美团 LongCat 开放平台', supportsModels: true },
   { name: '商汤日日新',  baseUrl: 'https://token.sensenova.cn/v1', model: 'sensenova-6.7-flash-lite', desc: '商汤 SenseNova', supportsModels: false },
   { name: 'Ollama 本地', baseUrl: 'http://localhost:11434/v1',          model: 'qwen2.5:7b',      desc: '本地部署，无需 Key', supportsModels: true },
   { name: 'OpenAI',      baseUrl: 'https://api.openai.com/v1',         model: 'gpt-4o-mini',     desc: '官方服务，需海外网络', supportsModels: true },
