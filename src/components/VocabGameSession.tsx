@@ -350,24 +350,27 @@ export function VocabGameSession() {
 
         {session.phase === 'memory' && memoryWord && (
           <>
-            <MemoryCard key={memoryWord.wordId} word={memoryWord} />
-
-            <div className="vg-nav-row">
+            <div className="vg-card-switch">
               <button
-                className="vg-secondary-btn"
+                className="vg-card-arrow"
                 type="button"
                 onClick={() => gotoMemory(session.memoryIndex - 1)}
                 disabled={session.memoryIndex === 0}
+                title="上一个"
+                aria-label="上一个单词"
               >
-                <ChevronLeft size={16} /> 上一个
+                <ChevronLeft size={18} />
               </button>
+              <MemoryCard key={memoryWord.wordId} word={memoryWord} />
               <button
-                className="vg-secondary-btn"
+                className="vg-card-arrow"
                 type="button"
                 onClick={() => gotoMemory(session.memoryIndex + 1)}
                 disabled={session.memoryIndex >= session.words.length - 1}
+                title="下一个"
+                aria-label="下一个单词"
               >
-                下一个 <ChevronRight size={16} />
+                <ChevronRight size={18} />
               </button>
             </div>
 
