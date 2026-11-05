@@ -6,7 +6,7 @@ import {
   ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Minus, RotateCw, Sparkles, X,
 } from 'lucide-react'
 import { canUseAi } from '../lib/ai'
-import type { AiReadingWordDraft } from '../lib/ai-json'
+import type { AiReadingExplainDraft, AiReadingWordDraft } from '../lib/ai-json'
 import { updateReadingWrongReason } from '../lib/exam-reading-db'
 import type {
   ReadingAttempt,
@@ -137,6 +137,11 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
   const [aiMenu, setAiMenu] = useState<AiMenuState | null>(null)
   const [aiWord, setAiWord] = useState<AiWordState | null>(null)
   const lastSelectionRef = useRef<{ word: string; sentence: string; passageKey: string; at: number } | null>(null)
+  // 题目讲解另用一个 useAiTask 实例：与选词翻译各自维护 loading/error，互不打断
+  const explainAi = useAiTask()
+  const [explainOpenId, setExplainOpenId] = useState<number | null>(null)
+  const [explainPendingId, setExplainPendingId] = useState<number | null>(null)
+  const [explainCache, setExplainCache] = useState<Record<number, AiReadingExplainDraft>>({})
   const [reviewFilter, setReviewFilter] = useState<'wrong' | 'all'>(() => (
     wrongQuestions.length > 0 ? 'wrong' : 'all'
   ))
@@ -157,6 +162,12 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
   const selectedCorrectLetters = selected
     ? [selected.answer, selected.answerAlt].filter(Boolean).join(' / ')
     : ''
+  const aiReady = canUseAi()
+  const explainOpen = !!selected && explainOpenId === selected.id
+  const explainDraft = selected ? explainCache[selected.id] : undefined
+  const explainLoading = explainOpen && !!selected
+    && explainPendingId === selected.id && explainAi.loading
+  const explainError = explainOpen && !explainDraft && !explainLoading ? explainAi.error : ''
 
   const changeReviewFilter = (next: 'wrong' | 'all') => {
     const list = next === 'wrong' ? wrongQuestions : questions
@@ -175,6 +186,7 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
       if (event.key !== 'Escape') return
       setAiMenu(null)
       setAiWord(null)
+      setExplainOpenId(null)
       abort()
     }
     window.addEventListener('keydown', onKey)
@@ -261,6 +273,38 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
   const closeAiWord = () => {
     setAiWord(null)
     abort()
+  }
+
+  const runExplain = async (question: ReadingQuestionWithPassage) => {
+    setExplainPendingId(question.id)
+    const draft = await explainAi.explainReadingQuestion({
+      title: `${question.year} Text ${question.textNo} · ${question.passageTitle}`,
+      passage: question.paragraphs.map((p, i) => `[${i + 1}] ${p}`).join('\n'),
+      stem: question.stem,
+      options: question.options,
+      answer: [question.answer, question.disputed ? question.answerAlt : ''].filter(Boolean).join(' / '),
+      qtype: QTYPE_LABEL[question.qtype] || question.qtype,
+      userAnswer: attemptByQuestion.get(question.id)?.userAnswer || '',
+    })
+    setExplainPendingId((prev) => (prev === question.id ? null : prev))
+    if (draft) setExplainCache((prev) => ({ ...prev, [question.id]: draft }))
+  }
+
+  /** 打开/收起讲解；已有结果时直接复用，不重复消耗额度 */
+  const toggleExplain = () => {
+    if (!selected) return
+    if (explainOpenId === selected.id) {
+      setExplainOpenId(null)
+      return
+    }
+    setExplainOpenId(selected.id)
+    if (!aiReady || explainCache[selected.id]) return
+    void runExplain(selected)
+  }
+
+  const retryExplain = () => {
+    if (!selected) return
+    void runExplain(selected)
   }
 
   const setReason = async (questionId: number, reason: string) => {
@@ -433,16 +477,23 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
                 </span>
               </div>
 
-              {selectedWrong && (
-                <div className="reading-review-question-actions">
+              <div className="reading-review-question-actions">
+                <button
+                  className={`exam-ghost-btn${explainOpen ? ' active' : ''}`}
+                  onClick={toggleExplain}
+                  title={aiReady ? '让 AI 结合原文讲透这道题' : 'AI 未开启或未配置，请到设置中检查'}
+                >
+                  <Sparkles size={12} /> AI 讲解
+                </button>
+                {selectedWrong && (
                   <button
                     className="exam-ghost-btn"
                     onClick={() => onRedoWrong(selected.passageKey, [selected.id])}
                   >
                     <RotateCw size={12} /> 重做本题
                   </button>
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="reading-review-stem">{selected.stem}</div>
 
@@ -483,6 +534,82 @@ export function ReadingReview({ session, questions, attempts, wrongbook, onBack,
                 <div className="reading-review-note">
                   <b>答案说明</b>
                   <p>{selected.answerNote}</p>
+                </div>
+              )}
+
+              {explainOpen && (
+                <div className="reading-ai-explain">
+                  <div className="reading-ai-explain-head">
+                    <span className="reading-ai-card-title"><Sparkles size={13} /> AI 讲解</span>
+                    <span className="reading-ai-explain-sub">{QTYPE_LABEL[selected.qtype] || selected.qtype}</span>
+                    <button className="icon-btn" onClick={() => setExplainOpenId(null)} aria-label="关闭讲解">
+                      <X size={13} />
+                    </button>
+                  </div>
+
+                  {!aiReady && (
+                    <p className="reading-ai-menu-hint">AI 未开启或未配置，请到设置中检查</p>
+                  )}
+
+                  {aiReady && explainLoading && (
+                    <div className="reading-ai-loading">
+                      <Loader2 size={15} className="spin" /> 正在结合原文讲解…
+                    </div>
+                  )}
+
+                  {aiReady && explainError && !explainLoading && (
+                    <div className="reading-ai-error">
+                      <b>讲解失败</b>
+                      <p>{explainError}</p>
+                      <div className="reading-ai-error-ops">
+                        <button className="exam-ghost-btn" onClick={retryExplain}>重试</button>
+                        <span>请确认已在设置中开启 AI 并配置模型</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {aiReady && !explainLoading && !explainError && !explainDraft && (
+                    <div className="reading-ai-error-ops">
+                      <span>未拿到可用讲解</span>
+                      <button className="exam-ghost-btn" onClick={retryExplain}>重新讲解</button>
+                    </div>
+                  )}
+
+                  {explainDraft && !explainLoading && (
+                    <div className="reading-ai-explain-body">
+                      {explainDraft.verdict && (
+                        <div className="reading-ai-row"><span>结论</span><p>{explainDraft.verdict}</p></div>
+                      )}
+                      {explainDraft.approach && (
+                        <div className="reading-ai-row"><span>思路</span><p>{explainDraft.approach}</p></div>
+                      )}
+                      {explainDraft.evidence && (
+                        <div className="reading-ai-sentence">
+                          <span>原文依据</span>
+                          <p>{explainDraft.evidence}</p>
+                          {explainDraft.evidenceZh && (
+                            <>
+                              <span>译文</span>
+                              <p>{explainDraft.evidenceZh}</p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {explainDraft.options.length > 0 && (
+                        <div className="reading-ai-explain-options">
+                          {explainDraft.options.map((item) => (
+                            <div key={item.letter} className={`reading-ai-option ${item.verdict}`}>
+                              <b>{item.letter}</b>
+                              <p>{item.reason}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {explainDraft.tip && (
+                        <div className="reading-ai-row"><span>点拨</span><p>{explainDraft.tip}</p></div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

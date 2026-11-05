@@ -7898,6 +7898,40 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .reading-ai-sentence p:last-child { margin-bottom: 0; }
 
+/* —— 复盘题目的 AI 讲解（内嵌在题目卡里，不是浮层） —— */
+.reading-ai-explain {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--brand-light);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, var(--border-default));
+  border-radius: var(--radius-md);
+}
+.reading-ai-explain-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.reading-ai-explain-sub { font-size: 11px; color: var(--text-tertiary); }
+.reading-ai-explain-head .icon-btn { margin-left: auto; }
+.reading-ai-explain-body { display: flex; flex-direction: column; gap: 8px; }
+.reading-ai-explain-options { display: flex; flex-direction: column; gap: 5px; }
+.reading-ai-option {
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+.reading-ai-option b { flex-shrink: 0; width: 14px; color: var(--text-tertiary); }
+.reading-ai-option p { margin: 0; color: var(--text-secondary); }
+.reading-ai-option.right { border-color: color-mix(in srgb, var(--success) 45%, var(--border-default)); }
+.reading-ai-option.right b { color: var(--success); }
+.reading-ai-option.wrong b { color: var(--danger); }
+.reading-review-question-actions .exam-ghost-btn.active {
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  border-color: var(--brand-primary);
+}
+
 /* ==================== 199 管综刷题 ==================== */
 
 .mgmt-page .exam-reading-body { padding-bottom: 8px; }

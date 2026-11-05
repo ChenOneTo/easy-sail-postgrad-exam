@@ -8,8 +8,10 @@ import {
   buildExamPlanPrompt,
   buildPolishNotesPrompt,
   buildQuickAddPrompt,
+  buildReadingExplainPrompt,
   buildReadingWordPrompt,
   buildVocabMnemonicPrompt,
+  type ReadingExplainInput,
 } from '../lib/prompts';
 import {
   normalizeAiBreakdownDraft,
@@ -18,6 +20,7 @@ import {
   normalizeAiTaskDraft,
   normalizeExamPlanDraft,
   normalizeMnemonicDraft,
+  normalizeReadingExplainDraft,
   normalizeReadingWordDraft,
   parseAiJson,
   type AiBreakdownDraft,
@@ -25,6 +28,7 @@ import {
   type AiClassifyDraft,
   type AiExamPlanDraft,
   type AiMnemonicDraft,
+  type AiReadingExplainDraft,
   type AiReadingWordDraft,
   type AiTaskDraft,
 } from '../lib/ai-json';
@@ -168,6 +172,21 @@ export function useAiTask() {
     });
   }, [run]);
 
+  /** 阅读复盘：单题 AI 讲解（选项辨析 + 原文依据） */
+  const explainReadingQuestion = useCallback((input: ReadingExplainInput): Promise<AiReadingExplainDraft | null> => {
+    return run(async signal => {
+      const content = await chatCompletion([
+        { role: 'system', content: '你只输出可解析 JSON。' },
+        { role: 'user', content: buildReadingExplainPrompt(input) },
+      ], { signal, temperature: 0.3 });
+      const correctLetters = input.answer
+        .split('/')
+        .map(letter => letter.trim().toUpperCase())
+        .filter(Boolean);
+      return normalizeReadingExplainDraft(parseAiJson(content), correctLetters);
+    });
+  }, [run]);
+
   return {
     status,
     loading: status === 'loading',
@@ -182,5 +201,6 @@ export function useAiTask() {
     generateExamPlan,
     generateMnemonic,
     translateReadingWord,
+    explainReadingQuestion,
   };
 }

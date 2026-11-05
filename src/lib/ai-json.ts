@@ -334,3 +334,72 @@ export function normalizeReadingWordDraft(raw: unknown): AiReadingWordDraft | nu
     note: limitText(obj.note, 200),
   };
 }
+
+// —— 阅读复盘：题目 AI 讲解 ——
+
+export interface AiReadingOptionReview {
+  /** 选项字母 A/B/C/D */
+  letter: string;
+  /** right 正确项 / wrong 干扰项 */
+  verdict: 'right' | 'wrong';
+  /** 该选项对在哪或错在哪 */
+  reason: string;
+}
+
+export interface AiReadingExplainDraft {
+  /** 一句话结论：为什么选它 */
+  verdict: string;
+  /** 解题思路：先找什么再排除什么 */
+  approach: string;
+  /** 原文依据：逐字摘录的英文关键句 */
+  evidence: string;
+  /** 原文依据的中文翻译 */
+  evidenceZh: string;
+  /** 逐项辨析 */
+  options: AiReadingOptionReview[];
+  /** 易错点或可复用的做题规律 */
+  tip: string;
+}
+
+/**
+ * 校验题目讲解草稿；结论和思路都为空时判为无效，避免空卡上屏。
+ * correctLetters 给出时强制对齐答案：避免 AI 把正确项判成错误，与页面上「正确」标记自相矛盾。
+ */
+export function normalizeReadingExplainDraft(
+  raw: unknown,
+  correctLetters: string[] = [],
+): AiReadingExplainDraft | null {
+  const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const verdict = limitText(obj.verdict, 200);
+  const approach = limitText(obj.approach, 300);
+  if (!verdict && !approach) return null;
+
+  const correct = new Set(correctLetters.map(letter => letter.toUpperCase()));
+  const optionsRaw = Array.isArray(obj.options) ? obj.options.slice(0, 6) : [];
+  const seen = new Set<string>();
+  const options = optionsRaw
+    .map(item => {
+      const record = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      const letter = limitText(record.letter, 2).toUpperCase();
+      const reason = limitText(record.reason, 200);
+      if (!/^[A-F]$/.test(letter) || !reason || seen.has(letter)) return null;
+      seen.add(letter);
+      const aiSaysRight = String(record.verdict).toLowerCase() === 'right';
+      return {
+        letter,
+        verdict: (correct.size > 0 ? correct.has(letter) : aiSaysRight) ? 'right' as const : 'wrong' as const,
+        reason,
+      };
+    })
+    .filter((item): item is AiReadingOptionReview => item !== null)
+    .sort((a, b) => a.letter.localeCompare(b.letter));
+
+  return {
+    verdict,
+    approach,
+    evidence: limitText(obj.evidence, 500),
+    evidenceZh: limitText(obj.evidenceZh, 500),
+    options,
+    tip: limitText(obj.tip, 300),
+  };
+}

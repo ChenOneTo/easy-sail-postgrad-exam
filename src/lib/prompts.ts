@@ -197,3 +197,46 @@ export function buildReadingWordPrompt(word: string, sentence: string, title: st
   ].join('\n');
 }
 
+/** 阅读复盘：单题 AI 讲解所需的题目上下文 */
+export interface ReadingExplainInput {
+  /** 文章标题，如「2025 Text 1 · 人工智能」 */
+  title: string;
+  /** 原文全文，段落已带 [1] [2] 编号 */
+  passage: string;
+  stem: string;
+  options: string[];
+  /** 正确答案字母（有争议答案时为 A/B） */
+  answer: string;
+  /** 题型中文名，如「细节题」 */
+  qtype: string;
+  /** 用户所选字母，空串表示未作答 */
+  userAnswer: string;
+}
+
+/** 阅读复盘：讲清「为什么选它、别的错在哪、下次怎么快」 */
+export function buildReadingExplainPrompt(input: ReadingExplainInput): string {
+  const letters = input.options.map((option, i) => `${'ABCD'[i]}. ${option}`);
+  return [
+    '你是考研英语二阅读真题讲解老师。请针对下面这道题，讲清楚答案为什么是它、其他选项错在哪、下次怎么快速做对。',
+    '只返回 JSON，不要输出 Markdown code block，不要解释 JSON 之外的内容。',
+    'JSON schema: {"verdict":"string","approach":"string","evidence":"string","evidenceZh":"string","options":[{"letter":"A","verdict":"right|wrong","reason":"string"}],"tip":"string"}',
+    '要求：',
+    '1. verdict 一句话结论，点明正确选项靠原文哪处信息支撑（60 字内）；',
+    '2. approach 讲解题思路：该题型先定位什么、再用什么标准排除选项（100 字内）；',
+    '3. evidence 必须从原文逐字摘录的关键句（不改写、不翻译，最多 2 句）；原文确实没有对应句时返回空串；',
+    '4. evidenceZh 是 evidence 的准确中文翻译；',
+    '5. options 逐个辨析所有选项：letter 只能是选项字母，verdict 只能是 right 或 wrong，reason 说明该选项对在哪、错在哪（40 字内），错误选项要点明属于偷换概念、无中生有、过度推断、答非所问还是范围不符；',
+    '6. tip 写这道题的易错点，或可复用的做题规律（80 字内）；',
+    '7. 只依据给出的原文和选项分析，不要编造原文没有的信息，也不要改动正确答案。',
+    `文章：${input.title}`,
+    `题型：${input.qtype}`,
+    `题目：${input.stem}`,
+    '选项：',
+    ...letters,
+    `正确答案：${input.answer}`,
+    `考生答案：${input.userAnswer || '未作答'}`,
+    '文章原文：',
+    input.passage.slice(0, 6000),
+  ].join('\n');
+}
+
