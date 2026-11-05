@@ -30,7 +30,7 @@ function genId(): string {
   return `model-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** 常用服务预设，便于用户一键填充（DeepSeek 优先，OpenAI 置末） */
+/** 常用服务预设，便于用户一键填充（DeepSeek 优先，自定义置末） */
 export interface AiPreset {
   name: string;
   baseUrl: string;
@@ -49,7 +49,6 @@ export const AI_PRESETS: AiPreset[] = [
   { name: 'LongCat',     baseUrl: 'https://api.longcat.chat/openai/v1', model: 'LongCat-2.5',   desc: '美团 LongCat 开放平台', supportsModels: true },
   { name: '商汤日日新',  baseUrl: 'https://token.sensenova.cn/v1', model: 'sensenova-6.7-flash-lite', desc: '商汤 SenseNova', supportsModels: false },
   { name: 'Ollama 本地', baseUrl: 'http://localhost:11434/v1',          model: 'qwen2.5:7b',      desc: '本地部署，无需 Key', supportsModels: true },
-  { name: 'OpenAI',      baseUrl: 'https://api.openai.com/v1',         model: 'gpt-4o-mini',     desc: '官方服务，需海外网络', supportsModels: true },
   { name: '自定义',       baseUrl: '',                                   model: '',                 desc: '手动填写兼容 OpenAI 协议的接口', supportsModels: true },
 ];
 
