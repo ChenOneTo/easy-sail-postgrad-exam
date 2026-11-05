@@ -792,10 +792,10 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button style={{ ...btnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudLoad} disabled={cloudBusy}>
-                          {cloudBusy ? '处理中…' : '从云盘加载'}
+                          {cloudBusy ? '处理中…' : '加载'}
                         </button>
                         <button style={{ ...primaryBtnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudSave} disabled={cloudBusy}>
-                          {cloudBusy ? '处理中…' : '保存到云盘'}
+                          {cloudBusy ? '处理中…' : '保存'}
                         </button>
                       </div>
                     </div>
