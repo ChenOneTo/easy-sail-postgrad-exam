@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { CalendarView } from './components/CalendarView';
@@ -19,7 +20,10 @@ import { MgmtPracticePage } from './components/MgmtPracticePage';
 import { ExamPrefsPage } from './components/ExamPrefsPage';
 import { TypingVocabPage } from './components/TypingVocabPage';
 import { useTaskStore } from './stores/task-store';
+import { useVocabGameStore } from './stores/vocab-game-store';
 import { shouldShowSplashOnLaunch } from './lib/splash';
+import { isTauri } from './lib/tauri';
+import { takeSessionForMain, VOCAB_ORB_RETURN_EVENT } from './lib/vocab-orb-bridge';
 
 export default function App() {
   const { currentView, currentSection, detailTaskId, theme, closeDetail } = useTaskStore();
@@ -45,6 +49,30 @@ export default function App() {
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [closeDetail]);
+
+  // 悬浮单词卡片关闭时会把未完成的会话交还主窗口，直接回到闯关界面继续
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    void listen(VOCAB_ORB_RETURN_EVENT, () => {
+      const session = takeSessionForMain();
+      if (session) {
+        useVocabGameStore.setState({ session });
+        useTaskStore.getState().setSection('exam-vocab-game');
+        return;
+      }
+      // 悬浮卡片里已结束本关：刷新概览，避免学习台的数字滞后
+      void useVocabGameStore.getState().refresh();
+    }).then((fn) => {
+      if (disposed) fn();
+      else unlisten = fn;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   if (currentView === 'ai') {
     return (

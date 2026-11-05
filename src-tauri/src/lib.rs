@@ -1,8 +1,13 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconEvent},
-    Manager, WindowEvent,
+    Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
+
+/// 悬浮单词卡片窗口的标签，前端据此渲染独立的悬浮界面
+const VOCAB_ORB_LABEL: &str = "vocab-orb";
+/// 收起态（悬浮球）尺寸，逻辑像素
+const VOCAB_ORB_BALL_SIZE: f64 = 88.0;
 
 // Tauri 命令：退出应用
 #[tauri::command]
@@ -16,6 +21,47 @@ fn hide_to_tray(app: tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         window.hide().unwrap();
     }
+}
+
+/// 打开（或聚焦）桌面悬浮单词卡片。返回 true 表示本次新建了窗口。
+#[tauri::command]
+fn open_vocab_orb(app: tauri::AppHandle) -> Result<bool, String> {
+    if let Some(window) = app.get_webview_window(VOCAB_ORB_LABEL) {
+        window.show().map_err(|e| e.to_string())?;
+        window.unminimize().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(false);
+    }
+
+    let mut builder = WebviewWindowBuilder::new(
+        &app,
+        VOCAB_ORB_LABEL,
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("单词闯关")
+    .inner_size(VOCAB_ORB_BALL_SIZE, VOCAB_ORB_BALL_SIZE)
+    .decorations(false)
+    .transparent(true)
+    .shadow(false)
+    .resizable(false)
+    .maximizable(false)
+    .minimizable(false)
+    .always_on_top(true)
+    .skip_taskbar(true);
+
+    // 首次出现贴主屏左侧中部；之后由前端按拖动结果吸附到左侧或顶部
+    if let Ok(Some(monitor)) = app.primary_monitor() {
+        let scale = monitor.scale_factor();
+        let origin = monitor.position().to_logical::<f64>(scale);
+        let size = monitor.size().to_logical::<f64>(scale);
+        builder = builder.position(
+            origin.x + 24.0,
+            origin.y + (size.height - VOCAB_ORB_BALL_SIZE) / 2.0,
+        );
+    }
+
+    builder.build().map_err(|e| e.to_string())?;
+    Ok(true)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -42,6 +88,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             exit_app,
             hide_to_tray,
+            open_vocab_orb,
         ])
         .plugin(
             tauri_plugin_sql::Builder::new()
@@ -834,11 +881,12 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                // 点击关闭按钮直接隐藏到托盘，无需用户选择
-                api.prevent_close();
-                if let Some(win) = window.app_handle().get_webview_window("main") {
-                    let _ = win.hide();
+                // 只有主窗口关闭时隐藏到托盘；悬浮卡片等辅助窗口按普通窗口关闭
+                if window.label() != "main" {
+                    return;
                 }
+                api.prevent_close();
+                let _ = window.hide();
             }
         })
         .run(tauri::generate_context!())

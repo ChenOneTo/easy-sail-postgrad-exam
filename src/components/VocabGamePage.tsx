@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, BookOpen, CalendarDays, Check, ChevronRight, Clock, Lock,
-  Map as MapIcon, RotateCw, Search, Settings2, Target, Volume2, X,
+  Map as MapIcon, PanelTop, RotateCw, Search, Settings2, Target, Volume2, X,
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useVocabGameStore, wordStatusOf } from '../stores/vocab-game-store';
 import type { GameWord, WordStatus } from '../stores/vocab-game-store';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
@@ -11,6 +12,8 @@ import { speak, speakAccent } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { useToday } from '../hooks/use-today';
 import { localDateStr } from '../lib/utils';
+import { isTauri } from '../lib/tauri';
+import { stashSessionForOrb } from '../lib/vocab-orb-bridge';
 import type { VocabHardWord } from '../lib/exam-vocab-db';
 import type { DailyMinutes } from '../lib/vocab-game-db';
 import { VocabGameSession } from './VocabGameSession';
@@ -372,6 +375,33 @@ export function VocabGamePage() {
     });
   };
 
+  /**
+   * 打开桌面悬浮卡片。
+   * 未完成的会话先写入 localStorage 交接给悬浮窗口，再结束本窗口的会话，
+   * 避免两个窗口各自推进同一关导致进度错乱。
+   */
+  const openOrb = async () => {
+    if (!isTauri()) {
+      setBanner('悬浮卡片仅支持桌面端使用。');
+      return;
+    }
+    const current = useVocabGameStore.getState().session;
+    const transferable = current && current.phase !== 'result' ? current : null;
+    stashSessionForOrb(transferable);
+    try {
+      const created = await invoke<boolean>('open_vocab_orb');
+      if (!created) {
+        stashSessionForOrb(null);
+        setBanner('悬浮卡片已在运行，已切换到该窗口。');
+        return;
+      }
+      if (current) useVocabGameStore.getState().exit();
+    } catch (err) {
+      stashSessionForOrb(null);
+      setBanner(`悬浮卡片打开失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   if (!game.loaded) {
     return <div className="vg-page"><p className="placeholder-text">加载中…</p></div>;
   }
@@ -390,6 +420,9 @@ export function VocabGamePage() {
           <span className="vg-chip"><Clock size={14} /> 今日已学习 {todayMinutes} 分钟</span>
           <button className="vg-icon-btn" title="搜索单词" aria-label="搜索单词" onClick={() => setSearchOpen(true)}>
             <Search size={17} />
+          </button>
+          <button className="vg-ghost-btn" onClick={() => void openOrb()} title="在桌面悬浮一颗单词闯关球">
+            <PanelTop size={14} /> 悬浮速记
           </button>
           <button className="vg-ghost-btn" onClick={() => setLevelsOpen(true)}>
             <MapIcon size={14} /> 关卡地图
