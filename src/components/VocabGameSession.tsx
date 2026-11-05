@@ -69,10 +69,10 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
  * 记忆阶段的词卡
  *
  * 独立成组件并由父级用 key={word.wordId} 挂载：切词时组件重新挂载，
- * 「已翻开」状态自然重置，无需在 effect 里同步 setState。
+ * 发音等局部状态自然重置。「已翻开」由父级按 wordId 持有，
+ * 以便键盘（Enter）与按钮共用同一份状态。
  */
-function MemoryCard({ word }: { word: GameWord }) {
-  const [revealed, setRevealed] = useState(false);
+function MemoryCard({ word, revealed, onReveal }: { word: GameWord; revealed: boolean; onReveal: () => void }) {
   const marks = useVocabGameStore((s) => s.session?.marks);
   const mnemonic = useVocabGameStore((s) => s.session?.mnemonics[word.wordId]);
   const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
@@ -173,9 +173,10 @@ function MemoryCard({ word }: { word: GameWord }) {
         <button
           className="vg-primary-btn vg-reveal-btn"
           type="button"
-          onClick={() => setRevealed(true)}
+          onClick={onReveal}
         >
           翻开查看释义与助记
+          <span className="kbd">Enter</span>
         </button>
       )}
       <p className="vg-word-tip">
@@ -209,6 +210,8 @@ export function VocabGameSession() {
   const playback = useVocabPlayback();
   const [now, setNow] = useState(() => Date.now());
   const [confirmExit, setConfirmExit] = useState(false);
+  /** 已翻开释义的词：按 wordId 记录，切词后自动回到未翻开态 */
+  const [revealedWordId, setRevealedWordId] = useState<number | null>(null);
 
   // 阶段计时：以截止时间戳为准，500ms 刷新显示，避免 setInterval 漂移累积
   useEffect(() => {
@@ -235,7 +238,7 @@ export function VocabGameSession() {
     return () => window.clearTimeout(timer);
   }, [session?.phase, pickedId, nextQuestion]);
 
-  // 键盘映射：记忆 1/2/3 标记、←/→ 切卡、空格发音；测验 1-4 选项、Enter 下一题
+  // 键盘映射：记忆 Enter 翻开释义、1/2/3 标记、←/→ 切卡、空格发音；测验 1-4 选项、Enter 下一题
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
     keyRef.current = (e: KeyboardEvent) => {
@@ -249,6 +252,7 @@ export function VocabGameSession() {
           if (!playback.playing) speak(memoryWord.word);
           return;
         }
+        if (e.key === 'Enter') { e.preventDefault(); setRevealedWordId(memoryWord.wordId); return; }
         if (e.key === '1') { e.preventDefault(); mark(memoryWord.wordId, 'fuzzy'); return; }
         if (e.key === '2') { e.preventDefault(); mark(memoryWord.wordId, 'known'); return; }
         if (e.key === '3') { e.preventDefault(); mark(memoryWord.wordId, 'mastered'); return; }
@@ -361,7 +365,12 @@ export function VocabGameSession() {
               >
                 <ChevronLeft size={18} />
               </button>
-              <MemoryCard key={memoryWord.wordId} word={memoryWord} />
+              <MemoryCard
+                key={memoryWord.wordId}
+                word={memoryWord}
+                revealed={revealedWordId === memoryWord.wordId}
+                onReveal={() => setRevealedWordId(memoryWord.wordId)}
+              />
               <button
                 className="vg-card-arrow"
                 type="button"
@@ -400,7 +409,7 @@ export function VocabGameSession() {
 
             <div className="vg-screen-foot">
               <span>已认识 {knownCount} · 有点模糊 {fuzzyCount} · 已掌握 {masteredCount}</span>
-              <span className="vg-screen-shortcuts">← → 切换词卡 · 1/2/3 标记 · 空格发音</span>
+              <span className="vg-screen-shortcuts">← → 切换词卡 · Enter 翻开释义 · 1/2/3 标记 · 空格发音</span>
               <button className="vg-text-btn" type="button" onClick={beginQuiz}>
                 提前测验 <ArrowRight size={15} />
               </button>
