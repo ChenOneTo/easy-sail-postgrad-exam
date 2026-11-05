@@ -138,6 +138,10 @@ export async function searchGameWords(keyword: string, limit = 100): Promise<Voc
  * 口径包含「学习中 / 重新学习 / 到期复习」三类（即 due ≤ now 且 state ≠ new）：
  * 新卡首次评分后停在 learning 步骤等下一次到期，只取 review 会永远漏掉这批词。
  * 与「今日待复习」计数、背单词页队列口径一致；学习中优先，其次按到期时间。
+ *
+ * 但新卡首次评分后的学习步骤只有 1~10 分钟，若照单全收，当天刚闯关学过的词
+ * 几分钟后就会反过来提示「今日待复习」。故排除「今天评分过」的卡：
+ * 它们明天再自然进入复习，当天不再打扰。
  */
 export async function fetchGameDueWords(nowIso: string): Promise<VocabQueueItem[]> {
   const db = await getExamVocabDb();
@@ -148,12 +152,14 @@ export async function fetchGameDueWords(nowIso: string): Promise<VocabQueueItem[
     WHERE c.state IN ('learning','relearning','review')
       AND c.due IS NOT NULL AND c.due <= $1
       AND c.direction = $2 AND w.archived = 0
+      AND (c.last_reviewed_at IS NULL
+           OR date(c.last_reviewed_at, 'localtime') < date('now', 'localtime'))
     ORDER BY CASE c.state WHEN 'learning' THEN 0 WHEN 'relearning' THEN 1 ELSE 2 END, c.due ASC
   `, [nowIso, GAME_DIRECTION]);
   return rows.map(rowToQueueItem);
 }
 
-/** 今日待复习数：只统计闯关方向，与复习关取词口径一致 */
+/** 今日待复习数：只统计闯关方向，与复习关取词口径一致（含「今天评分的词不计入」） */
 export async function fetchGameDueCount(nowIso: string): Promise<number> {
   const db = await getExamVocabDb();
   const rows = await db.select<{ count: number }[]>(
@@ -162,7 +168,9 @@ export async function fetchGameDueCount(nowIso: string): Promise<number> {
      JOIN exam_vocab_words w ON w.id = c.word_id
      WHERE c.state IN ('learning','relearning','review')
        AND c.due IS NOT NULL AND c.due <= $1
-       AND c.direction = $2 AND w.archived = 0`,
+       AND c.direction = $2 AND w.archived = 0
+       AND (c.last_reviewed_at IS NULL
+            OR date(c.last_reviewed_at, 'localtime') < date('now', 'localtime'))`,
     [nowIso, GAME_DIRECTION]
   );
   return rows[0]?.count ?? 0;
