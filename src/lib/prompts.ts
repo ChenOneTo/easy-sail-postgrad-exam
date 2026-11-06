@@ -240,3 +240,56 @@ export function buildReadingExplainPrompt(input: ReadingExplainInput): string {
   ].join('\n');
 }
 
+/** 管综复盘：单题 AI 解析所需的题目上下文 */
+export interface MgmtExplainInput {
+  /** 科目中文名：数学 / 逻辑 */
+  subjectLabel: string;
+  year: number;
+  qno: number;
+  /** 题型中文名：问题求解 / 条件充分性判断 / 逻辑推理 */
+  qtype: string;
+  topic: string;
+  knowledge: string;
+  stem: string;
+  options: string[];
+  /** 正确答案字母（有争议答案时为 A / B） */
+  answer: string;
+  /** 用户所选字母，空串表示未作答 */
+  userAnswer: string;
+  /** 题库自带解析，仅作参考 */
+  bankExplanation: string;
+  /** 原卷含图：题干未附图形，禁止臆测 */
+  hasFigure: boolean;
+}
+
+/** 管综复盘：讲清答案、分步推导、逐项辨析与易错点 */
+export function buildMgmtExplainPrompt(input: MgmtExplainInput): string {
+  const letters = input.options.map((option, i) => `${'ABCDE'[i]}. ${option}`);
+  return [
+    `你是考研 199 管理类联考${input.subjectLabel}真题讲解老师。请针对下面这道${input.qtype}题，讲清楚答案为什么是它、完整推导怎么走、其他选项错在哪。`,
+    '只返回 JSON，不要输出 Markdown code block，不要解释 JSON 之外的内容。',
+    'JSON schema: {"verdict":"string","approach":"string","steps":["string"],"options":[{"letter":"A","verdict":"right|wrong","reason":"string"}],"tip":"string"}',
+    '要求：',
+    '1. verdict 一句话结论，点明正确选项与关键依据（60 字内）；',
+    '2. approach 讲这类题的解题思路：先抓什么条件、用什么方法（100 字内）；',
+    '3. steps 分步推导，3–6 步，每步一句话：数学题写出关键算式与代入过程，逻辑题写出推理链并点明所用推理规则，不要跳步；',
+    '4. options 逐个辨析所有选项：letter 只能是选项字母，verdict 只能是 right 或 wrong，reason 说明该选项对在哪、错在哪（40 字内）；错误项要点明是计算错误、条件误用、偷换概念、无关项还是过度推断；',
+    '5. tip 写这道题的易错点，或可复用的套路（80 字内）；',
+    '6. 只依据给出的题干、选项和解析分析，不要编造题干没有的条件，也不要改动正确答案；',
+    '7. 条件充分性判断题严格按选项固定含义判断：A 条件(1)充分而(2)不充分；B 条件(2)充分而(1)不充分；C 两条件联合才充分；D 两个条件各自都充分；E 联合也不充分。',
+    ...(input.hasFigure
+      ? ['8. 本题原卷含图，题干没有给出图形数据：只讲能由文字确定的部分，不要臆测图形中的数值或关系。']
+      : []),
+    `科目：199 管综 · ${input.subjectLabel}`,
+    `题号：${input.year} 年第 ${input.qno} 题`,
+    `题型：${input.qtype}`,
+    `考点：${[input.topic, input.knowledge].filter(Boolean).join(' / ') || '未标注'}`,
+    `题目：${input.stem}`,
+    '选项：',
+    ...letters,
+    `正确答案：${input.answer}`,
+    `考生答案：${input.userAnswer || '未作答'}`,
+    `题库解析（仅供参考，与题干矛盾时以题干为准）：${input.bankExplanation || '无'}`,
+  ].join('\n');
+}
+

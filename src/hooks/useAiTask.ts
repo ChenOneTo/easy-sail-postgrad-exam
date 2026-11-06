@@ -6,11 +6,13 @@ import {
   buildAiChatPrompt,
   buildClassifyTasksPrompt,
   buildExamPlanPrompt,
+  buildMgmtExplainPrompt,
   buildPolishNotesPrompt,
   buildQuickAddPrompt,
   buildReadingExplainPrompt,
   buildReadingWordPrompt,
   buildVocabMnemonicPrompt,
+  type MgmtExplainInput,
   type ReadingExplainInput,
 } from '../lib/prompts';
 import {
@@ -19,6 +21,7 @@ import {
   normalizeAiClassifyDraft,
   normalizeAiTaskDraft,
   normalizeExamPlanDraft,
+  normalizeMgmtExplainDraft,
   normalizeMnemonicDraft,
   normalizeReadingExplainDraft,
   normalizeReadingWordDraft,
@@ -27,6 +30,7 @@ import {
   type AiChatDraft,
   type AiClassifyDraft,
   type AiExamPlanDraft,
+  type AiMgmtExplainDraft,
   type AiMnemonicDraft,
   type AiReadingExplainDraft,
   type AiReadingWordDraft,
@@ -187,6 +191,21 @@ export function useAiTask() {
     });
   }, [run]);
 
+  /** 管综复盘：单题 AI 解析（分步推导 + 选项辨析） */
+  const explainMgmtQuestion = useCallback((input: MgmtExplainInput): Promise<AiMgmtExplainDraft | null> => {
+    return run(async signal => {
+      const content = await chatCompletion([
+        { role: 'system', content: '你只输出可解析 JSON。' },
+        { role: 'user', content: buildMgmtExplainPrompt(input) },
+      ], { signal, temperature: 0.3 });
+      const correctLetters = input.answer
+        .split('/')
+        .map(letter => letter.trim().toUpperCase())
+        .filter(Boolean);
+      return normalizeMgmtExplainDraft(parseAiJson(content), correctLetters);
+    });
+  }, [run]);
+
   return {
     status,
     loading: status === 'loading',
@@ -202,5 +221,6 @@ export function useAiTask() {
     generateMnemonic,
     translateReadingWord,
     explainReadingQuestion,
+    explainMgmtQuestion,
   };
 }

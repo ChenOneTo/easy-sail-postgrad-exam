@@ -374,10 +374,22 @@ export function normalizeReadingExplainDraft(
   const approach = limitText(obj.approach, 300);
   if (!verdict && !approach) return null;
 
+  return {
+    verdict,
+    approach,
+    evidence: limitText(obj.evidence, 500),
+    evidenceZh: limitText(obj.evidenceZh, 500),
+    options: normalizeOptionReviews(obj.options, correctLetters),
+    tip: limitText(obj.tip, 300),
+  };
+}
+
+/** 逐项辨析校验：字母去重排序，并强制与正确答案对齐 */
+function normalizeOptionReviews(value: unknown, correctLetters: string[]): AiReadingOptionReview[] {
   const correct = new Set(correctLetters.map(letter => letter.toUpperCase()));
-  const optionsRaw = Array.isArray(obj.options) ? obj.options.slice(0, 6) : [];
+  const optionsRaw = Array.isArray(value) ? value.slice(0, 6) : [];
   const seen = new Set<string>();
-  const options = optionsRaw
+  return optionsRaw
     .map(item => {
       const record = item && typeof item === 'object' ? item as Record<string, unknown> : {};
       const letter = limitText(record.letter, 2).toUpperCase();
@@ -393,13 +405,42 @@ export function normalizeReadingExplainDraft(
     })
     .filter((item): item is AiReadingOptionReview => item !== null)
     .sort((a, b) => a.letter.localeCompare(b.letter));
+}
+
+// —— 管综复盘：题目 AI 解析 ——
+
+export interface AiMgmtExplainDraft {
+  /** 一句话结论：为什么选它 */
+  verdict: string;
+  /** 解题思路：这类题先抓什么、用什么方法 */
+  approach: string;
+  /** 分步推导 */
+  steps: string[];
+  /** 逐项辨析 */
+  options: AiReadingOptionReview[];
+  /** 易错点或可复用的套路 */
+  tip: string;
+}
+
+/** 校验管综解析草稿；结论、思路、步骤全空时判为无效 */
+export function normalizeMgmtExplainDraft(
+  raw: unknown,
+  correctLetters: string[] = [],
+): AiMgmtExplainDraft | null {
+  const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const verdict = limitText(obj.verdict, 200);
+  const approach = limitText(obj.approach, 300);
+  const stepsRaw = Array.isArray(obj.steps) ? obj.steps.slice(0, 8) : [];
+  const steps = stepsRaw
+    .map(step => limitText(step, 300))
+    .filter(Boolean);
+  if (!verdict && !approach && steps.length === 0) return null;
 
   return {
     verdict,
     approach,
-    evidence: limitText(obj.evidence, 500),
-    evidenceZh: limitText(obj.evidenceZh, 500),
-    options,
+    steps,
+    options: normalizeOptionReviews(obj.options, correctLetters),
     tip: limitText(obj.tip, 300),
   };
 }

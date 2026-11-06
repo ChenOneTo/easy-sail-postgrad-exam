@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Flag, RotateCw, Send, X,
+  ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Flag, Loader2, RotateCw, Send, Sparkles, X,
 } from 'lucide-react'
 import {
   submitMgmtSession,
@@ -15,6 +15,9 @@ import {
   upsertMgmtAttempt,
 } from '../lib/exam-mgmt-db'
 import type { MgmtAttempt, MgmtQuestion, MgmtSession as MgmtSessionRow } from '../lib/exam-mgmt-db'
+import { canUseAi } from '../lib/ai'
+import type { AiMgmtExplainDraft } from '../lib/ai-json'
+import { useAiTask } from '../hooks/useAiTask'
 import { useExamMgmtStore } from '../stores/exam-mgmt-store'
 
 interface Props {
@@ -31,6 +34,12 @@ const MODE_LABEL: Record<string, string> = {
   timed: '限时',
   set: '整套',
   wrong: '错题重做',
+}
+
+const QTYPE_LABEL: Record<string, string> = {
+  ps: '问题求解',
+  csd: '条件充分性判断',
+  logic: '逻辑推理',
 }
 
 function fmtClock(ms: number): string {
@@ -88,6 +97,13 @@ export function MgmtSession({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  // 复盘 AI 解析：结果按题目 id 缓存，切回同一题不再重复消耗额度
+  const explainAi = useAiTask()
+  const [explainOpenId, setExplainOpenId] = useState<number | null>(null)
+  const [explainPendingId, setExplainPendingId] = useState<number | null>(null)
+  const [explainCache, setExplainCache] = useState<Record<number, AiMgmtExplainDraft>>({})
+  const aiReady = canUseAi()
+
   const submittedRef = useRef(session.status === 'submitted')
   const questionStartRef = useRef(0)
   const durationsRef = useRef<Record<number, number>>({})
@@ -111,6 +127,37 @@ export function MgmtSession({
     [answers, questions],
   )
   const instantFeedback = session.mode === 'drill' || session.mode === 'wrong'
+
+  const runExplain = async (question: MgmtQuestion) => {
+    setExplainPendingId(question.id)
+    const draft = await explainAi.explainMgmtQuestion({
+      subjectLabel: subjectRule(question.subject).label,
+      year: question.year,
+      qno: question.qno,
+      qtype: QTYPE_LABEL[question.qtype] || question.qtype,
+      topic: question.topic,
+      knowledge: question.knowledge,
+      stem: question.stem,
+      options: question.options,
+      answer: [question.answer, question.disputed ? question.answerAlt : ''].filter(Boolean).join(' / '),
+      userAnswer: answers[question.id] || '',
+      bankExplanation: question.explanation,
+      hasFigure: question.hasFigure,
+    })
+    setExplainPendingId((prev) => (prev === question.id ? null : prev))
+    if (draft) setExplainCache((prev) => ({ ...prev, [question.id]: draft }))
+  }
+
+  /** 打开/收起 AI 解析；已解析过的题直接复用结果 */
+  const toggleExplain = (question: MgmtQuestion) => {
+    if (explainOpenId === question.id) {
+      setExplainOpenId(null)
+      return
+    }
+    setExplainOpenId(question.id)
+    if (!aiReady || explainCache[question.id]) return
+    void runExplain(question)
+  }
 
   const handleSubmit = useCallback(
     async (auto: boolean) => {
@@ -271,6 +318,13 @@ export function MgmtSession({
     // 按题号单题展示，避免整套题目全量铺开
     const reviewQuestion = questions[index] ?? questions[0]
     const reviewPicked = reviewQuestion ? answers[reviewQuestion.id] || '' : ''
+    const reviewExplainOpen = !!reviewQuestion && explainOpenId === reviewQuestion.id
+    const reviewExplainDraft = reviewQuestion ? explainCache[reviewQuestion.id] : undefined
+    const reviewExplainLoading = reviewExplainOpen
+      && explainPendingId === reviewQuestion?.id && explainAi.loading
+    const reviewExplainError = reviewExplainOpen && !reviewExplainDraft && !reviewExplainLoading
+      ? explainAi.error
+      : ''
     return (
       <div className="mgmt-review">
         <header className="mgmt-review-head">
@@ -313,7 +367,19 @@ export function MgmtSession({
             </div>
 
             {reviewQuestion
-              ? <ReviewCard question={reviewQuestion} picked={reviewPicked} />
+              ? (
+                <ReviewCard
+                  question={reviewQuestion}
+                  picked={reviewPicked}
+                  aiReady={aiReady}
+                  explainOpen={reviewExplainOpen}
+                  explainLoading={reviewExplainLoading}
+                  explainError={reviewExplainError}
+                  explainDraft={reviewExplainDraft}
+                  onToggleExplain={() => toggleExplain(reviewQuestion)}
+                  onRetryExplain={() => void runExplain(reviewQuestion)}
+                />
+              )
               : <p className="placeholder-text">本次练习没有题目。</p>}
           </section>
 
@@ -504,7 +570,22 @@ export function MgmtSession({
 }
 
 /** 复盘单题卡片：随题号切换只渲染一道 */
-function ReviewCard({ question, picked }: { question: MgmtQuestion; picked: string }) {
+interface ReviewCardProps {
+  question: MgmtQuestion
+  picked: string
+  aiReady: boolean
+  explainOpen: boolean
+  explainLoading: boolean
+  explainError: string
+  explainDraft?: AiMgmtExplainDraft
+  onToggleExplain: () => void
+  onRetryExplain: () => void
+}
+
+function ReviewCard({
+  question, picked, aiReady, explainOpen, explainLoading, explainError, explainDraft,
+  onToggleExplain, onRetryExplain,
+}: ReviewCardProps) {
   const ok = picked !== '' && isCorrectAnswer(question, picked)
   return (
     <article className={`mgmt-review-card${ok ? ' ok' : ' bad'}`}>
@@ -542,6 +623,91 @@ function ReviewCard({ question, picked }: { question: MgmtQuestion; picked: stri
           <summary>看解析</summary>
           <p>{question.explanation}</p>
         </details>
+      )}
+
+      <div className="mgmt-review-ai">
+        <button
+          className={`exam-ghost-btn${explainOpen ? ' active' : ''}`}
+          onClick={onToggleExplain}
+          title={aiReady ? '让 AI 分步讲透这道题' : 'AI 未开启或未配置，请到设置中检查'}
+        >
+          <Sparkles size={13} /> AI 解析
+        </button>
+        <span className="mgmt-review-ai-hint">分步推导 · 选项辨析 · 易错点</span>
+      </div>
+
+      {explainOpen && (
+        <div className="reading-ai-explain">
+          <div className="reading-ai-explain-head">
+            <span className="reading-ai-card-title"><Sparkles size={13} /> AI 解析</span>
+            <span className="reading-ai-explain-sub">{QTYPE_LABEL[question.qtype] || question.qtype}</span>
+            <button className="icon-btn" onClick={onToggleExplain} aria-label="关闭解析">
+              <X size={13} />
+            </button>
+          </div>
+
+          {!aiReady && (
+            <p className="reading-ai-menu-hint">AI 未开启或未配置，请到设置中检查</p>
+          )}
+
+          {aiReady && explainLoading && (
+            <div className="reading-ai-loading">
+              <Loader2 size={15} className="spin" /> 正在拆解这道题…
+            </div>
+          )}
+
+          {aiReady && explainError && !explainLoading && (
+            <div className="reading-ai-error">
+              <b>解析失败</b>
+              <p>{explainError}</p>
+              <div className="reading-ai-error-ops">
+                <button className="exam-ghost-btn" onClick={onRetryExplain}>重试</button>
+                <span>请确认已在设置中开启 AI 并配置模型</span>
+              </div>
+            </div>
+          )}
+
+          {aiReady && !explainLoading && !explainError && !explainDraft && (
+            <div className="reading-ai-error-ops">
+              <span>未拿到可用解析</span>
+              <button className="exam-ghost-btn" onClick={onRetryExplain}>重新解析</button>
+            </div>
+          )}
+
+          {explainDraft && !explainLoading && (
+            <div className="reading-ai-explain-body">
+              {explainDraft.verdict && (
+                <div className="reading-ai-row"><span>结论</span><p>{explainDraft.verdict}</p></div>
+              )}
+              {explainDraft.approach && (
+                <div className="reading-ai-row"><span>思路</span><p>{explainDraft.approach}</p></div>
+              )}
+              {explainDraft.steps.length > 0 && (
+                <div className="mgmt-ai-steps">
+                  <span>步骤</span>
+                  <ol>
+                    {explainDraft.steps.map((step, i) => (
+                      <li key={`${i}-${step.slice(0, 12)}`}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {explainDraft.options.length > 0 && (
+                <div className="reading-ai-explain-options">
+                  {explainDraft.options.map((item) => (
+                    <div key={item.letter} className={`reading-ai-option ${item.verdict}`}>
+                      <b>{item.letter}</b>
+                      <p>{item.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {explainDraft.tip && (
+                <div className="reading-ai-row"><span>点拨</span><p>{explainDraft.tip}</p></div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </article>
   )

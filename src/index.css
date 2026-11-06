@@ -8128,6 +8128,23 @@ input, textarea, select { font: inherit; color: inherit; }
 .mgmt-review-side { position: sticky; top: 0; }
 .mgmt-review-cell.ok { color: var(--success); background: var(--success-light); border-color: var(--success); }
 .mgmt-review-cell.bad { color: var(--danger); background: var(--danger-light); border-color: var(--danger); }
+
+/* 复盘单题的 AI 解析入口 */
+.mgmt-review-ai {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-default);
+}
+.mgmt-review-ai .exam-ghost-btn.active { color: var(--brand-primary); background: var(--brand-light); }
+.mgmt-review-ai-hint { font-size: 11px; color: var(--text-tertiary); }
+.mgmt-ai-steps { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.7; }
+.mgmt-ai-steps > span { flex-shrink: 0; width: 34px; font-size: 11px; color: var(--text-tertiary); }
+.mgmt-ai-steps ol { margin: 0; padding-left: 16px; color: var(--text-secondary); }
+.mgmt-ai-steps li { margin-bottom: 3px; }
+.mgmt-ai-steps li:last-child { margin-bottom: 0; }
 .mgmt-review-card {
   padding: 14px 16px;
   background: var(--bg-secondary);
