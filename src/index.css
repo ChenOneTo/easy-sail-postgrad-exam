@@ -41,6 +41,7 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --sidebar-width: 220px;
+  --sidebar-collapsed-width: 64px;
   --detail-width: 340px;
   --topbar-height: 46px;
   --transition: 150ms ease-out;
@@ -190,6 +191,7 @@ input, textarea, select { font: inherit; color: inherit; }
   padding: 10px 0;
   overflow: hidden;
   user-select: none;
+  transition: width var(--transition), min-width var(--transition);
 }
 
 .sidebar-header {
@@ -197,6 +199,24 @@ input, textarea, select { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.sidebar-collapse-btn {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  transition: background var(--transition), color var(--transition);
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .sidebar-logo {
@@ -207,7 +227,7 @@ input, textarea, select { font: inherit; color: inherit; }
   border-radius: 8px;
 }
 
-.sidebar-brand { overflow: hidden; }
+.sidebar-brand { flex: 1; min-width: 0; overflow: hidden; }
 .sidebar-brand h1 { font-size: 16px; font-weight: 700; white-space: nowrap; }
 .sidebar-brand span { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
 
@@ -284,6 +304,40 @@ input, textarea, select { font: inherit; color: inherit; }
   color: var(--text-tertiary);
   text-align: center;
   user-select: none;
+}
+
+/* 收起状态：只保留图标，隐藏文字与分组标题 */
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+  min-width: var(--sidebar-collapsed-width);
+}
+
+.sidebar.collapsed .sidebar-header {
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+
+.sidebar.collapsed .sidebar-brand { display: none; }
+.sidebar.collapsed .sidebar-collapse-btn { margin-left: 0; }
+
+.sidebar.collapsed .nav-section { margin-bottom: 6px; }
+.sidebar.collapsed .nav-section-title { display: none; }
+
+.sidebar.collapsed .nav-section + .nav-section {
+  border-top: 1px solid var(--border-default);
+  padding-top: 6px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-count,
+.sidebar.collapsed .sidebar-version {
+  display: none;
 }
 
 .sidebar-ai-summary {

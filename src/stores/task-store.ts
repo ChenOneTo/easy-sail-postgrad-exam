@@ -51,6 +51,8 @@ interface TaskStore {
   dbReady: boolean;
   calendarSelectedDate: string;
   viewOrder: ViewMode[];
+  /** 左侧菜单是否收起（仅显示图标） */
+  sidebarCollapsed: boolean;
 
   // 数据库操作
   loadFromDb: () => Promise<void>;
@@ -77,6 +79,7 @@ interface TaskStore {
   setAccentColor: (color: AccentColor) => void;
   setCalendarSelectedDate: (date: string) => void;
   setViewOrder: (order: ViewMode[]) => void;
+  toggleSidebarCollapsed: () => void;
 }
 
 /** 生成相对今天的日期字符串（YYYY-MM-DD，本地时区） */
@@ -151,6 +154,7 @@ export const useTaskStore = create<TaskStore>()(
       accentColor: 'green',
       dbReady: false,
       calendarSelectedDate: localDateStr(),
+      sidebarCollapsed: false,
       viewOrder: ['calendar', 'kanban'] as ViewMode[],
 
       /** 从 SQLite 加载数据 */
@@ -438,6 +442,7 @@ export const useTaskStore = create<TaskStore>()(
       },
       setCalendarSelectedDate: (date) => set({ calendarSelectedDate: date }),
       setViewOrder: (order) => set({ viewOrder: order }),
+      toggleSidebarCollapsed: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
     }),
     {
       name: STORAGE_KEY,
@@ -446,6 +451,7 @@ export const useTaskStore = create<TaskStore>()(
         accentColor: state.accentColor,
         tasks: state.tasks,
         viewOrder: state.viewOrder,
+        sidebarCollapsed: state.sidebarCollapsed,
       }),
     }
   )

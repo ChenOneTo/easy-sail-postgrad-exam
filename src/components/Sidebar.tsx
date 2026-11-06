@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain, SlidersHorizontal, PenLine, Keyboard } from 'lucide-react';
+import { Home, Settings, Bot, Bell, GraduationCap, BookOpen, Swords, Newspaper, Calculator, Brain, SlidersHorizontal, PenLine, Keyboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTaskStore } from '../stores/task-store';
 import { TASK_TYPES } from '../lib/types';
 import type { SectionId } from '../lib/types';
@@ -64,7 +64,7 @@ function getCount(tasks: ReturnType<typeof useTaskStore.getState>['tasks'], s: S
 }
 
 export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSettings: () => void; onOpenNotifications?: () => void }) {
-  const { tasks, currentSection, setSection } = useTaskStore();
+  const { tasks, currentSection, setSection, sidebarCollapsed, toggleSidebarCollapsed } = useTaskStore();
   const unreadCount = useReminderHistoryStore((s) => s.records.filter((r) => !r.read && !r.dismissed).length);
   const [appVersion, setAppVersion] = useState(() => (
     isTauri() ? '' : import.meta.env.VITE_APP_VERSION || ''
@@ -107,6 +107,7 @@ export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSetting
           <div
             key={item.id}
             className={`nav-item${currentSection === item.id ? ' active' : ''}`}
+            title={sidebarCollapsed ? item.label : undefined}
             onClick={() => setSection(item.id)}
           >
             <span className="nav-icon">{item.icon}</span>
@@ -121,20 +122,29 @@ export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSetting
   );
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
       <div className="sidebar-header">
         <img className="sidebar-logo" src="/logo2.svg" alt="轻舟AI考研" />
         <div className="sidebar-brand">
           <h1>轻舟AI考研</h1>
           <span>考研备考助手</span>
         </div>
+        <button
+          type="button"
+          className="sidebar-collapse-btn"
+          onClick={toggleSidebarCollapsed}
+          title={sidebarCollapsed ? '展开菜单' : '收起菜单'}
+          aria-label={sidebarCollapsed ? '展开菜单' : '收起菜单'}
+        >
+          {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
       </div>
       <nav className="sidebar-nav">
         {NAV_GROUPS.map((group, index) => renderGroup(group, index))}
       </nav>
       <div className="sidebar-footer">
         {onOpenNotifications && (
-          <div className="nav-item" onClick={onOpenNotifications}>
+          <div className="nav-item" title={sidebarCollapsed ? '通知中心' : undefined} onClick={onOpenNotifications}>
             <span className="nav-icon" style={{ position: 'relative' }}>
               <Bell size={16} />
               {unreadCount > 0 && (
@@ -144,7 +154,7 @@ export function Sidebar({ onOpenSettings, onOpenNotifications }: { onOpenSetting
             <span className="nav-label">通知中心</span>
           </div>
         )}
-        <div className="nav-item" onClick={onOpenSettings}>
+        <div className="nav-item" title={sidebarCollapsed ? '设置' : undefined} onClick={onOpenSettings}>
           <span className="nav-icon"><Settings size={16} /></span>
           <span className="nav-label">设置</span>
         </div>
