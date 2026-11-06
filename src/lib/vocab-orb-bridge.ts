@@ -35,13 +35,18 @@ function stash(key: string, session: GameSession | null): void {
   }
 }
 
+/** 阶段结束超过 1 小时的交接会话视为残留（如上次异常退出），直接丢弃避免一打开就结算 */
+const STALE_MS = 60 * 60 * 1000;
+
 function take(key: string): GameSession | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     localStorage.removeItem(key);
     const parsed = JSON.parse(raw) as GameSession;
-    return parsed && Array.isArray(parsed.words) ? normalize(parsed) : null;
+    if (!parsed || !Array.isArray(parsed.words)) return null;
+    if (parsed.phase !== 'result' && Date.now() - parsed.phaseEndsAt > STALE_MS) return null;
+    return normalize(parsed);
   } catch {
     localStorage.removeItem(key);
     return null;

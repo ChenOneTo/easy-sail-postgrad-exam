@@ -24,8 +24,11 @@ fn hide_to_tray(app: tauri::AppHandle) {
 }
 
 /// 打开（或聚焦）桌面悬浮单词卡片。返回 true 表示本次新建了窗口。
+///
+/// 必须写成 async：同步命令会在 IPC 线程里直接构建窗口，macOS 上创建 WebView
+/// 需要主线程调度，容易把主窗口一起卡住。
 #[tauri::command]
-fn open_vocab_orb(app: tauri::AppHandle) -> Result<bool, String> {
+async fn open_vocab_orb(app: tauri::AppHandle) -> Result<bool, String> {
     if let Some(window) = app.get_webview_window(VOCAB_ORB_LABEL) {
         window.show().map_err(|e| e.to_string())?;
         window.unminimize().map_err(|e| e.to_string())?;
@@ -60,7 +63,10 @@ fn open_vocab_orb(app: tauri::AppHandle) -> Result<bool, String> {
         );
     }
 
-    builder.build().map_err(|e| e.to_string())?;
+    builder.build().map_err(|e| {
+        eprintln!("[vocab-orb] 创建悬浮窗口失败: {e}");
+        e.to_string()
+    })?;
     Ok(true)
 }
 

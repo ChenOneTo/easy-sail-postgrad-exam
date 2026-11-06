@@ -385,11 +385,21 @@ export function VocabGamePage() {
       setBanner('悬浮卡片仅支持桌面端使用。');
       return;
     }
+    // 装载关卡 / 加载词库期间开悬浮窗，会让两个窗口同时初始化同一个 SQLite 文件
+    if (starting || startingReview || useVocabGameStore.getState().loading) {
+      setBanner('关卡正在装载，请等装载完成后再打开悬浮卡片。');
+      return;
+    }
     const current = useVocabGameStore.getState().session;
     const transferable = current && current.phase !== 'result' ? current : null;
     stashSessionForOrb(transferable);
     try {
-      const created = await invoke<boolean>('open_vocab_orb');
+      const created = await Promise.race<boolean>([
+        invoke<boolean>('open_vocab_orb'),
+        new Promise<boolean>((_, reject) => {
+          window.setTimeout(() => reject(new Error('等待窗口创建超时')), 6000);
+        }),
+      ]);
       if (!created) {
         stashSessionForOrb(null);
         setBanner('悬浮卡片已在运行，已切换到该窗口。');

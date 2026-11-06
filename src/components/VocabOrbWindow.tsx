@@ -8,6 +8,7 @@ import {
 import { emit } from '@tauri-apps/api/event';
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import type { GameMnemonic, GameWord, WordMark } from '../stores/vocab-game-store';
+import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { useVocabPlayback, isSpeaking } from '../hooks/use-speak-playback';
 import { speak, speakAccent } from '../lib/vocab-tts';
 import { splitSyllables } from '../lib/word-syllables';
@@ -44,7 +45,6 @@ function fmtClock(seconds: number): string {
  */
 export function VocabOrbWindow() {
   const session = useVocabGameStore((s) => s.session);
-  const loaded = useVocabGameStore((s) => s.loaded);
   const gotoMemory = useVocabGameStore((s) => s.gotoMemory);
   const mark = useVocabGameStore((s) => s.mark);
   const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
@@ -56,6 +56,7 @@ export function VocabOrbWindow() {
 
   // 带有交接会话时直接以卡片形态出现，避免用户再从悬浮球点一次
   const [mode, setMode] = useState<OrbMode>(() => (peekSessionForOrb() ? 'card' : 'ball'));
+  const [booting, setBooting] = useState(false);
   const [bootError, setBootError] = useState('');
   const [revealedWordId, setRevealedWordId] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -87,30 +88,15 @@ export function VocabOrbWindow() {
     return () => document.body.classList.remove('vg-orb-body');
   }, []);
 
-  // —— 数据：词库就绪后接管主窗口交接的会话（没有则等用户展开时新开一关） ——
+  // —— 只接管主窗口交接的会话：纯内存操作，窗口创建时绝不碰数据库 ——
+  // 悬浮窗口与主窗口各有独立连接池，若创建即 load 词库/关卡，会和主窗口的
+  // 「装载关卡」并发初始化同一个 SQLite 文件，表现为整个应用卡死。
   useEffect(() => {
-    void useVocabGameStore.getState().load();
-  }, []);
-
-  // 必须排在「自动开始一关」之前：接管的会话要先生效，否则会白开一关再被覆盖
-  useEffect(() => {
-    if (!loaded || handoffRef.current) return;
+    if (handoffRef.current) return;
     handoffRef.current = true;
     const incoming = takeSessionForOrb();
     if (incoming) useVocabGameStore.setState({ session: incoming });
-  }, [loaded]);
-
-  // —— 展开成卡片时自动开始一关（读实时 store，避免刚接管的会话被新关覆盖） ——
-  useEffect(() => {
-    if (mode !== 'card' || !loaded || startingRef.current) return;
-    if (useVocabGameStore.getState().session) return;
-    startingRef.current = true;
-    void useVocabGameStore.getState().startLevel().then((ok) => {
-      if (!ok) setBootError(useVocabGameStore.getState().loadError || '本关装载失败，请稍后重试。');
-    }).finally(() => {
-      startingRef.current = false;
-    });
-  }, [mode, loaded]);
+  }, []);
 
   // —— 阶段计时 ——
   const phase = session?.phase;
@@ -227,8 +213,44 @@ export function VocabOrbWindow() {
     };
   }, [snapToEdge]);
 
-  const expand = useCallback(() => setMode('card'), []);
+  /** 展开时才按需加载词库并开一关（窗口创建阶段不触碰数据库） */
+  const ensureLevel = useCallback(async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setBooting(true);
+    setBootError('');
+    try {
+      const store = useVocabGameStore.getState();
+      if (!store.loaded) await store.load();
+      const latest = useVocabGameStore.getState();
+      if (latest.session) return;
+      const ok = await latest.startLevel();
+      if (!ok) setBootError(useVocabGameStore.getState().loadError || '本关装载失败，请稍后重试。');
+    } catch (err) {
+      setBootError(err instanceof Error ? err.message : '本关装载失败，请稍后重试。');
+    } finally {
+      startingRef.current = false;
+      setBooting(false);
+    }
+  }, []);
+
+  const expand = useCallback(() => {
+    setMode('card');
+    // 有交接的会话就直接展示；没有才去读词库开新关
+    if (!useVocabGameStore.getState().session) void ensureLevel();
+  }, [ensureLevel]);
+
   const collapse = useCallback(() => setMode('ball'), []);
+
+  /** 进入测验前加载词库参数：评分依赖 profile（FSRS 保留率等），不能停在默认值 */
+  const handleBeginQuiz = useCallback(async () => {
+    try {
+      await useExamVocabStore.getState().loadFromDb();
+    } catch {
+      // 参数加载失败仍按默认 profile 评分，不阻塞测验
+    }
+    beginQuiz();
+  }, [beginQuiz]);
 
   // 形态切换后调整窗口尺寸并保持贴边（不在这里 setState，避免 effect 触发级联渲染）
   useEffect(() => {
@@ -401,26 +423,21 @@ export function VocabOrbWindow() {
               {bootError ? (
                 <>
                   <p className="vg-orb-error">{bootError}</p>
-                  <button
-                    className="vg-orb-primary"
-                    type="button"
-                    onClick={() => {
-                      setBootError('');
-                      startingRef.current = true;
-                      void useVocabGameStore.getState().startLevel().then((ok) => {
-                        setBootError(ok ? '' : (useVocabGameStore.getState().loadError || '本关装载失败，请稍后重试。'));
-                      }).finally(() => {
-                        startingRef.current = false;
-                      });
-                    }}
-                  >
+                  <button className="vg-orb-primary" type="button" onClick={() => void ensureLevel()}>
                     重新装载
                   </button>
                 </>
-              ) : (
+              ) : booting ? (
                 <>
                   <Loader2 size={18} className="vg-orb-spin" />
-                  <p>{loaded ? '正在准备本关…' : '正在加载词库…'}</p>
+                  <p>正在装载本关…</p>
+                </>
+              ) : (
+                <>
+                  <p>还没有正在进行的关卡。</p>
+                  <button className="vg-orb-primary" type="button" onClick={() => void ensureLevel()}>
+                    开始本关
+                  </button>
                 </>
               )}
             </div>
@@ -440,7 +457,7 @@ export function VocabOrbWindow() {
               onPrev={() => gotoMemory(session.memoryIndex - 1)}
               onNext={() => gotoMemory(session.memoryIndex + 1)}
               onMark={(m) => mark(memoryWord.wordId, m)}
-              onBeginQuiz={beginQuiz}
+              onBeginQuiz={() => void handleBeginQuiz()}
             />
           )}
 
