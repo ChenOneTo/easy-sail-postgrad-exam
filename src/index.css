@@ -8112,7 +8112,22 @@ input, textarea, select { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--border-default);
 }
 .mgmt-review-ops { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.mgmt-review-list { display: flex; flex-direction: column; gap: 10px; }
+/* 复盘：左侧单题详情，右侧题号导航（逐题切换，不全量铺开） */
+.mgmt-review-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  align-items: start;
+}
+.mgmt-review-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mgmt-review-side { position: sticky; top: 0; }
+.mgmt-review-cell.ok { color: var(--success); background: var(--success-light); border-color: var(--success); }
+.mgmt-review-cell.bad { color: var(--danger); background: var(--danger-light); border-color: var(--danger); }
 .mgmt-review-card {
   padding: 14px 16px;
   background: var(--bg-secondary);

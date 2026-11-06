@@ -268,6 +268,9 @@ export function MgmtSession({
   if (review && submitted) {
     const correctCount = submitted.correctCount
     const accuracy = submitted.questionCount ? Math.round((correctCount / submitted.questionCount) * 100) : 0
+    // 按题号单题展示，避免整套题目全量铺开
+    const reviewQuestion = questions[index] ?? questions[0]
+    const reviewPicked = reviewQuestion ? answers[reviewQuestion.id] || '' : ''
     return (
       <div className="mgmt-review">
         <header className="mgmt-review-head">
@@ -295,50 +298,49 @@ export function MgmtSession({
           </div>
         </header>
 
-        <div className="mgmt-review-list">
-          {questions.map((q) => {
-            const picked = answers[q.id] || ''
-            const ok = picked !== '' && isCorrectAnswer(q, picked)
-            return (
-              <article className={`mgmt-review-card${ok ? ' ok' : ' bad'}`} key={q.id}>
-                <div className="mgmt-review-card-head">
-                  <b>{q.qno}.</b>
-                  <span className={`mgmt-verdict ${ok ? 'ok' : 'bad'}`}>
-                    {ok ? <><Check size={12} /> 正确</> : <><X size={12} /> {picked ? '答错' : '未作答'}</>}
-                  </span>
-                  <span className="mgmt-q-meta">
-                    {q.year} 年 · {q.topic || '未分类'}{q.knowledge ? ` · ${q.knowledge}` : ''}
-                  </span>
-                  {q.disputed && <span className="reading-disputed-badge">存疑</span>}
-                  {q.hasFigure && <span className="mgmt-figure-tag">原卷含图</span>}
-                </div>
-                <p className="mgmt-review-stem">{q.stem}</p>
-                <div className="mgmt-review-options">
-                  {q.options.map((text, i) => {
-                    const letter = 'ABCDE'[i]
-                    const cls = letter === q.answer
-                      ? ' answer'
-                      : letter === picked ? ' picked' : ''
-                    return (
-                      <div className={`mgmt-review-option${cls}`} key={letter}>
-                        <span className="mgmt-opt-letter">{letter}</span>
-                        <span>{text}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="mgmt-review-answer-line">
-                  你选 <b>{picked || '—'}</b> · 正确答案 <b>{q.answer}{q.answerAlt ? ` / ${q.answerAlt}` : ''}</b>
-                </div>
-                {q.explanation && (
-                  <details className="mgmt-review-expl" open={!ok}>
-                    <summary>看解析</summary>
-                    <p>{q.explanation}</p>
-                  </details>
-                )}
-              </article>
-            )
-          })}
+        <div className="mgmt-review-body">
+          <section className="mgmt-review-pane">
+            <div className="reading-question-nav">
+              <span>第 {questions[index]?.qno ?? index + 1} 题 · {index + 1}/{questions.length}</span>
+              <div>
+                <button className="exam-ghost-btn" onClick={() => goTo(index - 1)} disabled={index === 0}>
+                  <ChevronLeft size={14} /> 上一题
+                </button>
+                <button className="exam-ghost-btn" onClick={() => goTo(index + 1)} disabled={index >= questions.length - 1}>
+                  下一题 <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+
+            {reviewQuestion
+              ? <ReviewCard question={reviewQuestion} picked={reviewPicked} />
+              : <p className="placeholder-text">本次练习没有题目。</p>}
+          </section>
+
+          <aside className="mgmt-review-side">
+            <div className="reading-answer-card">
+              <div className="reading-answer-card-title">
+                题号 · 正确 {correctCount}/{questions.length}
+              </div>
+              <div className="reading-answer-grid">
+                {questions.map((item, i) => {
+                  const picked = answers[item.id] || ''
+                  const ok = picked !== '' && isCorrectAnswer(item, picked)
+                  return (
+                    <button
+                      key={item.id}
+                      className={`reading-answer-cell mgmt-review-cell${ok ? ' ok' : ' bad'}${i === index ? ' current' : ''}`}
+                      title={`第 ${item.qno} 题 · ${ok ? '正确' : picked ? '答错' : '未作答'}`}
+                      onClick={() => goTo(i)}
+                    >
+                      {item.qno}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="reading-session-tip">点击题号查看该题；键盘 ← → 也可切换。</div>
+            </div>
+          </aside>
         </div>
       </div>
     )
@@ -498,5 +500,49 @@ export function MgmtSession({
         </section>
       </div>
     </div>
+  )
+}
+
+/** 复盘单题卡片：随题号切换只渲染一道 */
+function ReviewCard({ question, picked }: { question: MgmtQuestion; picked: string }) {
+  const ok = picked !== '' && isCorrectAnswer(question, picked)
+  return (
+    <article className={`mgmt-review-card${ok ? ' ok' : ' bad'}`}>
+      <div className="mgmt-review-card-head">
+        <b>{question.qno}.</b>
+        <span className={`mgmt-verdict ${ok ? 'ok' : 'bad'}`}>
+          {ok ? <><Check size={12} /> 正确</> : <><X size={12} /> {picked ? '答错' : '未作答'}</>}
+        </span>
+        <span className="mgmt-q-meta">
+          {question.year} 年 · {question.topic || '未分类'}{question.knowledge ? ` · ${question.knowledge}` : ''}
+        </span>
+        {question.disputed && <span className="reading-disputed-badge">存疑</span>}
+        {question.hasFigure && <span className="mgmt-figure-tag">原卷含图</span>}
+      </div>
+      <p className="mgmt-review-stem">{question.stem}</p>
+      <div className="mgmt-review-options">
+        {question.options.map((text, i) => {
+          const letter = 'ABCDE'[i]
+          const cls = letter === question.answer
+            ? ' answer'
+            : letter === picked ? ' picked' : ''
+          return (
+            <div className={`mgmt-review-option${cls}`} key={letter}>
+              <span className="mgmt-opt-letter">{letter}</span>
+              <span>{text}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="mgmt-review-answer-line">
+        你选 <b>{picked || '—'}</b> · 正确答案 <b>{question.answer}{question.answerAlt ? ` / ${question.answerAlt}` : ''}</b>
+      </div>
+      {question.explanation && (
+        <details className="mgmt-review-expl" open={!ok}>
+          <summary>看解析</summary>
+          <p>{question.explanation}</p>
+        </details>
+      )}
+    </article>
   )
 }
