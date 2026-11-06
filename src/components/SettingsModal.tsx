@@ -5,13 +5,18 @@ import { useExamStore } from '../stores/exam-store';
 import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import { useExamReadingStore } from '../stores/exam-reading-store';
+import { useExamClozeStore } from '../stores/exam-cloze-store';
+import { useExamMgmtStore } from '../stores/exam-mgmt-store';
 import { dbReplaceAll } from '../lib/db';
 import { getExamVocabCloudSnapshot } from '../lib/exam-vocab-db';
 import { getExamReadingCloudSnapshot } from '../lib/exam-reading-db';
+import { getExamClozeCloudSnapshot } from '../lib/exam-cloze-db';
+import { getExamMgmtCloudSnapshot } from '../lib/exam-mgmt-db';
 import { errText } from '../lib/error-text';
 import {
   getCloudDir, pickCloudDir, setCloudDir, saveToCloud, loadFromCloud,
   saveExamToCloud, saveExamVocabToCloud, saveExamReadingToCloud,
+  saveExamClozeToCloud, saveExamMgmtToCloud,
   getAutoSave, setAutoSave, getAutoInterval, setAutoInterval,
 } from '../lib/cloud';
 import {
@@ -254,7 +259,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   };
 
   /**
-   * 手动保存到云盘：任务、考研计划、背单词进度各存一个 JSON 文件。
+   * 手动保存到云盘：任务、考研计划与各刷题模块分别存一个 JSON 文件。
    * 各模块独立容错：某个模块失败不影响其余模块写入。
    * 本地没有数据的模块一律跳过，避免用空快照覆盖云端有效数据。
    */
@@ -323,12 +328,50 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       failed.push(`阅读（${errText(err)}）`);
     }
 
+    // 英语二完形：练习会话 + 作答明细 + 错题本
+    try {
+      if (!isTauri()) {
+        skipped.push('完形（浏览器模式不支持）');
+      } else {
+        const snapshot = await getExamClozeCloudSnapshot();
+        const hasData = snapshot.sessions.length > 0 || snapshot.attempts.length > 0 || snapshot.wrongbook.length > 0;
+        if (!hasData) {
+          skipped.push('完形（本地暂无进度）');
+        } else {
+          await saveExamClozeToCloud(snapshot);
+          saved.push(`完形（${snapshot.sessions.length} 次练习 / ${snapshot.wrongbook.length} 条错题）`);
+        }
+      }
+    } catch (err: unknown) {
+      failed.push(`完形（${errText(err)}）`);
+    }
+
+    // 199 管综：数学与逻辑刷题会话 + 作答明细 + 错题本
+    try {
+      if (!isTauri()) {
+        skipped.push('管综刷题（浏览器模式不支持）');
+      } else {
+        const snapshot = await getExamMgmtCloudSnapshot();
+        const mathCount = snapshot.sessions.filter((s) => s.subject === 'math').length;
+        const logicCount = snapshot.sessions.length - mathCount;
+        const hasData = snapshot.sessions.length > 0 || snapshot.attempts.length > 0 || snapshot.wrongbook.length > 0;
+        if (!hasData) {
+          skipped.push('管综刷题（本地暂无进度）');
+        } else {
+          await saveExamMgmtToCloud(snapshot);
+          saved.push(`管综刷题（数学 ${mathCount} 次 / 逻辑 ${logicCount} 次练习 · ${snapshot.wrongbook.length} 条错题）`);
+        }
+      }
+    } catch (err: unknown) {
+      failed.push(`管综刷题（${errText(err)}）`);
+    }
+
     setCloudMsg(formatSyncMsg('已保存', saved, skipped, failed));
     setCloudBusy(false);
   };
 
   /**
-   * 从云盘加载：任务、考研计划、背单词进度分别恢复。
+   * 从云盘加载：任务、考研计划与各刷题模块分别恢复。
    * 云盘缺少某模块时只提示、不清空本地数据。
    */
   const handleCloudLoad = async () => {
@@ -385,6 +428,26 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     } catch (err) {
       console.warn('[CloudLoad] 阅读加载失败:', err);
       failed.push(`阅读（${errText(err)}）`);
+    }
+
+    // 英语二完形
+    try {
+      const { restored: ok } = await useExamClozeStore.getState().restoreFromCloud();
+      if (ok) restored.push('完形进度');
+      else missing.push('完形');
+    } catch (err) {
+      console.warn('[CloudLoad] 完形加载失败:', err);
+      failed.push(`完形（${errText(err)}）`);
+    }
+
+    // 199 管综：数学 / 逻辑刷题
+    try {
+      const { restored: ok } = await useExamMgmtStore.getState().restoreFromCloud();
+      if (ok) restored.push('管综刷题进度');
+      else missing.push('管综刷题');
+    } catch (err) {
+      console.warn('[CloudLoad] 管综刷题加载失败:', err);
+      failed.push(`管综刷题（${errText(err)}）`);
     }
 
     const parts: string[] = [];
@@ -764,6 +827,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                   <div>• <b>easysail-exam-plan.json</b> — 考研计划（科目 / 阶段 / 考务）</div>
                   <div>• <b>easysail-exam-vocab.json</b> — 背单词进度（词卡调度 / 难词本 / AI 助记 / 闯关成绩）</div>
                   <div>• <b>easysail-exam-reading.json</b> — 英语二阅读（练习会话 / 作答明细 / 错题本）</div>
+                  <div>• <b>easysail-exam-cloze.json</b> — 英语二完形（练习会话 / 作答明细 / 错题本）</div>
+                  <div>• <b>easysail-exam-mgmt.json</b> — 199 管综（数学 / 逻辑刷题会话与错题本）</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <input
@@ -788,7 +853,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                     <div className="setting-row">
                       <div>
                         <div className="setting-label">手动同步</div>
-                        <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词 / 阅读进度）保存到云盘；从云盘加载会覆盖本地对应数据</div>
+                        <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词 / 阅读 / 完形 / 数学与逻辑刷题）保存到云盘；从云盘加载会覆盖本地对应数据</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button style={{ ...btnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudLoad} disabled={cloudBusy}>
