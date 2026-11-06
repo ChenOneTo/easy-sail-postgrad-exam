@@ -451,7 +451,8 @@ function main() {
   for (const q of usable) bySubject[q.subject]++
 
   const bank = {
-    version: 1,
+    // 题库内容变更时递增：前端 importMgmtBank 以 version 判断是否需要重新导入
+    version: 2,
     builtAt: new Date().toISOString(),
     paper: '199',
     dataset: {
