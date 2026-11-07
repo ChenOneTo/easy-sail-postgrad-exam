@@ -3266,9 +3266,12 @@ input, textarea, select { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 8px 0;
   border-bottom: 1px solid var(--border-default);
 }
+/* 左侧文案区允许收缩换行，把宽度让给右侧控件，避免按钮被挤成一字一行 */
+.setting-row > div:first-child { min-width: 0; }
 
 .setting-row:last-child { border-bottom: none; }
 .setting-label { font-size: 14px; }

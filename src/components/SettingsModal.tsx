@@ -659,6 +659,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const btnStyle: React.CSSProperties = {
     padding: '5px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)',
     fontSize: 13, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+    // 按钮不换行：设置行里的「加载 / 保存」曾被长描述挤成一字一行
+    whiteSpace: 'nowrap', flexShrink: 0,
   };
   const primaryBtnStyle: React.CSSProperties = { ...btnStyle, background: 'var(--brand-primary)', color: '#fff', border: 'none' };
   const inputStyle: React.CSSProperties = {
@@ -855,7 +857,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                         <div className="setting-label">手动同步</div>
                         <div className="setting-desc">将当前数据（任务 / 考研计划 / 背单词 / 阅读 / 完形 / 数学与逻辑刷题）保存到云盘；从云盘加载会覆盖本地对应数据</div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                         <button style={{ ...btnStyle, opacity: cloudBusy ? 0.6 : 1 }} onClick={handleCloudLoad} disabled={cloudBusy}>
                           {cloudBusy ? '处理中…' : '加载'}
                         </button>
