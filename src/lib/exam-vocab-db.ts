@@ -93,6 +93,8 @@ export interface VocabMnemonicRecord {
   sentenceZh: string;
   /** 考研常考含义：真题最常考义项 / 熟词僻义（旧记录为空串） */
   examMeaning: string;
+  /** 用户自定义助记（自己录的口诀/联想），与 AI 字段互不覆盖（旧记录为空串） */
+  customMnemonic: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -232,6 +234,7 @@ function rowToMnemonic(row: Record<string, unknown>): VocabMnemonicRecord {
     sentence: (row.sentence as string) || '',
     sentenceZh: (row.sentence_zh as string) || '',
     examMeaning: (row.exam_meaning as string) || '',
+    customMnemonic: (row.custom_mnemonic as string) || '',
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
   };
@@ -754,6 +757,23 @@ export async function saveVocabMnemonic(
   );
 }
 
+/**
+ * 保存用户自定义助记（口诀/联想）。
+ *
+ * 与 AI 助记同表按 word_id 一行：这里只写 custom_mnemonic，
+ * 不受 AI 重新生成影响；传空串即清空用户内容（其余字段保留）。
+ */
+export async function saveVocabCustomMnemonic(wordId: number, text: string): Promise<void> {
+  const db = await getExamVocabDb();
+  await db.execute(
+    `INSERT INTO exam_vocab_mnemonics (word_id, custom_mnemonic)
+     VALUES ($1, $2)
+     ON CONFLICT(word_id) DO UPDATE SET
+       custom_mnemonic = $2, updated_at = datetime('now')`,
+    [wordId, text.trim().slice(0, 500)]
+  );
+}
+
 // ========== 统计 ==========
 
 export interface OverallStats {
@@ -894,11 +914,13 @@ async function writeExamVocabSnapshot(db: Database, snapshot: ExamVocabCloudSnap
 
   await insertRows(
     db,
-    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning, created_at, updated_at) VALUES`,
-    10,
+    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning, custom_mnemonic, created_at, updated_at) VALUES`,
+    11,
     (snapshot.mnemonics ?? []).map((m) => [
       m.wordId, m.roots || '', m.mnemonic || '', m.method || '', m.scene || '',
       m.sentence || '', m.sentenceZh || '', m.examMeaning || '',
+      // 旧备份无此字段：容错为空串，避免恢复时把表格列数对不上
+      m.customMnemonic || '',
       m.createdAt || now, m.updatedAt || now,
     ]),
   );

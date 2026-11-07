@@ -23,7 +23,8 @@ function normalize(session: GameSession): GameSession {
   for (const [id, entry] of Object.entries(session.mnemonics ?? {})) {
     mnemonics[Number(id)] = entry.status === 'loading' ? { status: 'error' } : entry;
   }
-  return { ...session, mnemonics, busy: false, lastError: '' };
+  // customs 为后加字段：旧版本暂存的会话没有它，补空对象避免悬浮窗取用时崩溃
+  return { ...session, customs: session.customs ?? {}, mnemonics, busy: false, lastError: '' };
 }
 
 function stash(key: string, session: GameSession | null): void {

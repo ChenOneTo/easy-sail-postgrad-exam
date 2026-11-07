@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, RotateCcw, Sparkles, Volume2,
+  ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, Pencil, RotateCcw, Sparkles, Volume2,
 } from 'lucide-react';
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import type { GameMnemonic, GameWord } from '../stores/vocab-game-store';
@@ -71,6 +71,90 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
 }
 
 /**
+ * 「我的助记」：用户自己录的口诀/联想，与 AI 助记并列展示、互不覆盖。
+ *
+ * 编辑框是卡片里唯一的文本输入，键盘事件在这里截断（stopPropagation），
+ * 否则输入 1/2/3、空格、Enter 会触发卡片上的标记与切词快捷键。
+ */
+function CustomMnemonicBlock({ value, onSave }: {
+  value: string;
+  onSave: (text: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  /** 每次展开都以已保存内容开头，避免上次取消后的草稿残留 */
+  const startEdit = () => {
+    setText(value);
+    setError('');
+    setEditing(true);
+    setSaving(false);
+  };
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onSave(text);
+      setEditing(false);
+    } catch {
+      setError('保存失败，请检查后重试');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="vg-my-mnemonic">
+        <div className="vg-my-mnemonic-head">
+          <span className="vg-my-mnemonic-title"><Pencil size={12} /> 我的助记</span>
+          <button className="vg-my-mnemonic-edit" type="button" onClick={startEdit}>
+            {value ? '编辑' : '录入口诀'}
+          </button>
+        </div>
+        {value
+          ? <p className="vg-my-mnemonic-text">{value}</p>
+          : <p className="vg-my-mnemonic-hint">用你自己的谐音、拆词或联想记一遍，比只读 AI 助记更牢。</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="vg-my-mnemonic editing">
+      <div className="vg-my-mnemonic-head">
+        <span className="vg-my-mnemonic-title"><Pencil size={12} /> 我的助记</span>
+      </div>
+      <textarea
+        className="vg-my-mnemonic-input"
+        value={text}
+        autoFocus
+        rows={2}
+        maxLength={500}
+        placeholder="例如：noun 音近「闹」——名词一出场，句子就热闹起来"
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Escape') { e.preventDefault(); setEditing(false); return; }
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void save(); }
+        }}
+      />
+      {error && <p className="vg-my-mnemonic-error">{error}</p>}
+      <div className="vg-my-mnemonic-actions">
+        <span className="vg-my-mnemonic-tip">Ctrl/⌘+Enter 保存 · Esc 取消</span>
+        <button className="vg-mini-btn ghost" type="button" onClick={() => setEditing(false)}>取消</button>
+        <button className="vg-mini-btn" type="button" disabled={saving} onClick={() => void save()}>
+          {saving ? '保存中…' : '保存'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * 记忆阶段的词卡
  *
  * 独立成组件并由父级用 key={word.wordId} 挂载：切词时组件重新挂载，
@@ -81,6 +165,8 @@ function MemoryCard({ word, revealed, onReveal }: { word: GameWord; revealed: bo
   const marks = useVocabGameStore((s) => s.session?.marks);
   const mnemonic = useVocabGameStore((s) => s.session?.mnemonics[word.wordId]);
   const retryMnemonic = useVocabGameStore((s) => s.retryMnemonic);
+  const customMnemonic = useVocabGameStore((s) => s.session?.customs?.[word.wordId]);
+  const saveCustomMnemonic = useVocabGameStore((s) => s.saveCustomMnemonic);
   const examExample = getExamExample(word.word);
   const playback = useVocabPlayback();
 
@@ -173,6 +259,11 @@ function MemoryCard({ word, revealed, onReveal }: { word: GameWord; revealed: bo
             entry={mnemonic}
             onRetry={() => void retryMnemonic(word.wordId)}
           />
+          {/* 自定义助记不依赖 AI：没开 AI 也能录自己的口诀 */}
+          <CustomMnemonicBlock
+            value={customMnemonic ?? ''}
+            onSave={(text) => saveCustomMnemonic(word.wordId, text)}
+          />
         </>
       ) : (
         <button
@@ -248,6 +339,9 @@ export function VocabGameSession() {
   useEffect(() => {
     keyRef.current = (e: KeyboardEvent) => {
       if (!session) return;
+      // 焦点在输入框里时不响应卡片快捷键：「我的助记」录入 1/2/3、空格、Enter 都是正常字符
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
       if (e.key === 'Escape') { e.preventDefault(); setConfirmExit(true); return; }
       if (session.phase === 'memory' && memoryWord) {
         if (e.key === 'ArrowLeft') { e.preventDefault(); gotoMemory(session.memoryIndex - 1); return; }

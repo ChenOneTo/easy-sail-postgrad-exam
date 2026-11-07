@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Rating } from 'ts-fsrs';
 import type { VocabMnemonicRecord, VocabQueueItem } from '../lib/exam-vocab-db';
 import {
-  ensureCardsForDirection, fetchVocabMnemonics, saveVocabMnemonic,
+  ensureCardsForDirection, fetchVocabMnemonics, saveVocabCustomMnemonic, saveVocabMnemonic,
 } from '../lib/exam-vocab-db';
 import type { AiMnemonicDraft } from '../lib/ai-json';
 import { canGenerateMnemonic, generateVocabMnemonic } from '../lib/vocab-mnemonic';
@@ -101,6 +101,8 @@ export interface GameSession {
   isReview: boolean;
   /** 按 wordId 缓存的 AI 助记；进入关卡后后台预生成 */
   mnemonics: Record<number, GameMnemonic>;
+  /** 按 wordId 缓存的用户自定义助记（自己录的口诀/联想），与 AI 助记同时读库 */
+  customs: Record<number, string>;
   result: GameResult | null;
   /** 结果页写库中 */
   busy: boolean;
@@ -133,6 +135,8 @@ export interface VocabGameStore {
   mark: (wordId: number, mark: WordMark) => void;
   /** 单条助记生成失败后的重试 */
   retryMnemonic: (wordId: number) => Promise<void>;
+  /** 保存/清空用户自定义助记（口诀/联想），空串表示删除 */
+  saveCustomMnemonic: (wordId: number, text: string) => Promise<void>;
   gotoMemory: (index: number) => void;
   beginQuiz: () => void;
   pickOption: (optionId: number) => void;
@@ -362,6 +366,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
           isReplay,
           isReview: false,
           mnemonics: {},
+          customs: {},
           result: null,
           busy: false,
           lastError: '',
@@ -406,6 +411,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
           isReplay: false,
           isReview: true,
           mnemonics: {},
+          customs: {},
           result: null,
           busy: false,
           lastError: '',
@@ -450,6 +456,39 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
       setMnemonic(set, get, token, wordId, { status: 'ready', data: draft });
     } catch (err) {
       setMnemonic(set, get, token, wordId, { status: 'error', error: mnemonicErrorText(err) });
+    }
+  },
+
+  saveCustomMnemonic: async (wordId, text) => {
+    const cur = get().session;
+    if (!cur) return;
+    const token = cur.startedAt;
+    const trimmed = text.trim().slice(0, 500);
+    const prev = cur.customs[wordId] ?? '';
+
+    /** 把某个词的自定义助记写进会话（空串 = 删掉） */
+    const applyLocal = (value: string) => {
+      const s = get().session;
+      if (!s || s.startedAt !== token) return;
+      const customs = { ...s.customs };
+      if (value) customs[wordId] = value;
+      else delete customs[wordId];
+      set({ session: { ...s, customs } });
+    };
+
+    // 先落到内存：保存后立刻在原卡片上显示，不等写库
+    applyLocal(trimmed);
+    if (!isTauri()) return;
+
+    try {
+      await saveVocabCustomMnemonic(wordId, trimmed);
+      // 自定义助记在云盘快照里，标记为脏才能被自动同步带上云盘
+      useExamVocabStore.setState({ vocabDirty: true });
+    } catch (err) {
+      // 写库失败：回滚内存，避免界面显示「已保存」而库里其实没有
+      console.error('[VocabGame] 自定义助记保存失败:', err);
+      applyLocal(prev);
+      throw err;
     }
   },
 
@@ -699,8 +738,9 @@ function setMnemonic(
 
 /**
  * 关卡开始时预生成整关助记：
- * 1. 批量读库，已缓存的直接置为 ready；
- * 2. 缺的并发 3 路生成并逐个回写，用户翻到后面单词时通常已经就绪；
+ * 0. 同一次读库顺带载入用户自定义助记（与 AI 是否开启无关）；
+ * 1. 已缓存的 AI 助记直接置为 ready；
+ * 2. 缺的并发 2 路生成并逐个回写，用户翻到后面单词时通常已经就绪；
  * 3. 单条失败只标记 error，可在卡片上点重试。
  *
  * generateLimit 限制本轮生成数量：复习关词数不定，传 0 表示只复用缓存。
@@ -712,12 +752,23 @@ async function preloadMnemonics(
   token: number,
   generateLimit = Infinity,
 ): Promise<void> {
-  if (!canGenerateMnemonic()) return;
-
   let records: VocabMnemonicRecord[] = [];
   try {
     records = await fetchVocabMnemonics(words.map((w) => w.wordId));
   } catch { /* 表未迁移/读库失败：全部按未缓存处理 */ }
+
+  const customs: Record<number, string> = {};
+  for (const rec of records) {
+    if (rec.customMnemonic) customs[rec.wordId] = rec.customMnemonic;
+  }
+  {
+    const cur = get().session;
+    if (!cur || cur.startedAt !== token) return;
+    set({ session: { ...cur, customs } });
+  }
+
+  // 自定义助记已装载；没开 AI 就不必继续预生成
+  if (!canGenerateMnemonic()) return;
 
   const cached = new Map(records.map((rec) => [rec.wordId, rec]));
   const missing: GameWord[] = [];

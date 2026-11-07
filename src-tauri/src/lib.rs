@@ -839,6 +839,16 @@ pub fn run() {
                                 ALTER TABLE exam_vocab_mnemonics ADD COLUMN exam_meaning TEXT DEFAULT '';
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 9,
+                            description: "add vocab custom mnemonic",
+                            sql: r#"
+                                -- 用户自定义助记（自己的口诀/谐音/联想）。与 AI 助记同表按词存放，
+                                -- 便于记忆卡一次读出；AI 重新生成只覆盖 AI 字段，不会清掉这一列。
+                                ALTER TABLE exam_vocab_mnemonics ADD COLUMN custom_mnemonic TEXT DEFAULT '';
+                            "#,
+                        },
                     ],
                 )
                 .build(),

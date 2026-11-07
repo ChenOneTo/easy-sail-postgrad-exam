@@ -6967,6 +6967,61 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-mnemonic-retry { margin: 12px auto 0; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--danger); }
 .vg-mnemonic-retry:hover { text-decoration: underline; }
 
+/* 我的助记：用户自己录的口诀/联想，虚线框与 AI 助记区分 */
+.vg-my-mnemonic {
+  width: 100%;
+  margin: 10px auto 0;
+  padding: 9px 13px 10px;
+  text-align: left;
+  background: var(--bg-primary);
+  border: 1px dashed var(--border-default);
+  border-radius: 10px;
+}
+.vg-my-mnemonic-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vg-my-mnemonic-title { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.vg-my-mnemonic-edit { font-size: 11px; color: var(--brand-primary); }
+.vg-my-mnemonic-edit:hover { text-decoration: underline; }
+.vg-my-mnemonic p { margin: 5px 0 0; font-size: 12px; line-height: 1.65; }
+.vg-my-mnemonic-text { color: var(--text-primary); white-space: pre-wrap; }
+.vg-my-mnemonic-hint { color: var(--text-tertiary) !important; }
+.vg-my-mnemonic-input {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+}
+.vg-my-mnemonic-input:focus { border-color: var(--brand-primary); }
+.vg-my-mnemonic-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.vg-my-mnemonic-tip { margin-right: auto; font-size: 10px; color: var(--text-tertiary); }
+.vg-my-mnemonic-error { margin: 4px 0 0; font-size: 11px; color: var(--danger); }
+/* 卡片内的小号按钮，避免通用 40px 按钮撑高记忆卡 */
+.vg-mini-btn {
+  min-height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand-primary);
+  border-radius: 7px;
+}
+.vg-mini-btn:hover:not(:disabled) { background: var(--brand-hover); }
+.vg-mini-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.vg-mini-btn.ghost {
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+}
+
 .vg-example {
   width: 100%;
   margin: 14px auto 0;

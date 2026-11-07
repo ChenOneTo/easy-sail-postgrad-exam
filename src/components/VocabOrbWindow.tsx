@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ArrowRight, ChevronLeft, ChevronRight, Loader2, Minus, RotateCcw, Sparkles, Swords, Volume2, X,
+  ArrowRight, ChevronLeft, ChevronRight, Loader2, Minus, Pencil, RotateCcw, Sparkles, Swords, Volume2, X,
 } from 'lucide-react';
 import {
   currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize, primaryMonitor,
@@ -449,6 +449,7 @@ export function VocabOrbWindow() {
               revealed={revealedWordId === memoryWord.wordId}
               onReveal={() => setRevealedWordId(memoryWord.wordId)}
               mnemonic={session.mnemonics[memoryWord.wordId]}
+              custom={session.customs?.[memoryWord.wordId] ?? ''}
               onRetryMnemonic={() => void retryMnemonic(memoryWord.wordId)}
               marks={session.marks}
               index={session.memoryIndex}
@@ -526,13 +527,15 @@ export function VocabOrbWindow() {
 
 /** 记忆阶段的紧凑词卡：单词、音标、释义 / AI 助记、标记与切词 */
 function MemoryPane({
-  word, revealed, onReveal, mnemonic, onRetryMnemonic, marks, index, total,
+  word, revealed, onReveal, mnemonic, custom, onRetryMnemonic, marks, index, total,
   playback, onPrev, onNext, onMark, onBeginQuiz,
 }: {
   word: GameWord;
   revealed: boolean;
   onReveal: () => void;
   mnemonic: GameMnemonic | undefined;
+  /** 用户自定义助记（口诀），悬浮窗内只读展示，录入在主窗口记忆卡上 */
+  custom: string;
   onRetryMnemonic: () => void;
   marks: Record<number, WordMark>;
   index: number;
@@ -607,6 +610,12 @@ function MemoryPane({
               )}
               {mnemonicData.roots && <p><b>词根</b>{mnemonicData.roots}</p>}
               {mnemonicData.mnemonic && <p><b>口诀</b>{mnemonicData.mnemonic}</p>}
+            </div>
+          )}
+          {custom && (
+            <div className="vg-orb-mnemonic">
+              <div className="vg-orb-mnemonic-title"><Pencil size={12} /> 我的助记</div>
+              <p>{custom}</p>
             </div>
           )}
         </>
