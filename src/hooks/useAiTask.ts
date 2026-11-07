@@ -11,7 +11,6 @@ import {
   buildQuickAddPrompt,
   buildReadingExplainPrompt,
   buildReadingWordPrompt,
-  buildVocabMnemonicPrompt,
   type MgmtExplainInput,
   type ReadingExplainInput,
 } from '../lib/prompts';
@@ -22,7 +21,6 @@ import {
   normalizeAiTaskDraft,
   normalizeExamPlanDraft,
   normalizeMgmtExplainDraft,
-  normalizeMnemonicDraft,
   normalizeReadingExplainDraft,
   normalizeReadingWordDraft,
   parseAiJson,
@@ -36,6 +34,7 @@ import {
   type AiReadingWordDraft,
   type AiTaskDraft,
 } from '../lib/ai-json';
+import { generateVocabMnemonic } from '../lib/vocab-mnemonic';
 import type { Task } from '../lib/types';
 
 type AiStatus = 'idle' | 'loading' | 'error';
@@ -154,15 +153,9 @@ export function useAiTask() {
     });
   }, [run]);
 
-  /** 考研单词 AI 助记：词根拆解 + 联想口诀 + 例句 */
+  /** 考研单词 AI 助记：词根拆解 + 联想口诀 + 例句（重试/超时策略与闯关预生成保持一致） */
   const generateMnemonic = useCallback((word: string, meaning: string): Promise<AiMnemonicDraft | null> => {
-    return run(async signal => {
-      const content = await chatCompletion([
-        { role: 'system', content: '你只输出可解析 JSON。' },
-        { role: 'user', content: buildVocabMnemonicPrompt(word, meaning) },
-      ], { signal, temperature: 0.6 });
-      return normalizeMnemonicDraft(parseAiJson(content));
-    });
+    return run(signal => generateVocabMnemonic(word, meaning, signal));
   }, [run]);
 
   /** 阅读复盘：选中单词/短语的语境翻译 */

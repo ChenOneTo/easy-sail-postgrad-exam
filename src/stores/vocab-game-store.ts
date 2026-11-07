@@ -46,6 +46,8 @@ export interface GameWord extends VocabQueueItem {
 export interface GameMnemonic {
   status: 'loading' | 'ready' | 'error';
   data?: AiMnemonicDraft;
+  /** 失败原因（重试仍失败时作为提示标题展示，便于判断是断网还是额度问题） */
+  error?: string;
 }
 
 export interface QuizOption {
@@ -437,7 +439,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
     try {
       const draft = await generateVocabMnemonic(word.word, word.meaning);
       if (!draft) {
-        setMnemonic(set, get, token, wordId, { status: 'error' });
+        setMnemonic(set, get, token, wordId, { status: 'error', error: 'AI 未开启或未配置' });
         return;
       }
       try {
@@ -446,8 +448,8 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
         useExamVocabStore.setState({ vocabDirty: true });
       } catch { /* 存库失败不阻塞展示 */ }
       setMnemonic(set, get, token, wordId, { status: 'ready', data: draft });
-    } catch {
-      setMnemonic(set, get, token, wordId, { status: 'error' });
+    } catch (err) {
+      setMnemonic(set, get, token, wordId, { status: 'error', error: mnemonicErrorText(err) });
     }
   },
 
@@ -658,6 +660,18 @@ async function finishQuiz(set: SetFn, get: () => VocabGameStore): Promise<void> 
 /** 当前关卡的助记生成控制器；切关/退出/进入测验时中止，避免浪费额度 */
 let mnemonicAbort: AbortController | null = null;
 
+/**
+ * 同时在途的助记请求数。
+ * 原本是 3 路，但多数服务商（尤其免费额度）对并发很敏感，3 路并发时偶尔会被
+ * 限流打回单条失败，因此降到 2 路；单条失败还有 gen 内的退避重试兜底。
+ */
+const MNEMONIC_CONCURRENCY = 2;
+
+/** 失败原因转成一句可展示的提示 */
+function mnemonicErrorText(err: unknown): string {
+  return err instanceof Error && err.message ? err.message : 'AI 调用失败';
+}
+
 function mnemonicDraftFromRecord(rec: VocabMnemonicRecord): AiMnemonicDraft {
   return {
     roots: rec.roots,
@@ -739,7 +753,7 @@ async function preloadMnemonics(
       try {
         const draft = await generateVocabMnemonic(w.word, w.meaning, controller.signal);
         if (!draft) {
-          setMnemonic(set, get, token, w.wordId, { status: 'error' });
+          setMnemonic(set, get, token, w.wordId, { status: 'error', error: 'AI 未开启或未配置' });
           continue;
         }
         try {
@@ -750,10 +764,10 @@ async function preloadMnemonics(
       } catch (err) {
         if (controller.signal.aborted) return;
         console.warn('[VocabGame] AI 助记生成失败:', err);
-        setMnemonic(set, get, token, w.wordId, { status: 'error' });
+        setMnemonic(set, get, token, w.wordId, { status: 'error', error: mnemonicErrorText(err) });
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(3, targets.length) }, () => worker()));
+  await Promise.all(Array.from({ length: Math.min(MNEMONIC_CONCURRENCY, targets.length) }, () => worker()));
   if (mnemonicAbort === controller) mnemonicAbort = null;
 }

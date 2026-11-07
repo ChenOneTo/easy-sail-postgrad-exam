@@ -590,7 +590,12 @@ function MemoryPane({
             <p className="vg-orb-hint"><Loader2 size={12} className="vg-orb-spin" /> AI 助记生成中…</p>
           )}
           {mnemonic?.status === 'error' && (
-            <button className="vg-orb-retry" type="button" onClick={onRetryMnemonic}>
+            <button
+              className="vg-orb-retry"
+              type="button"
+              onClick={onRetryMnemonic}
+              title={mnemonic.error ?? '点击重试'}
+            >
               <RotateCcw size={12} /> AI 助记生成失败，点击重试
             </button>
           )}

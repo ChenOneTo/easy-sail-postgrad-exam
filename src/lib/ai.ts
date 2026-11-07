@@ -178,6 +178,37 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * AI 请求错误：额外带上 HTTP 状态与「是否值得重试」标记。
+ *
+ * 上层据此对 429/5xx/网络抖动/返回体截断做退避重试，而对 401、额度耗尽等
+ * 确定性失败直接报错，避免把额度浪费在必然失败的重试上。
+ */
+export class AiRequestError extends Error {
+  /** HTTP 状态码；网络层失败或响应体异常时为空 */
+  status?: number;
+  /** 换一次请求是否可能成功 */
+  retryable: boolean;
+
+  constructor(message: string, options: { status?: number; retryable?: boolean; cause?: unknown } = {}) {
+    super(message, { cause: options.cause });
+    this.name = 'AiRequestError';
+    this.status = options.status;
+    this.retryable = options.retryable ?? false;
+  }
+}
+
+export interface ChatOptions {
+  model?: AiModelConfig;
+  signal?: AbortSignal;
+  temperature?: number;
+  /**
+   * 整次请求的超时（毫秒）。不传则不限时。
+   * 超时按可重试错误抛出，避免界面一直停在「生成中」。
+   */
+  timeoutMs?: number;
+}
+
 /** 拼接完整的 chat/completions 端点 URL */
 function buildEndpoint(baseUrl: string): string {
   const base = baseUrl.replace(/\/+$/, '');
@@ -246,7 +277,7 @@ export async function listModels(model?: AiModelConfig): Promise<ModelInfo[]> {
  */
 export async function chatCompletion(
   messages: ChatMessage[],
-  options?: { model?: AiModelConfig; signal?: AbortSignal; temperature?: number }
+  options?: ChatOptions
 ): Promise<string> {
   const config = options?.model ?? getActiveModel();
   if (!config) throw new Error('未配置模型');
@@ -255,43 +286,85 @@ export async function chatCompletion(
 
   const url = buildEndpoint(config.baseUrl);
   const doFetch = await resolveFetch();
-  let res: Response;
+  const timeoutMs = options?.timeoutMs ?? 0;
+  // 外部取消与内部超时共用一个控制器：任一触发都中止请求
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (options?.signal) {
+    if (options.signal.aborted) controller.abort();
+    else options.signal.addEventListener('abort', onAbort, { once: true });
+  }
+  let timedOut = false;
+  const timer = timeoutMs > 0
+    ? setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs)
+    : null;
+
+  /** 超时是可重试失败；提示带秒数，便于用户判断是不是网络问题 */
+  const timeoutError = (cause: unknown) => new AiRequestError(
+    `请求超时（超过 ${Math.round(timeoutMs / 1000)} 秒）：请检查网络后重试`,
+    { retryable: true, cause },
+  );
+
   try {
-    res = await doFetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: options?.temperature ?? 0.7,
-      }),
-      signal: options?.signal,
-    });
-  } catch (err) {
-    // 用户主动取消时原样抛出，由上层静默处理
-    if (options?.signal?.aborted) throw err;
-    console.warn('[AI] 网络请求失败:', err);
-    throw new Error('网络连接失败：请检查网络，或确认 Base URL 地址是否正确', { cause: err });
-  }
-
-  if (!res.ok) {
-    let errMsg = `请求失败（HTTP ${res.status}）`;
+    let res: Response;
     try {
-      const errBody = await res.json();
-      if (errBody?.error?.message) errMsg = errBody.error.message;
-    } catch { /* 响应非 JSON */ }
-    throw new Error(friendlyAiError(errMsg));
-  }
+      res = await doFetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages,
+          temperature: options?.temperature ?? 0.7,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      // 用户主动取消时原样抛出，由上层静默处理
+      if (options?.signal?.aborted) throw err;
+      if (timedOut) {
+        console.warn('[AI] 请求超时:', err);
+        throw timeoutError(err);
+      }
+      console.warn('[AI] 网络请求失败:', err);
+      throw new AiRequestError('网络连接失败：请检查网络，或确认 Base URL 地址是否正确', {
+        retryable: true,
+        cause: err,
+      });
+    }
 
-  const data = await res.json();
-  const content: unknown = data?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string' || !content) {
-    throw new Error('模型未返回有效内容');
+    if (!res.ok) {
+      let errMsg = `请求失败（HTTP ${res.status}）`;
+      try {
+        const errBody = await res.json();
+        if (errBody?.error?.message) errMsg = errBody.error.message;
+      } catch { /* 响应非 JSON */ }
+      // 限流、超时、网关抖动值得重试；401/403/额度耗尽/模型名错误重试也没用
+      const retryable = res.status === 408 || res.status === 429 || res.status >= 500;
+      throw new AiRequestError(friendlyAiError(errMsg), { status: res.status, retryable });
+    }
+
+    let data: unknown;
+    try {
+      // 计时器覆盖到读完响应体：头已返回但身体卡住时也能结束，界面不会一直停在「生成中」
+      data = await res.json();
+    } catch (err) {
+      if (timedOut) throw timeoutError(err);
+      // 响应被截断、连接中途断开等
+      throw new AiRequestError('响应解析失败：返回内容不完整，请重试', { retryable: true, cause: err });
+    }
+    const content = (data as { choices?: { message?: { content?: unknown } }[] } | null)
+      ?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string' || !content) {
+      throw new AiRequestError('模型未返回有效内容', { retryable: true });
+    }
+    return content;
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+    options?.signal?.removeEventListener('abort', onAbort);
   }
-  return content;
 }
 
 /** 将服务商原始报错翻译为可操作的中文提示（无法识别时原样返回） */

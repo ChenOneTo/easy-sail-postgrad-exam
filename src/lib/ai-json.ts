@@ -68,8 +68,59 @@ function extractJson(text: string): string {
   throw new Error('AI 未返回 JSON');
 }
 
+/**
+ * 兜底修复模型常见的两种 JSON 小毛病：
+ * 1. 字符串里出现未转义的裸换行/制表符（模型分行排版时很常见）；
+ * 2. `}` / `]` 前多余的尾逗号。
+ * 只做这两类确定不会改变语义的修补，修不好仍由调用方按失败处理。
+ */
+function repairJson(text: string): string {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  /** 最近一个「字符串外的逗号」在 out 中的下标，用于剔除尾逗号 */
+  let commaAt = -1;
+
+  for (const ch of text) {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        out += ch;
+        continue;
+      }
+      if (ch === '\\') { escaped = true; out += ch; continue; }
+      if (ch === '"') { inString = false; out += ch; continue; }
+      if (ch === '\n') { out += '\\n'; continue; }
+      if (ch === '\r') { out += '\\r'; continue; }
+      if (ch === '\t') { out += '\\t'; continue; }
+      out += ch;
+      continue;
+    }
+    if (ch === '"') { inString = true; commaAt = -1; out += ch; continue; }
+    if (ch === ',') { commaAt = out.length; out += ch; continue; }
+    if (ch === '}' || ch === ']') {
+      if (commaAt >= 0) out = out.slice(0, commaAt);
+      commaAt = -1;
+      out += ch;
+      continue;
+    }
+    if (!/\s/.test(ch)) commaAt = -1;
+    out += ch;
+  }
+  return out;
+}
+
 export function parseAiJson<T>(text: string): T {
-  return JSON.parse(extractJson(text)) as T;
+  const raw = extractJson(text);
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    try {
+      return JSON.parse(repairJson(raw)) as T;
+    } catch {
+      throw new Error('AI 未返回有效 JSON', { cause: err });
+    }
+  }
 }
 
 function normalizeDate(value: unknown): string | null {

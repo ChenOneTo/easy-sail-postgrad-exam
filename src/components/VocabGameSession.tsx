@@ -27,7 +27,12 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
   }
   if (entry.status === 'error' || !entry.data) {
     return (
-      <button className="vg-mnemonic-retry" type="button" onClick={onRetry}>
+      <button
+        className="vg-mnemonic-retry"
+        type="button"
+        onClick={onRetry}
+        title={entry.error ?? '点击重试'}
+      >
         <RotateCcw size={13} /> AI 助记生成失败，点击重试
       </button>
     );
