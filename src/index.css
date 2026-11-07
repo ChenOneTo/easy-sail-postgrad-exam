@@ -6941,6 +6941,14 @@ input, textarea, select { font: inherit; color: inherit; }
   background: var(--bg-secondary);
   border-radius: 4px;
 }
+/* 换一种记忆法重写：靠右的小图标按钮 */
+.vg-mnemonic-refresh {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+.vg-mnemonic-refresh:hover { color: var(--brand-primary); }
 .vg-mnemonic-scene,
 .vg-mnemonic-exam { color: var(--text-primary) !important; }
 .vg-mnemonic-exam { font-weight: 600; }

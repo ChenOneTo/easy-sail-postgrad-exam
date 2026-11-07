@@ -7,7 +7,7 @@ import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { isTauri } from '../lib/tauri';
 import { speak, stopSpeak } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
-import type { AiMnemonicDraft } from '../lib/ai-json';
+import { mnemonicRootsLabel, type AiMnemonicDraft } from '../lib/ai-json';
 
 /**
  * 单词 AI 助记浮层：词根拆解 + 联想口诀 + 一句例句。
@@ -126,7 +126,10 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
                 </div>
               )}
               {draft.roots && (
-                <div className="vocab-mnemonic-row"><span className="vocab-mnemonic-label">词根</span><span>{draft.roots}</span></div>
+                <div className="vocab-mnemonic-row">
+                  <span className="vocab-mnemonic-label">{mnemonicRootsLabel(draft.method)}</span>
+                  <span>{draft.roots}</span>
+                </div>
               )}
               <div className="vocab-mnemonic-row"><span className="vocab-mnemonic-label">助记</span><span>{draft.mnemonic}</span></div>
               {draft.scene && (

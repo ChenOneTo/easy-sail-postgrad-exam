@@ -325,10 +325,11 @@ export function normalizeExamPlanDraft(raw: unknown): AiExamPlanDraft {
 // —— 考研单词 AI 助记 ——
 
 export interface AiMnemonicDraft {
-  /** 词根拆解或谐音口诀 */
+  /** 口诀（词根法/密码法/谐音法等通用的那一句记忆钩子） */
   mnemonic: string;
+  /** 随方法而变：词根法的词根词缀 / 密码法的字母拆解（tr(树)+ad(广告)+e(鹅)）/ 拆分法的构词 */
   roots: string;
-  /** 记忆法类型：谐音 / 词根 / 拆分 / 画面 / 故事 */
+  /** 记忆法类型：谐音 / 密码 / 词根 / 拆分 / 故事（旧记录可能是「画面」） */
   method: string;
   /** 生动、夸张、具体的画面或小故事 */
   scene: string;
@@ -337,6 +338,14 @@ export interface AiMnemonicDraft {
   sentenceZh: string;
   /** 考研常考含义：真题里最常考的义项或熟词僻义（旧记录为空串） */
   examMeaning: string;
+}
+
+/**
+ * roots 字段的展示名：密码法/拆分法存的是字母或构词拆解，
+ * 词根法存的才是真词根，界面上分别标「拆分」「词根」。
+ */
+export function mnemonicRootsLabel(method: string): string {
+  return /密码|拆分/.test(method) ? '拆分' : '词根';
 }
 
 /** 校验 AI 助记草稿字段存在性，脏数据降级丢弃不抛错（返回 null） */

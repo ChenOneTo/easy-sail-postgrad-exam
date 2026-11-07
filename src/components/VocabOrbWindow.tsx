@@ -12,6 +12,7 @@ import { useExamVocabStore } from '../stores/exam-vocab-store';
 import { useVocabPlayback, isSpeaking } from '../hooks/use-speak-playback';
 import { speak, speakAccent } from '../lib/vocab-tts';
 import { splitSyllables } from '../lib/word-syllables';
+import { mnemonicRootsLabel } from '../lib/ai-json';
 import {
   peekSessionForOrb, stashSessionForMain, takeSessionForOrb, VOCAB_ORB_RETURN_EVENT,
 } from '../lib/vocab-orb-bridge';
@@ -608,7 +609,7 @@ function MemoryPane({
               {mnemonicData.examMeaning && (
                 <p><b>常考</b>{mnemonicData.examMeaning}</p>
               )}
-              {mnemonicData.roots && <p><b>词根</b>{mnemonicData.roots}</p>}
+              {mnemonicData.roots && <p><b>{mnemonicRootsLabel(mnemonicData.method)}</b>{mnemonicData.roots}</p>}
               {mnemonicData.mnemonic && <p><b>口诀</b>{mnemonicData.mnemonic}</p>}
             </div>
           )}

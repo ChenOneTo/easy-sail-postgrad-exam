@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, Pencil, RotateCcw, Sparkles, Volume2,
+  ArrowRight, Check, ChevronLeft, ChevronRight, Clock, Loader2, Pencil, RefreshCw, RotateCcw, Sparkles, Volume2,
 } from 'lucide-react';
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import type { GameMnemonic, GameWord } from '../stores/vocab-game-store';
+import { mnemonicRootsLabel } from '../lib/ai-json';
 import { speak, speakAccent, stopSpeak } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { getExamExample } from '../lib/vocab-examples';
@@ -43,11 +44,21 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
       <div className="vg-mnemonic-title">
         <Sparkles size={13} /> AI 助记
         {method && <span className="vg-mnemonic-method">{method}</span>}
+        {/* 老记录可能已缓存成旧方法，这里可让 AI 换一种记忆法重写 */}
+        <button
+          className="vg-mnemonic-refresh"
+          type="button"
+          title="重新生成助记（会换一种记忆法，消耗一次额度）"
+          aria-label="重新生成助记"
+          onClick={onRetry}
+        >
+          <RefreshCw size={12} />
+        </button>
       </div>
       {examMeaning && (
         <p className="vg-mnemonic-exam"><span className="vg-mnemonic-tag">常考</span>{examMeaning}</p>
       )}
-      {roots && <p><span className="vg-mnemonic-tag">词根</span>{roots}</p>}
+      {roots && <p><span className="vg-mnemonic-tag">{mnemonicRootsLabel(method)}</span>{roots}</p>}
       <p><span className="vg-mnemonic-tag">口诀</span>{mnemonic}</p>
       {scene && <p className="vg-mnemonic-scene"><span className="vg-mnemonic-tag">画面</span>{scene}</p>}
       {sentence && (
