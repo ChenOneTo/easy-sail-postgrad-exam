@@ -13,6 +13,7 @@ import { useVocabPlayback, isSpeaking } from '../hooks/use-speak-playback';
 import { speak, speakAccent } from '../lib/vocab-tts';
 import { splitSyllables } from '../lib/word-syllables';
 import { mnemonicRootsLabel } from '../lib/ai-json';
+import { getMnemonicMethodPrefs } from '../lib/vocab-mnemonic';
 import {
   peekSessionForOrb, stashSessionForMain, takeSessionForOrb, VOCAB_ORB_RETURN_EVENT,
 } from '../lib/vocab-orb-bridge';
@@ -550,8 +551,14 @@ function MemoryPane({
   const syllables = splitSyllables(word.word);
   const currentMark = marks[word.wordId];
   const mnemonicData = mnemonic?.status === 'ready' ? mnemonic.data : undefined;
-  const homophone = mnemonicData?.variants.find((v) => v.method.includes('谐音'));
-  const cipher = mnemonicData?.variants.find((v) => v.method.includes('密码'));
+  /** 谐音 / 密码两条附加口诀的开关：设置里关掉的即使缓存有也不展示 */
+  const [methodPrefs] = useState(getMnemonicMethodPrefs);
+  const homophone = methodPrefs.homophone
+    ? mnemonicData?.variants.find((v) => v.method.includes('谐音'))
+    : undefined;
+  const cipher = methodPrefs.cipher
+    ? mnemonicData?.variants.find((v) => v.method.includes('密码'))
+    : undefined;
 
   return (
     <>

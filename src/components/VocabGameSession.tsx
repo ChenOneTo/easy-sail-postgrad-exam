@@ -5,6 +5,7 @@ import {
 import { useVocabGameStore } from '../stores/vocab-game-store';
 import type { GameMnemonic, GameWord } from '../stores/vocab-game-store';
 import { mnemonicRootsLabel } from '../lib/ai-json';
+import { getMnemonicMethodPrefs } from '../lib/vocab-mnemonic';
 import { speak, speakAccent, stopSpeak } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { getExamExample } from '../lib/vocab-examples';
@@ -23,6 +24,8 @@ function fmtClock(seconds: number): string {
  */
 function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () => void }) {
   const playback = useVocabPlayback();
+  /** 谐音 / 密码两条附加口诀的开关（设置页可改，切词重挂载时重新读取） */
+  const [methodPrefs] = useState(getMnemonicMethodPrefs);
 
   if (!entry) return null;
   if (entry.status === 'loading') {
@@ -50,8 +53,13 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
   }
 
   const { method, mnemonic, roots, scene, sentence, sentenceZh, examMeaning } = entry.data;
-  const homophone = entry.data.variants.find((v) => v.method.includes('谐音'));
-  const cipher = entry.data.variants.find((v) => v.method.includes('密码'));
+  // 设置里关掉的方法即使缓存里有也不展示
+  const homophone = methodPrefs.homophone
+    ? entry.data.variants.find((v) => v.method.includes('谐音'))
+    : undefined;
+  const cipher = methodPrefs.cipher
+    ? entry.data.variants.find((v) => v.method.includes('密码'))
+    : undefined;
 
   return (
     <div className="vg-mnemonic">

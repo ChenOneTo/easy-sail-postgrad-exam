@@ -22,6 +22,41 @@ export function canGenerateMnemonic(): boolean {
   return canUseAi();
 }
 
+/** AI 助记里两种附加口诀的开关（设置页可关，关掉后既不生成也不展示） */
+export interface MnemonicMethodPrefs {
+  /** 谐音口诀 */
+  homophone: boolean;
+  /** 密码口诀 */
+  cipher: boolean;
+}
+
+const METHOD_PREFS_KEY = 'easysail-exam-mnemonic-methods';
+/** 默认都开：新装用户直接能看到两种方法 */
+const DEFAULT_METHOD_PREFS: MnemonicMethodPrefs = { homophone: true, cipher: true };
+
+export function getMnemonicMethodPrefs(): MnemonicMethodPrefs {
+  try {
+    const raw = localStorage.getItem(METHOD_PREFS_KEY);
+    if (!raw) return { ...DEFAULT_METHOD_PREFS };
+    const parsed = JSON.parse(raw) as Partial<MnemonicMethodPrefs>;
+    return {
+      homophone: parsed.homophone !== false,
+      cipher: parsed.cipher !== false,
+    };
+  } catch {
+    return { ...DEFAULT_METHOD_PREFS };
+  }
+}
+
+/** 更新开关并落盘，返回更新后的完整开关 */
+export function setMnemonicMethodPrefs(updates: Partial<MnemonicMethodPrefs>): MnemonicMethodPrefs {
+  const next = { ...getMnemonicMethodPrefs(), ...updates };
+  try {
+    localStorage.setItem(METHOD_PREFS_KEY, JSON.stringify(next));
+  } catch { /* 隐私模式忽略 */ }
+  return next;
+}
+
 /**
  * 哪些失败值得再要一次：
  * - 网络失败 / 超时 / 5xx / 429：默认重试；
@@ -72,11 +107,14 @@ export async function generateVocabMnemonic(
    */
   let thinkingUnsupported = false;
 
+  // 用户关掉的方法不请求，省 token 也避免界面上出现不想看的条目
+  const methods = getMnemonicMethodPrefs();
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const content = await chatCompletion([
         { role: 'system', content: '你只输出可解析 JSON。' },
-        { role: 'user', content: buildVocabMnemonicPrompt(word, meaning) },
+        { role: 'user', content: buildVocabMnemonicPrompt(word, meaning, methods) },
       ], {
         signal,
         temperature: 0.6,

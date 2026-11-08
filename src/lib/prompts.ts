@@ -161,35 +161,57 @@ export function buildExamPlanPrompt(subjectName: string, requirement: string, ex
 /**
  * 考研单词 AI 助记：保留原有的词根 + 口诀 + 画面，另外追加「谐音口诀」「密码口诀」。
  *
- * 三者一次生成、同屏展示，不做切换：
- * - 主助记沿用老逻辑（词根 / 拆分 / 故事，roots + mnemonic + scene 全保留）；
- * - 谐音口诀用整词读音贴近的中文（pest→拍死它）；
- * - 密码口诀把单词拆成字母块，按「字母密码」取形象（tr 树 + ad 广告 + e 鹅）串成口诀。
+ * 三者一次生成、同屏展示，不做切换。两种附加口诀可在设置里单独关闭：
+ * 关掉的那条既不请求也不展示，省 token 也避免看到不想要的内容。
  */
-export function buildVocabMnemonicPrompt(word: string, meaning: string): string {
+export function buildVocabMnemonicPrompt(
+  word: string,
+  meaning: string,
+  methods: { homophone: boolean; cipher: boolean } = { homophone: true, cipher: true },
+): string {
+  const { homophone, cipher } = methods;
+  const needExtra = homophone || cipher;
+  const methodNames = [homophone && '谐音口诀', cipher && '密码口诀'].filter(Boolean).join('、');
+
+  // variants 的 schema 片段按开关拼，关掉的方法不进 JSON 结构，模型也不会产出
+  const variantFields = [
+    homophone ? '{"method":"谐音","mnemonic":"string(谐音口诀,10~30字)"}' : '',
+    cipher ? '{"method":"密码","roots":"string(按拼写顺序的字母拆解,如 tr(树)+ad(广告)+e(鹅))","mnemonic":"string(按拆解顺序串起来的密码口诀,10~45字)"}' : '',
+  ].filter(Boolean).join(',');
+
+  const schema = '{"examMeaning":"string(考研英语二最常考的一个义项或用法,40字内)","sentence":"string(一句考研语境例句,含该词,120字内)","sentenceZh":"string(sentence的中文翻译,60字内)","method":"string(主助记的记忆法,只能是:词根/拆分/故事之一)","mnemonic":"string(主助记口诀,10~45字)","roots":"string(主助记的词根词缀或构词拆解,40字内,不确定则为空串)","scene":"string(40~90字,延续主助记口诀的单镜头画面,必须出现英文单词)"'
+    + (needExtra ? `,"variants":[${variantFields}]}` : '}');
+
+  const orderRule = [
+    homophone ? '第 1 条 method="谐音"' : '',
+    cipher ? `${homophone ? '第 2 条' : '第 1 条'} method="密码"` : '',
+  ].filter(Boolean).join('，');
+
   return [
     '你是考研英语助记专家，擅长用短口诀和单一、鲜明的画面建立「音/形 → 义」的牢固联想。',
-    '同一个单词要给出三份助记：主助记（词根/拆分/故事）、谐音口诀、密码口诀。三份各写各的，不要互相复述，但都指向同一个考研核心义项。',
+    needExtra
+      ? `同一个单词除了主助记（词根/拆分/故事），还要给出 ${methodNames}。各份各写各的，不要互相复述，但都指向同一个考研核心义项。`
+      : '同一个单词只写一份主助记（词根/拆分/故事），不需要谐音或字母密码。',
     '只返回 JSON，不要输出 Markdown code block，不要解释 JSON 之外的内容。',
-    'JSON schema: {"examMeaning":"string(考研英语二最常考的一个义项或用法,40字内)","sentence":"string(一句考研语境例句,含该词,120字内)","sentenceZh":"string(sentence的中文翻译,60字内)","method":"string(主助记的记忆法,只能是:词根/拆分/故事之一)","mnemonic":"string(主助记口诀,10~45字)","roots":"string(主助记的词根词缀或构词拆解,40字内,不确定则为空串)","scene":"string(40~90字,延续主助记口诀的单镜头画面,必须出现英文单词)","variants":[{"method":"谐音","mnemonic":"string(谐音口诀,10~30字)"},{"method":"密码","roots":"string(按拼写顺序的字母拆解,如 tr(树)+ad(广告)+e(鹅))","mnemonic":"string(按拆解顺序串起来的密码口诀,10~45字)"}]}',
+    `JSON schema: ${schema}`,
     `单词：${word}`,
     `释义：${meaning.trim().slice(0, 120)}`,
-    '先确定 examMeaning（优先熟词僻义，不罗列词典义项），三份助记和例句都只围绕这一个义项。',
+    '先确定 examMeaning（优先熟词僻义，不罗列词典义项），所有口诀和例句都只围绕这一个义项。',
     '主助记（method / mnemonic / roots / scene）：有可靠词源用词根法，复合词或明显可拆词用拆分法，其余用故事法；主助记不要用谐音或字母密码（它们各有专条）；roots 只写确定的词根词缀或构词，没有可靠依据就返回空串；mnemonic 要像能顺口复述的一句口诀，形成「音/形钩子 → 中文目标义」的闭环；scene 只保留一个地点、一个主角、一条连续动作线，关键物体不超过 3 个，用一处夸张细节，直接写能看见的动作和结果并自然写出英文单词一次，禁止「象征、代表、寓意」这类解释。',
-    'variants 固定两条、顺序固定：第 1 条 method="谐音"，第 2 条 method="密码"。',
-    '谐音口诀：用整词或长音节的实际读音贴近中文，如 pest→拍死它、crystal→贵石头、delay→地雷。谐音必须贴合读音，不能为凑音扭转读音，roots 返回空串。',
-    '密码口诀：按拼写顺序把单词拆成 1~4 个字母块，每块从下面的字母密码里取一个具体形象，roots 写成 tr(树)+ad(广告)+e(鹅) 的形式；mnemonic 必须按 roots 的顺序逐个点到这些形象（不增不减），再落到目标义。',
-    '字母密码参考（同一字母可换用更贴切的一个含义；表里没有的用拼音首字母或字母形状）：',
-    'a 一个/爱 · b 6/笔/爸 · c 月亮/吸 · d 大/弟 · e 鹅/电 · f 头发/父 · g 9/哥 · h 椅子 · i 我/蜡烛 · j 鸡/家 · k 老K/老客 · l 1/棍子 · m 妈/幕 · n 门/你 · o 太阳/洞 · p 红旗/皮 · q 企鹅/去 · r 草/人 · s 蛇 · t 伞/踢 · u 你/桶 · v 胜利手势/钉耙/五 · w 水/屋 · x 十字架/六 · y 树丫/牙 · z 闪电/2',
-    '常见组合：tr 树 · ad 广告 · an 安 · ar 艺术 · ca 叉 · ch 吃/车 · cl 窗帘 · cr 超人 · dr 敌人 · er 儿/耳 · ex 前面 · fr 飞人 · gr 工人 · he 他 · ic IC卡 · in 里面 · ing 鹰 · ink 墨水 · is 是 · le 乐 · ma 妈 · mo 魔鬼 · no 没有 · oo 眼睛 · ou 欧 · pe 胖 · pl 漂亮 · qu 去 · re 热 · sh 是 · si 死 · st 石头 · ta 塔 · th 天 · tion 神 · un 不 · ur 你 · vi 六',
-    '谐音与密码两条都必须写：某一套确实牵强时给出最自然的一版，不要留空、不要换成别的方法、不要复制主助记。sentence 用考研阅读常见语境造句，sentenceZh 准确翻译。',
+    needExtra ? `variants 只放已要求的 ${homophone && cipher ? '两条' : '一条'}，顺序固定：${orderRule}。` : '',
+    homophone ? '谐音口诀：用整词或长音节的实际读音贴近中文，如 pest→拍死它、crystal→贵石头、delay→地雷。谐音必须贴合读音，不能为凑音扭转读音，roots 返回空串。' : '',
+    cipher ? '密码口诀：按拼写顺序把单词拆成 1~4 个字母块，每块从下面的字母密码里取一个具体形象，roots 写成 tr(树)+ad(广告)+e(鹅) 的形式；mnemonic 必须按 roots 的顺序逐个点到这些形象（不增不减），再落到目标义。' : '',
+    cipher ? '字母密码参考（同一字母可换用更贴切的一个含义；表里没有的用拼音首字母或字母形状）：' : '',
+    cipher ? 'a 一个/爱 · b 6/笔/爸 · c 月亮/吸 · d 大/弟 · e 鹅/电 · f 头发/父 · g 9/哥 · h 椅子 · i 我/蜡烛 · j 鸡/家 · k 老K/老客 · l 1/棍子 · m 妈/幕 · n 门/你 · o 太阳/洞 · p 红旗/皮 · q 企鹅/去 · r 草/人 · s 蛇 · t 伞/踢 · u 你/桶 · v 胜利手势/钉耙/五 · w 水/屋 · x 十字架/六 · y 树丫/牙 · z 闪电/2' : '',
+    cipher ? '常见组合：tr 树 · ad 广告 · an 安 · ar 艺术 · ca 叉 · ch 吃/车 · cl 窗帘 · cr 超人 · dr 敌人 · er 儿/耳 · ex 前面 · fr 飞人 · gr 工人 · he 他 · ic IC卡 · in 里面 · ing 鹰 · ink 墨水 · is 是 · le 乐 · ma 妈 · mo 魔鬼 · no 没有 · oo 眼睛 · ou 欧 · pe 胖 · pl 漂亮 · qu 去 · re 热 · sh 是 · si 死 · st 石头 · ta 塔 · th 天 · tion 神 · un 不 · ur 你 · vi 六' : '',
+    needExtra ? '要求的每一条都必须写：确实牵强时给出最自然的一版，不要留空、不要换成别的方法、不要复制主助记。sentence 用考研阅读常见语境造句，sentenceZh 准确翻译。' : 'sentence 用考研阅读常见语境造句，sentenceZh 准确翻译。',
     '内容积极健康，不要低俗、暴力、歧视或政治敏感内容。',
-    '输出前自检：variants 两条的 method 与顺序是否正确？主助记的词根/构词是否真实？三条口诀能否各自一口气复述？密码的字母块是否按拼写顺序覆盖整个单词、口诀是否逐个点到而没有多出别的代码？三者是否指向同一义项？任一项不满足就重写后再输出。',
+    `输出前自检：${needExtra ? `variants 的条数与 method 顺序是否正确？` : ''}主助记的词根/构词是否真实？各条口诀能否各自一口气复述？${cipher ? '密码的字母块是否按拼写顺序覆盖整个单词、口诀是否逐个点到而没有多出别的代码？' : ''}是否都指向同一义项？任一项不满足就重写后再输出。`,
     '示例（只学组织方式，不要照抄内容）：',
     '主助记：dismiss（不予考虑）→ method：词根；roots：dis(分开)+miss(送)；mnemonic：把意见送走，就不予考虑了。',
-    '谐音条：pest（有害物）→ mnemonic：pest 谐音「拍死它」——见到有害物先拍死。',
-    '密码条：trade（贸易）→ roots：tr(树)+ad(广告)+e(鹅)；mnemonic：树上那只做广告的鹅，是来做贸易的。',
-  ].join('\n');
+    homophone ? '谐音条：pest（有害物）→ mnemonic：pest 谐音「拍死它」——见到有害物先拍死。' : '',
+    cipher ? '密码条：trade（贸易）→ roots：tr(树)+ad(广告)+e(鹅)；mnemonic：树上那只做广告的鹅，是来做贸易的。' : '',
+  ].filter(Boolean).join('\n');
 }
 
 /** 阅读复盘：选中单词/短语的语境翻译 */

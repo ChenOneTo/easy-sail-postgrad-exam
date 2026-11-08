@@ -8,6 +8,7 @@ import { isTauri } from '../lib/tauri';
 import { speak, stopSpeak } from '../lib/vocab-tts';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 import { mnemonicRootsLabel, type AiMnemonicDraft } from '../lib/ai-json';
+import { getMnemonicMethodPrefs } from '../lib/vocab-mnemonic';
 
 /**
  * 单词 AI 助记浮层：词根拆解 + 联想口诀 + 一句例句。
@@ -26,6 +27,8 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
   const [draft, setDraft] = useState<AiMnemonicDraft | null>(null);
   /** 首次读库阶段（查已有助记），避免读库瞬间的空白闪烁 */
   const [checking, setChecking] = useState(true);
+  /** 谐音 / 密码两条附加口诀的开关（设置页可改，打开浮层时读取） */
+  const [methodPrefs] = useState(getMnemonicMethodPrefs);
   const startedRef = useRef(false);
   const phonetics = getPhonetics(word);
   const playback = useVocabPlayback();
@@ -92,8 +95,13 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
 
   const busy = loading || checking;
   const variants = draft?.variants ?? [];
-  const homophone = variants.find((v) => v.method.includes('谐音'));
-  const cipher = variants.find((v) => v.method.includes('密码'));
+  // 设置里关掉的方法即使缓存里有也不展示
+  const homophone = methodPrefs.homophone
+    ? variants.find((v) => v.method.includes('谐音'))
+    : undefined;
+  const cipher = methodPrefs.cipher
+    ? variants.find((v) => v.method.includes('密码'))
+    : undefined;
 
   return (
     <div className="vocab-mnemonic-overlay" onClick={onClose}>
