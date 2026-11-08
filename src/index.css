@@ -6343,6 +6343,33 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-review-count small { margin-left: 2px; font-size: 11px; font-weight: 500; }
 .vg-review-block p { margin: 7px 0 11px; font-size: 11px; line-height: 1.65; color: var(--text-secondary); }
 .vg-review-block .vg-primary-btn { width: 100%; }
+/* 复习分组：每组词数选择 */
+.vg-review-group-size {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: -2px 0 11px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.vg-review-group-size button {
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  transition: all var(--transition);
+}
+.vg-review-group-size button:hover { color: var(--brand-primary); border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent); }
+.vg-review-group-size button.selected {
+  font-weight: 600;
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+}
 
 /* 考研倒计时：页面顶部横条 */
 .vg-exam-banner {
@@ -7246,6 +7273,8 @@ input, textarea, select { font: inherit; color: inherit; }
 .vg-result-stats strong { display: block; font-size: 19px; color: var(--text-primary); }
 .vg-result-stats span { font-size: 11px; color: var(--text-tertiary); }
 .vg-result-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+/* 结果页占整行的次级入口（如「先重测本组错词」） */
+.vg-result-actions .vg-result-actions-full { grid-column: 1 / -1; }
 .vg-result-error { margin: 10px 0 0; font-size: 11px; color: var(--danger); }
 .vg-result-hint { margin: 10px 0 0; font-size: 11px; color: var(--text-tertiary); }
 

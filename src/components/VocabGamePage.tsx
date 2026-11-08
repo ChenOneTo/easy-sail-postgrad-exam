@@ -287,6 +287,10 @@ export function VocabGamePage() {
   /** 今日任务分母：以冲刺建议为准，词库学完时回退到设置里的每日目标 */
   const dailyTarget = requiredPerDay > 0 ? requiredPerDay : game.settings.dailyGoal;
   const preview = game.previewWords;
+  /** 复习分组：每组词数、组数（末组可能不满）与下一组词数 */
+  const reviewGroupSize = game.settings.reviewGroupSize;
+  const reviewGroupCount = game.dueCount > 0 ? Math.ceil(game.dueCount / reviewGroupSize) : 0;
+  const nextReviewSize = Math.min(reviewGroupSize, game.dueCount);
   const rangeText = preview.length > 0
     ? `${preview[0].word} ~ ${preview[preview.length - 1].word}`
     : '全部单词已学完';
@@ -330,7 +334,7 @@ export function VocabGamePage() {
     if (!ok) setBanner('关卡装载失败，请稍后再试。');
   };
 
-  /** 今日复习关：全部到期复习词合并成一关，装载失败由 store 的 loadError 提示 */
+  /** 今日复习关：到期复习词按组拆开，每次只装载一组，装载失败由 store 的 loadError 提示 */
   const startReviewGame = async () => {
     if (startingReview) return;
     setStartingReview(true);
@@ -636,16 +640,33 @@ export function VocabGamePage() {
               </div>
               <p>
                 {game.dueCount > 0
-                  ? '到期单词合并成一个复习关：先过词卡，再测验，通过才算复习完成。'
+                  ? '到期单词分组复习：每组先过词卡，再测验，通过才算复习完成。可逐组消化，随时中断。'
                   : '今天没有到期的复习单词，保持当前节奏即可。'}
               </p>
+              {game.dueCount > 0 && (
+                <div className="vg-review-group-size">
+                  <span>每组</span>
+                  {([10, 20, 30, 50] as const).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className={reviewGroupSize === n ? 'selected' : ''}
+                      aria-pressed={reviewGroupSize === n}
+                      onClick={() => game.saveSettings({ reviewGroupSize: n })}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <span>词 · 共 {reviewGroupCount} 组</span>
+                </div>
+              )}
               <button
                 className="vg-primary-btn"
                 type="button"
                 disabled={game.dueCount === 0 || startingReview}
                 onClick={() => void startReviewGame()}
               >
-                {startingReview ? '装载复习关…' : '开始复习关'} <ArrowRight size={16} />
+                {startingReview ? '装载复习组…' : `开始复习（${nextReviewSize} 词）`} <ArrowRight size={16} />
               </button>
             </section>
           </aside>

@@ -344,6 +344,10 @@ export function VocabGameSession() {
   const beginQuiz = useVocabGameStore((s) => s.beginQuiz);
   const expirePhase = useVocabGameStore((s) => s.expirePhase);
   const retryWrong = useVocabGameStore((s) => s.retryWrong);
+  const startReview = useVocabGameStore((s) => s.startReview);
+  /** 复习分组：结果页展示剩余待复习量与「继续下一组」 */
+  const dueCount = useVocabGameStore((s) => s.dueCount);
+  const reviewGroupSize = useVocabGameStore((s) => s.settings.reviewGroupSize);
   const exit = useVocabGameStore((s) => s.exit);
   /** 发音播放态：播放期间空格不再重复触发读音 */
   const playback = useVocabPlayback();
@@ -351,6 +355,10 @@ export function VocabGameSession() {
   const [confirmExit, setConfirmExit] = useState(false);
   /** 已翻开释义的词：按 wordId 记录，切词后自动回到未翻开态 */
   const [revealedWordId, setRevealedWordId] = useState<number | null>(null);
+  /** 结果页「继续下一组」装载中 */
+  const [startingNext, setStartingNext] = useState(false);
+  /** 「继续下一组」装载失败提示（会话覆盖层挡住了页面顶部的 loadError 横幅） */
+  const [nextError, setNextError] = useState('');
 
   // 阶段计时：以截止时间戳为准，500ms 刷新显示，避免 setInterval 漂移累积
   useEffect(() => {
@@ -420,6 +428,26 @@ export function VocabGameSession() {
 
   const passPct = Math.round(session.passAccuracy * 100);
   const remaining = Math.max(0, Math.ceil((session.phaseEndsAt - now) / 1000));
+  /**
+   * 复习结果页的剩余待复习量。写库完成前（busy）dueCount 尚未刷新、仍含本组词，
+   * 按「本组通过即全部提交」推算；错词重测（isRetry）的词早已提交过，不扣减。
+   */
+  const remainingDue = session.busy && session.result?.passed && !session.isRetry
+    ? Math.max(0, dueCount - session.words.length)
+    : dueCount;
+  const nextGroupSize = Math.min(reviewGroupSize, remainingDue);
+  const remainingGroups = Math.ceil(remainingDue / reviewGroupSize);
+
+  /** 结果页「继续下一组」：重新按组装载剩余到期词，失败保持在结果页可重试 */
+  const startNextGroup = async () => {
+    if (startingNext) return;
+    setStartingNext(true);
+    setNextError('');
+    const ok = await startReview();
+    setStartingNext(false);
+    if (!ok) setNextError('下一组装载失败，请稍后再试。');
+  };
+
   const levelLabel = session.isReview ? '今日复习关' : `第 ${session.level} 关`;
   const phaseTitle = session.phase === 'memory'
     ? `${levelLabel} · ${session.isReview ? '复习记忆' : session.isReplay ? '复习闯关' : '记忆阶段'}`
@@ -428,19 +456,19 @@ export function VocabGameSession() {
       : `${levelLabel} · ${session.isReview || session.isReplay ? '复习结果' : '闯关结果'}`;
   const phaseSubtitle = session.phase === 'memory'
     ? session.isReview
-      ? '全部到期单词已汇总成本关，完成测验并达到通过线才算复习完成'
+      ? '本组到期单词已汇总成本关，完成测验并达到通过线才算复习完成，可随时退出下次继续'
       : session.isReplay
         ? '重闯已通过的关卡，标记与测验仍会更新单词复习计划'
         : '先建立第一印象，模糊的词会被重点复习'
     : session.phase === 'quiz'
       ? session.isReview
-        ? `复习测验，正确率达到 ${passPct}% 才算完成本次复习`
+        ? `复习测验，正确率达到 ${passPct}% 才算完成本组复习`
         : session.isReplay
           ? `重闯不改变关卡进度，正确率达到 ${passPct}% 判定通过`
           : `选择正确释义，正确率达到 ${passPct}% 即通关`
       : session.isReview
         ? session.result?.passed
-          ? '复习完成，单词已按遗忘曲线安排下一次复习'
+          ? '本组复习完成，单词已按遗忘曲线安排下一次复习'
           : '未达到通过线，到期单词会保留在待复习列表'
         : session.isRetry
           ? '错词重测不重复计入关卡进度'
@@ -611,7 +639,9 @@ export function VocabGameSession() {
             </span>
             <h2>
               {session.isReview
-                ? (session.result.passed ? '复习完成' : '复习未通过')
+                ? (session.result.passed
+                    ? (remainingDue > 0 ? '本组复习完成' : '复习完成')
+                    : '复习未通过')
                 : session.isReplay
                   ? (session.result.passed ? '复习完成' : '复习结束')
                   : (session.result.passed ? '本关通过' : '还差一点')}
@@ -619,7 +649,9 @@ export function VocabGameSession() {
             <p className="vg-result-subtitle">
               {session.isReview
                 ? session.result.passed
-                  ? `正确率达到 ${passPct}%，今日到期单词已全部复习完成。`
+                  ? (remainingDue > 0
+                      ? `正确率达到 ${passPct}%，还剩 ${remainingDue} 词（${remainingGroups} 组）待复习。`
+                      : `正确率达到 ${passPct}%，今日到期单词已全部复习完成。`)
                   : `正确率达到 ${passPct}% 才算复习完成，到期单词仍保留在待复习列表。`
                 : session.isReplay
                   ? '本次为复习闯关，成绩已计入复习记录，不改变关卡进度。'
@@ -653,6 +685,15 @@ export function VocabGameSession() {
                 >
                   {session.busy ? '记录中…' : `重新复习（${session.words.length}）`}
                 </button>
+              ) : session.isReview && remainingDue > 0 ? (
+                <button
+                  className="vg-primary-btn"
+                  type="button"
+                  disabled={session.busy || startingNext}
+                  onClick={() => void startNextGroup()}
+                >
+                  {startingNext ? '装载中…' : `继续下一组（${nextGroupSize} 词）`}
+                </button>
               ) : (
                 <button
                   className="vg-primary-btn"
@@ -663,8 +704,20 @@ export function VocabGameSession() {
                   {session.busy ? '记录中…' : `重测错词（${session.result.wrongWordIds.length}）`}
                 </button>
               )}
+              {/* 复习通过且还有下一组时，错词重测降级为整行次级入口，不抢「继续下一组」的主位 */}
+              {session.isReview && session.result.passed && remainingDue > 0 && session.result.wrongWordIds.length > 0 && (
+                <button
+                  className="vg-secondary-btn vg-result-actions-full"
+                  type="button"
+                  disabled={session.busy || startingNext}
+                  onClick={retryWrong}
+                >
+                  先重测本组错词（{session.result.wrongWordIds.length}）
+                </button>
+              )}
             </div>
             {session.lastError && <p className="vg-result-error">{session.lastError}</p>}
+            {nextError && <p className="vg-result-error">{nextError}</p>}
             <p className="vg-result-hint">按 Esc 退出学习</p>
           </article>
         )}

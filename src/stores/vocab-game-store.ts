@@ -25,6 +25,8 @@ export type WordStatus = 'new' | 'seen' | 'familiar' | 'mastered';
 export interface GameSettings {
   /** 每关词数：10 / 15 / 20 */
   levelSize: 10 | 15 | 20;
+  /** 复习每组词数：到期复习词按此拆成多个复习关，一次只复习一组 */
+  reviewGroupSize: 10 | 20 | 30 | 50;
   /** 记忆阶段时长（分钟，>0，无上限） */
   memoryMin: number;
   /** 测验阶段时长（分钟，>0，无上限） */
@@ -97,7 +99,7 @@ export interface GameSession {
   isRetry: boolean;
   /** 重闯已通关卡：可写成绩表，但 replay=1 不计入关卡进度 */
   isReplay: boolean;
-  /** 今日复习关：到期复习词合并成一关，测验通过才回写调度与复习进度 */
+  /** 今日复习关：到期复习词按组拆关、一次复习一组，测验通过才回写调度与复习进度 */
   isReview: boolean;
   /** 按 wordId 缓存的 AI 助记；进入关卡后后台预生成 */
   mnemonics: Record<number, GameMnemonic>;
@@ -130,7 +132,7 @@ export interface VocabGameStore {
   saveSettings: (updates: Partial<GameSettings>) => void;
   /** 不传关卡号 = 继续当前关；传已通关的关卡号 = 重闯（不推进进度） */
   startLevel: (level?: number) => Promise<boolean>;
-  /** 今日复习关：全部到期复习词合并成一关 */
+  /** 今日复习关：到期复习词按组拆关，一次只复习一组 */
   startReview: () => Promise<boolean>;
   mark: (wordId: number, mark: WordMark) => void;
   /** 单条助记生成失败后的重试 */
@@ -149,6 +151,7 @@ export interface VocabGameStore {
 
 const DEFAULT_SETTINGS: GameSettings = {
   levelSize: 20,
+  reviewGroupSize: 20,
   memoryMin: 5,
   quizMin: 3,
   dailyGoal: 3,
@@ -188,6 +191,10 @@ function readSettings(): GameSettings {
       : DEFAULT_SETTINGS.quizMin;
     return {
       levelSize: size === 10 || size === 15 || size === 20 ? size : DEFAULT_SETTINGS.levelSize,
+      reviewGroupSize: parsed.reviewGroupSize === 10 || parsed.reviewGroupSize === 20
+        || parsed.reviewGroupSize === 30 || parsed.reviewGroupSize === 50
+        ? parsed.reviewGroupSize
+        : DEFAULT_SETTINGS.reviewGroupSize,
       memoryMin: positiveMinutes(parsed.memoryMin, legacyMemory),
       quizMin: positiveMinutes(parsed.quizMin, legacyQuiz),
       dailyGoal: typeof parsed.dailyGoal === 'number' ? parsed.dailyGoal : DEFAULT_SETTINGS.dailyGoal,
@@ -386,7 +393,11 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
   startReview: async () => {
     const { settings } = get();
     try {
-      const words = (await fetchGameDueWords(new Date().toISOString())).map(withPhonetic);
+      // 分组复习：按到期优先级取词，每次只装载「复习每组词数」那么多词，
+      // 通过本组后这些词离开待复习队列，下一组即剩余到期词的前 N 个
+      const words = (await fetchGameDueWords(new Date().toISOString()))
+        .slice(0, settings.reviewGroupSize)
+        .map(withPhonetic);
       if (words.length === 0) {
         set({ loadError: '今天没有到期的复习单词。' });
         return false;
@@ -419,7 +430,7 @@ export const useVocabGameStore = create<VocabGameStore>((set, get) => ({
         loadError: '',
       });
       mnemonicAbort?.abort();
-      // 复习关词数可能上百，只复用已缓存的助记，不在后台批量生成
+      // 复习组只复用已缓存的助记，不在后台批量生成，避免复习消耗 AI 额度
       void preloadMnemonics(set, get, words, now, 0);
       return true;
     } catch (err) {
