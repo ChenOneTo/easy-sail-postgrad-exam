@@ -10,8 +10,12 @@ import { normalizeMnemonicDraft, parseAiJson, type AiMnemonicDraft } from './ai-
 
 /** 单次生成最多尝试几次（含首次）：限流/网络抖动/JSON 不合规都能靠再要一次救回来 */
 const MAX_ATTEMPTS = 3;
-/** 单次请求超时：超过就按可重试错误处理，避免卡片一直停在「生成中」 */
-const REQUEST_TIMEOUT_MS = 30_000;
+/**
+ * 单次请求超时：超过就按可重试错误处理，避免卡片一直停在「生成中」。
+ * 关闭思考后实测 5~10 秒返回；若服务商忽略该参数仍会推理（LongCat 单套约 43 秒），
+ * 因此留足 90 秒，不能按「关掉思考」的耗时来卡。
+ */
+const REQUEST_TIMEOUT_MS = 90_000;
 
 /** 当前环境是否允许调用 AI（开关 + 模型配置） */
 export function canGenerateMnemonic(): boolean {
@@ -61,12 +65,24 @@ export async function generateVocabMnemonic(
   if (!canUseAi()) return null;
 
   let lastError: unknown = null;
+  /**
+   * 思考型模型（LongCat-2.5 / Qwen3 等）默认先输出几千 token 推理，
+   * 两套助记会拖到 60 秒以上；助记不需要推理，默认请求就关掉。
+   * 个别服务商不认 `thinking` 参数会返回 400，这时降级为默认模式再试。
+   */
+  let thinkingUnsupported = false;
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const content = await chatCompletion([
         { role: 'system', content: '你只输出可解析 JSON。' },
         { role: 'user', content: buildVocabMnemonicPrompt(word, meaning) },
-      ], { signal, temperature: 0.6, timeoutMs: REQUEST_TIMEOUT_MS });
+      ], {
+        signal,
+        temperature: 0.6,
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        disableThinking: !thinkingUnsupported,
+      });
 
       const draft = normalizeMnemonicDraft(parseAiJson(content));
       if (draft) return draft;
@@ -74,6 +90,16 @@ export async function generateVocabMnemonic(
       lastError = new Error('AI 未返回可用的助记内容');
     } catch (err) {
       if (signal?.aborted) throw err;
+      // 400/422 大概率是服务端不认识 thinking 参数：不当作重试失败，改为默认模式重来
+      if (
+        !thinkingUnsupported
+        && err instanceof AiRequestError
+        && (err.status === 400 || err.status === 422)
+      ) {
+        console.warn('[AI 助记] 服务端不接受关闭思考，改用默认模式:', err.message);
+        thinkingUnsupported = true;
+        continue;
+      }
       if (!isRetryable(err)) throw err;
       lastError = err;
     }

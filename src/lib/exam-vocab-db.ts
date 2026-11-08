@@ -80,12 +80,24 @@ export interface VocabHardWord {
   unit?: string;
 }
 
-/** AI 助记（记忆法 + 词根/口诀 + 画面联想 + 例句），按 word_id 唯一，AI 生成后持久化 */
+/** AI 助记的一种记忆法（谐音 / 密码），一次生成两套供用户切换 */
+export interface VocabMnemonicVariant {
+  /** 记忆法：谐音 / 密码（旧记录可能是词根 / 拆分 / 故事） */
+  method: string;
+  mnemonic: string;
+  /** 密码法的字母拆解（tr(树)+ad(广告)+e(鹅)）；谐音法为空串 */
+  roots: string;
+  /** 延续口诀钩子的单镜头画面 */
+  scene: string;
+}
+
+/** AI 助记（记忆法 + 拆解/口诀 + 画面联想 + 例句），按 word_id 唯一，AI 生成后持久化 */
 export interface VocabMnemonicRecord {
   wordId: number;
+  /** 主字段：取 variants[0]，供旧缓存与不支持切换的界面使用 */
   roots: string;
   mnemonic: string;
-  /** 记忆法类型：谐音 / 词根 / 拆分 / 画面 / 故事（旧记录为空串） */
+  /** 记忆法类型：谐音 / 密码（旧记录为空串） */
   method: string;
   /** 生动画面或小故事（旧记录为空串） */
   scene: string;
@@ -95,6 +107,8 @@ export interface VocabMnemonicRecord {
   examMeaning: string;
   /** 用户自定义助记（自己录的口诀/联想），与 AI 字段互不覆盖（旧记录为空串） */
   customMnemonic: string;
+  /** 两套记忆法（v10 起）；旧记录为空数组，读取时回退到主字段 */
+  variants: VocabMnemonicVariant[];
   createdAt: string;
   updatedAt: string;
 }
@@ -224,6 +238,31 @@ function rowToHardword(row: Record<string, unknown>): VocabHardWord {
   };
 }
 
+/** 解析 variants_json：任何脏数据都降级为空数组，交由调用方回退到主字段 */
+function parseMnemonicVariants(raw: unknown): VocabMnemonicVariant[] {
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item): VocabMnemonicVariant | null => {
+        const obj = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+        const mnemonic = typeof obj.mnemonic === 'string' ? obj.mnemonic.trim() : '';
+        if (!mnemonic) return null;
+        return {
+          method: typeof obj.method === 'string' ? obj.method.trim() : '',
+          mnemonic,
+          roots: typeof obj.roots === 'string' ? obj.roots.trim() : '',
+          scene: typeof obj.scene === 'string' ? obj.scene.trim() : '',
+        };
+      })
+      .filter((item): item is VocabMnemonicVariant => item !== null)
+      .slice(0, 4);
+  } catch {
+    return [];
+  }
+}
+
 function rowToMnemonic(row: Record<string, unknown>): VocabMnemonicRecord {
   return {
     wordId: row.word_id as number,
@@ -235,6 +274,7 @@ function rowToMnemonic(row: Record<string, unknown>): VocabMnemonicRecord {
     sentenceZh: (row.sentence_zh as string) || '',
     examMeaning: (row.exam_meaning as string) || '',
     customMnemonic: (row.custom_mnemonic as string) || '',
+    variants: parseMnemonicVariants(row.variants_json),
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
   };
@@ -741,18 +781,22 @@ export async function saveVocabMnemonic(
     sentence: string;
     sentenceZh: string;
     examMeaning?: string;
+    /** 两套记忆法（谐音 / 密码）；不传则清空该列，退回单条主字段 */
+    variants?: VocabMnemonicVariant[];
   },
 ): Promise<void> {
   const db = await getExamVocabDb();
   await db.execute(
-    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning, variants_json)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT(word_id) DO UPDATE SET
        roots = $2, mnemonic = $3, method = $4, scene = $5,
-       sentence = $6, sentence_zh = $7, exam_meaning = $8, updated_at = datetime('now')`,
+       sentence = $6, sentence_zh = $7, exam_meaning = $8,
+       variants_json = $9, updated_at = datetime('now')`,
     [
       wordId, draft.roots, draft.mnemonic, draft.method || '', draft.scene || '',
       draft.sentence, draft.sentenceZh, draft.examMeaning || '',
+      JSON.stringify(draft.variants ?? []),
     ]
   );
 }
@@ -914,13 +958,14 @@ async function writeExamVocabSnapshot(db: Database, snapshot: ExamVocabCloudSnap
 
   await insertRows(
     db,
-    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning, custom_mnemonic, created_at, updated_at) VALUES`,
-    11,
+    `INSERT INTO exam_vocab_mnemonics (word_id, roots, mnemonic, method, scene, sentence, sentence_zh, exam_meaning, custom_mnemonic, variants_json, created_at, updated_at) VALUES`,
+    12,
     (snapshot.mnemonics ?? []).map((m) => [
       m.wordId, m.roots || '', m.mnemonic || '', m.method || '', m.scene || '',
       m.sentence || '', m.sentenceZh || '', m.examMeaning || '',
-      // 旧备份无此字段：容错为空串，避免恢复时把表格列数对不上
+      // 旧备份无这两个字段：容错为空，避免恢复时列数对不上
       m.customMnemonic || '',
+      JSON.stringify(m.variants ?? []),
       m.createdAt || now, m.updatedAt || now,
     ]),
   );

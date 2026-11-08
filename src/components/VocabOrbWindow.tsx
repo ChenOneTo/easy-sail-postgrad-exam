@@ -550,6 +550,8 @@ function MemoryPane({
   const syllables = splitSyllables(word.word);
   const currentMark = marks[word.wordId];
   const mnemonicData = mnemonic?.status === 'ready' ? mnemonic.data : undefined;
+  const homophone = mnemonicData?.variants.find((v) => v.method.includes('谐音'));
+  const cipher = mnemonicData?.variants.find((v) => v.method.includes('密码'));
 
   return (
     <>
@@ -605,12 +607,18 @@ function MemoryPane({
           )}
           {mnemonicData && (
             <div className="vg-orb-mnemonic">
-              <div className="vg-orb-mnemonic-title"><Sparkles size={12} /> AI 助记</div>
+              <div className="vg-orb-mnemonic-title">
+                <Sparkles size={12} /> AI 助记{mnemonicData.method ? ` · ${mnemonicData.method}` : ''}
+              </div>
               {mnemonicData.examMeaning && (
                 <p><b>常考</b>{mnemonicData.examMeaning}</p>
               )}
               {mnemonicData.roots && <p><b>{mnemonicRootsLabel(mnemonicData.method)}</b>{mnemonicData.roots}</p>}
               {mnemonicData.mnemonic && <p><b>口诀</b>{mnemonicData.mnemonic}</p>}
+              {homophone && <p><b>谐音</b>{homophone.mnemonic}</p>}
+              {cipher && (
+                <p><b>密码</b>{cipher.roots ? `${cipher.roots}：` : ''}{cipher.mnemonic}</p>
+              )}
             </div>
           )}
           {custom && (

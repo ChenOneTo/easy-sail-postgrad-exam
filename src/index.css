@@ -588,6 +588,10 @@ input, textarea, select { font: inherit; color: inherit; }
 
 .icon-btn:hover { background: var(--bg-hover); }
 
+/* 全局加载图标：Loader2 加 className="spin" 即旋转（此前只有阅读复盘/悬浮窗各自定义，其余是静止的） */
+.spin { animation: ui-spin 0.9s linear infinite; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
 .search-box {
   display: flex;
   align-items: center;
@@ -6949,6 +6953,11 @@ input, textarea, select { font: inherit; color: inherit; }
   color: var(--text-tertiary);
 }
 .vg-mnemonic-refresh:hover { color: var(--brand-primary); }
+
+/* 密码口诀：字母拆解加粗在口诀前面，读起来像「tr(树)+ad(广告)+e(鹅)：…」 */
+.vg-mnemonic-cipher strong { font-weight: 600; color: var(--text-primary); }
+.vocab-mnemonic-cipher { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.vocab-mnemonic-cipher-roots { font-weight: 600; color: var(--text-primary); }
 .vg-mnemonic-scene,
 .vg-mnemonic-exam { color: var(--text-primary) !important; }
 .vg-mnemonic-exam { font-weight: 600; }
@@ -6973,7 +6982,27 @@ input, textarea, select { font: inherit; color: inherit; }
   font-size: 11px;
   color: var(--text-tertiary);
   background: var(--bg-primary);
+  /* 生成中：底色左右扫光，配合旋转图标表明正在请求模型 */
+  background-image: linear-gradient(100deg,
+    transparent 35%,
+    color-mix(in srgb, var(--brand-primary) 14%, transparent) 50%,
+    transparent 65%);
+  background-size: 240% 100%;
+  background-repeat: no-repeat;
   border: 1px dashed var(--border-default);
+  animation: mnemonic-sweep 1.5s linear infinite;
+}
+@keyframes mnemonic-sweep {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.vg-mnemonic-error { margin-top: 12px; text-align: center; }
+.vg-mnemonic-error .vg-mnemonic-retry { margin: 0 auto; }
+.vg-mnemonic-error p {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
 }
 .vg-mnemonic-retry { margin: 12px auto 0; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--danger); }
 .vg-mnemonic-retry:hover { text-decoration: underline; }

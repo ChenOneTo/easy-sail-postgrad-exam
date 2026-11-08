@@ -64,6 +64,7 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
             const saved = await fetchVocabMnemonic(wordId);
             if (saved && saved.mnemonic) {
               // 先留底：补生成失败（未配 AI / 断网）时仍展示旧内容，不至于整块消失
+              // 主助记取库里那套（词根 + 口诀 + 画面），附加的谐音/密码旧记录没有则为空
               setDraft({
                 mnemonic: saved.mnemonic,
                 roots: saved.roots,
@@ -72,6 +73,7 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
                 sentence: saved.sentence,
                 sentenceZh: saved.sentenceZh,
                 examMeaning: saved.examMeaning,
+                variants: saved.variants.filter((v) => v.method !== saved.method),
               });
               // 缺「考研常考含义」等新字段的老记录：继续走生成，成功后覆盖缓存
               if (saved.examMeaning && (saved.scene || saved.method)) return;
@@ -89,6 +91,9 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
   useEffect(() => () => stopSpeak(), []);
 
   const busy = loading || checking;
+  const variants = draft?.variants ?? [];
+  const homophone = variants.find((v) => v.method.includes('谐音'));
+  const cipher = variants.find((v) => v.method.includes('密码'));
 
   return (
     <div className="vocab-mnemonic-overlay" onClick={onClose}>
@@ -134,6 +139,21 @@ export function VocabMnemonicSheet({ word, meaning, wordId, onClose }: {
               <div className="vocab-mnemonic-row"><span className="vocab-mnemonic-label">助记</span><span>{draft.mnemonic}</span></div>
               {draft.scene && (
                 <div className="vocab-mnemonic-row"><span className="vocab-mnemonic-label">画面</span><span>{draft.scene}</span></div>
+              )}
+              {homophone && (
+                <div className="vocab-mnemonic-row">
+                  <span className="vocab-mnemonic-label">谐音</span>
+                  <span>{homophone.mnemonic}</span>
+                </div>
+              )}
+              {cipher && (
+                <div className="vocab-mnemonic-row">
+                  <span className="vocab-mnemonic-label">密码</span>
+                  <div className="vocab-mnemonic-cipher">
+                    {cipher.roots && <div className="vocab-mnemonic-cipher-roots">{cipher.roots}</div>}
+                    <div>{cipher.mnemonic}</div>
+                  </div>
+                </div>
               )}
               {draft.sentence && (
                 <div className="vocab-mnemonic-row">

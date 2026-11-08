@@ -849,6 +849,17 @@ pub fn run() {
                                 ALTER TABLE exam_vocab_mnemonics ADD COLUMN custom_mnemonic TEXT DEFAULT '';
                             "#,
                         },
+                        tauri_plugin_sql::Migration {
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                            version: 10,
+                            description: "add vocab mnemonic method variants",
+                            sql: r#"
+                                -- AI 助记同时生成「谐音」「密码」两套，由用户在卡片上切换；
+                                -- JSON 数组存 [{method,mnemonic,roots,scene}]。
+                                -- 旧的单条记录该列为空，读取时回退到主字段（method/mnemonic/roots/scene）。
+                                ALTER TABLE exam_vocab_mnemonics ADD COLUMN variants_json TEXT DEFAULT '';
+                            "#,
+                        },
                     ],
                 )
                 .build(),

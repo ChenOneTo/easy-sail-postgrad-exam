@@ -713,6 +713,7 @@ function mnemonicErrorText(err: unknown): string {
 
 function mnemonicDraftFromRecord(rec: VocabMnemonicRecord): AiMnemonicDraft {
   return {
+    // 主助记就是库里那套词根 + 口诀 + 画面，不因新增谐音/密码而改变
     roots: rec.roots,
     mnemonic: rec.mnemonic,
     method: rec.method,
@@ -720,6 +721,8 @@ function mnemonicDraftFromRecord(rec: VocabMnemonicRecord): AiMnemonicDraft {
     sentence: rec.sentence,
     sentenceZh: rec.sentenceZh,
     examMeaning: rec.examMeaning,
+    // 附加的谐音 / 密码口诀；旧记录为空数组，界面上自然不显示这两行
+    variants: rec.variants.filter((v) => v.method !== rec.method),
   };
 }
 

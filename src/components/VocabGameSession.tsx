@@ -15,9 +15,15 @@ function fmtClock(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** 记忆卡上的 AI 助记块：加载中 / 失败重试 / 词根 + 口诀 + 例句 */
+/**
+ * 记忆卡上的 AI 助记块：加载中 / 失败重试 / 主助记 + 谐音口诀 + 密码口诀。
+ *
+ * 主助记（词根 + 口诀 + 画面）保持原样，新增的谐音、密码两条口诀并列展示，
+ * 不做切换；旧缓存没有这两条时自然只显示主助记。
+ */
 function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () => void }) {
   const playback = useVocabPlayback();
+
   if (!entry) return null;
   if (entry.status === 'loading') {
     return (
@@ -28,27 +34,35 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
   }
   if (entry.status === 'error' || !entry.data) {
     return (
-      <button
-        className="vg-mnemonic-retry"
-        type="button"
-        onClick={onRetry}
-        title={entry.error ?? '点击重试'}
-      >
-        <RotateCcw size={13} /> AI 助记生成失败，点击重试
-      </button>
+      <div className="vg-mnemonic-error">
+        <button
+          className="vg-mnemonic-retry"
+          type="button"
+          onClick={onRetry}
+          title={entry.error ?? '点击重试'}
+        >
+          <RotateCcw size={13} /> AI 助记生成失败，点击重试
+        </button>
+        {/* 直接显示原因（超时 / 限流 / 未配置），不用悬停猜 */}
+        {entry.error && <p>{entry.error}</p>}
+      </div>
     );
   }
-  const { roots, mnemonic, method, scene, sentence, sentenceZh, examMeaning } = entry.data;
+
+  const { method, mnemonic, roots, scene, sentence, sentenceZh, examMeaning } = entry.data;
+  const homophone = entry.data.variants.find((v) => v.method.includes('谐音'));
+  const cipher = entry.data.variants.find((v) => v.method.includes('密码'));
+
   return (
     <div className="vg-mnemonic">
       <div className="vg-mnemonic-title">
         <Sparkles size={13} /> AI 助记
         {method && <span className="vg-mnemonic-method">{method}</span>}
-        {/* 老记录可能已缓存成旧方法，这里可让 AI 换一种记忆法重写 */}
+        {/* 老记录可能只缓存了主助记，这里可让 AI 补生成谐音与密码 */}
         <button
           className="vg-mnemonic-refresh"
           type="button"
-          title="重新生成助记（会换一种记忆法，消耗一次额度）"
+          title="重新生成助记（主助记 + 谐音 + 密码，消耗一次额度）"
           aria-label="重新生成助记"
           onClick={onRetry}
         >
@@ -61,6 +75,16 @@ function MnemonicBlock({ entry, onRetry }: { entry?: GameMnemonic; onRetry: () =
       {roots && <p><span className="vg-mnemonic-tag">{mnemonicRootsLabel(method)}</span>{roots}</p>}
       <p><span className="vg-mnemonic-tag">口诀</span>{mnemonic}</p>
       {scene && <p className="vg-mnemonic-scene"><span className="vg-mnemonic-tag">画面</span>{scene}</p>}
+      {homophone && (
+        <p><span className="vg-mnemonic-tag">谐音</span>{homophone.mnemonic}</p>
+      )}
+      {cipher && (
+        <p className="vg-mnemonic-cipher">
+          <span className="vg-mnemonic-tag">密码</span>
+          {cipher.roots && <strong>{cipher.roots}：</strong>}
+          {cipher.mnemonic}
+        </p>
+      )}
       {sentence && (
         <p className="vg-mnemonic-example">
           <span className="vg-mnemonic-tag">例句</span>{sentence}

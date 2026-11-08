@@ -207,6 +207,14 @@ export interface ChatOptions {
    * 超时按可重试错误抛出，避免界面一直停在「生成中」。
    */
   timeoutMs?: number;
+  /**
+   * 关闭思考型模型的推理过程（OpenAI 兼容参数 `thinking: {type:'disabled'}`）。
+   *
+   * LongCat-2.5、Qwen3 等默认先输出大段 reasoning：同一句助记单套要 40 秒以上，
+   * 两套直接超过 60 秒。助记这类短任务不需要推理，关掉后同样的请求 6 秒返回。
+   * 不支持该参数的服务商可能返回 400，调用方需要能降级重试。
+   */
+  disableThinking?: boolean;
 }
 
 /** 拼接完整的 chat/completions 端点 URL */
@@ -318,6 +326,8 @@ export async function chatCompletion(
           model: config.model,
           messages,
           temperature: options?.temperature ?? 0.7,
+          // 思考型模型：不加这个字段会先输出几千 token 的推理，短任务等不起
+          ...(options?.disableThinking ? { thinking: { type: 'disabled' } } : {}),
         }),
         signal: controller.signal,
       });

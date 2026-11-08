@@ -324,20 +324,26 @@ export function normalizeExamPlanDraft(raw: unknown): AiExamPlanDraft {
 
 // —— 考研单词 AI 助记 ——
 
-export interface AiMnemonicDraft {
-  /** 口诀（词根法/密码法/谐音法等通用的那一句记忆钩子） */
-  mnemonic: string;
-  /** 随方法而变：词根法的词根词缀 / 密码法的字母拆解（tr(树)+ad(广告)+e(鹅)）/ 拆分法的构词 */
-  roots: string;
-  /** 记忆法类型：谐音 / 密码 / 词根 / 拆分 / 故事（旧记录可能是「画面」） */
+/** 附加的一条助记（谐音口诀 / 密码口诀），与主助记同屏展示 */
+export interface AiMnemonicVariant {
+  /** 记忆法类型：谐音 / 密码 */
   method: string;
-  /** 生动、夸张、具体的画面或小故事 */
+  /** 口诀：一句能顺口复述的记忆钩子 */
+  mnemonic: string;
+  /** 密码法的字母拆解（tr(树)+ad(广告)+e(鹅)）；谐音法为空串 */
+  roots: string;
+  /** 单镜头画面（当前只给主助记用，附加条目为空串） */
   scene: string;
+}
+
+export interface AiMnemonicDraft extends AiMnemonicVariant {
   sentence: string;
   /** sentence 的中文翻译（旧记录/脏数据可为空串） */
   sentenceZh: string;
   /** 考研常考含义：真题里最常考的义项或熟词僻义（旧记录为空串） */
   examMeaning: string;
+  /** 附加的谐音 / 密码口诀；旧记录为空数组 */
+  variants: AiMnemonicVariant[];
 }
 
 /**
@@ -348,19 +354,58 @@ export function mnemonicRootsLabel(method: string): string {
   return /密码|拆分/.test(method) ? '拆分' : '词根';
 }
 
-/** 校验 AI 助记草稿字段存在性，脏数据降级丢弃不抛错（返回 null） */
-export function normalizeMnemonicDraft(raw: unknown): AiMnemonicDraft | null {
+/** 模型可能写成「谐音记忆法」「密码法」，统一成界面用的短名 */
+function canonicalMethod(value: string): string {
+  if (value.includes('谐音')) return '谐音';
+  if (value.includes('密码')) return '密码';
+  if (value.includes('词根')) return '词根';
+  if (value.includes('拆分')) return '拆分';
+  if (value.includes('故事') || value.includes('画面')) return '故事';
+  return value;
+}
+
+function normalizeMnemonicVariant(raw: unknown): AiMnemonicVariant | null {
   const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
   const mnemonic = limitText(obj.mnemonic, 200);
   if (!mnemonic) return null;
   return {
+    method: canonicalMethod(limitText(obj.method, 20)),
     mnemonic,
     roots: limitText(obj.roots, 80),
-    method: limitText(obj.method, 20),
     scene: limitText(obj.scene, 200),
+  };
+}
+
+/**
+ * 校验 AI 助记草稿：
+ * - 主助记取顶层 method / mnemonic / roots / scene（必须有一句口诀，否则判为失败）；
+ * - variants 是附加的谐音 / 密码口诀，缺失时为空数组（旧缓存/旧格式）；
+ * - 与主助记同类型的条目会被剔除，避免界面上出现两条一样的「谐音」。
+ */
+export function normalizeMnemonicDraft(raw: unknown): AiMnemonicDraft | null {
+  const obj = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const primary = normalizeMnemonicVariant(obj);
+  if (!primary) return null;
+
+  const listRaw = Array.isArray(obj.variants) ? obj.variants : [];
+  const seen = new Set<string>();
+  const variants = listRaw
+    .map(normalizeMnemonicVariant)
+    .filter((item): item is AiMnemonicVariant => item !== null)
+    .filter((item) => {
+      const key = item.method || '助记';
+      if (seen.has(key) || key === primary.method) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
+
+  return {
+    ...primary,
     sentence: limitText(obj.sentence, 200),
     sentenceZh: limitText(obj.sentenceZh, 200),
     examMeaning: limitText(obj.examMeaning, 80),
+    variants,
   };
 }
 
