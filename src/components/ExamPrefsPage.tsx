@@ -1,13 +1,15 @@
 /**
  * 考研英语 · 偏好设置
  *
- * 各子页面共用的偏好集中在此（当前只有发音）。发音配置按设备存于
- * localStorage（见 lib/vocab-tts.ts），不落库、不参与云备份。
+ * 各子页面共用的偏好集中在此：发音（见 lib/vocab-tts.ts）与 AI 助记的
+ * 附加口诀开关（见 lib/vocab-mnemonic.ts）。均按设备存于 localStorage，
+ * 不落库、不参与云备份。
  */
 import { useState } from 'react';
-import { SlidersHorizontal, Volume2, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, Volume2, ChevronDown, Sparkles } from 'lucide-react';
 import { getTtsConfig, saveTtsConfig, speak, stopSpeak } from '../lib/vocab-tts';
 import type { TtsSource } from '../lib/vocab-tts';
+import { getMnemonicMethodPrefs, setMnemonicMethodPrefs } from '../lib/vocab-mnemonic';
 import { isSpeaking, useVocabPlayback } from '../hooks/use-speak-playback';
 
 /** 试听用的示例词（词库内常见词，有道/百度音源均有音频） */
@@ -15,11 +17,17 @@ const SAMPLE_WORD = 'syllabus';
 
 export function ExamPrefsPage() {
   const [tts, setTts] = useState(getTtsConfig());
+  const [methods, setMethods] = useState(getMnemonicMethodPrefs);
   const playback = useVocabPlayback();
   const speaking = isSpeaking(playback, SAMPLE_WORD);
 
   const updateTts = (patch: Partial<typeof tts>) => {
     setTts(saveTtsConfig(patch));
+  };
+
+  /** 开关 AI 助记的附加口诀：关掉后既不请求也不展示，缓存不删除 */
+  const toggleMethod = (key: 'homophone' | 'cipher', checked: boolean) => {
+    setMethods(setMnemonicMethodPrefs({ [key]: checked }));
   };
 
   return (
@@ -82,6 +90,40 @@ export function ExamPrefsPage() {
         </div>
         <div className="vocab-settings-hint">
           <ChevronDown size={11} /> 口音与语速同时作用于系统 TTS 与在线音源；在线播放失败会自动回退系统 TTS。
+        </div>
+      </section>
+
+      <section className="vocab-settings">
+        <div className="exam-prefs-card-head">
+          <span className="exam-prefs-card-title"><Sparkles size={14} /> AI 助记</span>
+        </div>
+
+        <div className="vocab-settings-grid">
+          <div className="vocab-field vocab-field-row">
+            <span className="vocab-field-label">谐音口诀</span>
+            <label className="vocab-switch" title={methods.homophone ? '点击关闭' : '点击开启'}>
+              <input
+                type="checkbox"
+                checked={methods.homophone}
+                onChange={(e) => toggleMethod('homophone', e.target.checked)}
+              />
+              <span className="vocab-slider" />
+            </label>
+          </div>
+          <div className="vocab-field vocab-field-row">
+            <span className="vocab-field-label">密码口诀</span>
+            <label className="vocab-switch" title={methods.cipher ? '点击关闭' : '点击开启'}>
+              <input
+                type="checkbox"
+                checked={methods.cipher}
+                onChange={(e) => toggleMethod('cipher', e.target.checked)}
+              />
+              <span className="vocab-slider" />
+            </label>
+          </div>
+        </div>
+        <div className="vocab-settings-hint">
+          <ChevronDown size={11} /> 谐音如 pest → 拍死它；密码按字母拆词，如 tr(树)+ad(广告)+e(鹅)。关闭后生成时不再请求，已有缓存也不再显示，重新打开即恢复。
         </div>
       </section>
     </div>

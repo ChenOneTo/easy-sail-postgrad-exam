@@ -26,7 +26,6 @@ import {
 } from '../lib/ai';
 import type { AiModelConfig, ModelInfo } from '../lib/ai';
 import { isTauri } from '../lib/tauri';
-import { getMnemonicMethodPrefs, setMnemonicMethodPrefs } from '../lib/vocab-mnemonic';
 import { isAutoStartEnabled, setAutoStartEnabled } from '../lib/autostart';
 import { TASK_TYPES, TAG_MAP } from '../lib/types';
 import { useAiTask } from '../hooks/useAiTask';
@@ -88,8 +87,6 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [fetchingModels, setFetchingModels] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [aiEnabled, setAiEnabledState] = useState(isAiEnabled);
-  /** AI 助记附加口诀开关：谐音 / 密码 */
-  const [mnemonicMethods, setMnemonicMethodsState] = useState(getMnemonicMethodPrefs);
   const [classifyPreview, setClassifyPreview] = useState<AiClassifyDraft | null>(null);
 
   const aiTask = useAiTask();
@@ -578,10 +575,6 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     setAiEnabledState(next);
   };
 
-  const handleToggleMnemonicMethod = (key: 'homophone' | 'cipher') => {
-    setMnemonicMethodsState(setMnemonicMethodPrefs({ [key]: !mnemonicMethods[key] }));
-  };
-
   const handleSplashModeChange = (mode: SplashMode) => {
     setSplashMode(mode);
     setSplashModeState(mode);
@@ -751,6 +744,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                     }}
                   />
                 </div>
+
               </div>
             )}
 
@@ -943,29 +937,6 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                   >
                     {aiTask.loading ? '分析中...' : `分析 ${classifyCandidates.length} 条`}
                   </button>
-                </div>
-
-                {/* 单词 AI 助记的附加口诀开关：关掉后既不生成也不展示 */}
-                <div style={{ marginTop: 14, marginBottom: 2 }} className="setting-label">AI 助记</div>
-                <div className="setting-row">
-                  <div>
-                    <div className="setting-label">谐音口诀</div>
-                    <div className="setting-desc">按单词读音联想中文，如 pest → 拍死它</div>
-                  </div>
-                  <div
-                    className={`toggle${mnemonicMethods.homophone ? ' active' : ''}`}
-                    onClick={() => handleToggleMnemonicMethod('homophone')}
-                  />
-                </div>
-                <div className="setting-row">
-                  <div>
-                    <div className="setting-label">密码口诀</div>
-                    <div className="setting-desc">按字母密码拆词后再串成口诀，如 tr(树)+ad(广告)+e(鹅)</div>
-                  </div>
-                  <div
-                    className={`toggle${mnemonicMethods.cipher ? ' active' : ''}`}
-                    onClick={() => handleToggleMnemonicMethod('cipher')}
-                  />
                 </div>
 
                 {aiTask.error && <div style={msgStyle(aiTask.error)}>{aiTask.error}</div>}
